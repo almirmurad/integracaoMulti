@@ -98,24 +98,24 @@ return [
         //https://gamatermic.bicorp.online/public/omieProducts
         '/omieProducts'=>[
             'callback' => 'ProductController@omieProducts', //Novo produto no Omie
-            'middlewares' => []
+            'middlewares' => [RequestMiddleware::class,]
         ],
         '/ploomesProducts'=>[
             'callback' => 'ProductController@ploomesProducts', //Novo produto no ploomes
-            'middlewares' => []
+            'middlewares' => [RequestMiddleware::class,]
         ],
         '/processNewProduct'=>[
             'callback' => 'ProductController@processNewProduct', //inicia o processo
-            'middlewares' => []
+            'middlewares' => [RequestMiddleware::class, LoadCustomFieldsMiddleware::class]
         ],
         //services
         '/omieServices'=>[
-            'callback' => '', //Novo serviço no omie
-            'middlewares' => []
+            'callback' => 'ServiceController@omieServices', //Novo serviço no omie
+            'middlewares' => [RequestMiddleware::class,]
         ],
         '/processNewService'=>[
             'callback' => 'ServiceController@processNewService', //inicia processo
-            'middlewares' => []
+            'middlewares' => [RequestMiddleware::class, LoadCustomFieldsMiddleware::class]
         ],
         //Orders
         //https://gamatermic.bicorp.online/public/ploomesOrder

@@ -393,7 +393,8 @@ class OrderHandler
             'engeparts'=> 'product_0A53B875-0974-440F-B4CE-240E8F400B0F',
             'gsu'=> 'product_08A41D8E-F593-4B74-8CF8-20A924209A09',
         };
-        
+        print_r($idItemOmie);
+        exit;
         return $idItemOmie;
     }
 

@@ -3,6 +3,7 @@ namespace src\controllers;
 
 use core\Controller;
 use src\exceptions\WebhookReadErrorException;
+use src\factories\ErpFormatterFactory;
 use src\handlers\LoginHandler;
 use src\handlers\ProductHandler;
 use src\services\DatabaseServices;
@@ -15,34 +16,45 @@ class ProductController extends Controller {
     
     private $loggedUser;
     private $ploomesServices;
-    private $omieServices;
     private $databaseServices;
     private $rabbitMQServices;
+    private $formatter;
 
-    public function __construct()
+
+    public function __construct($args)
     {
-        if($_SERVER['REQUEST_METHOD'] !== "POST"){
-            $this->loggedUser = LoginHandler::checkLogin();
-            if ($this->loggedUser === false) {
-                $this->redirect('/login');
-            }
-        }
+        
+        $ploomesBase = $args['Tenancy']['ploomes_bases'][0];
 
-        $this->ploomesServices = new PloomesServices();
-        $this->omieServices = new OmieServices();
+        $args['Tenancy']['vhost'][0]['key'] = $args['Tenancy']['tenancies']['cpf_cnpj'];
+        $vhost = $args['Tenancy']['vhost'][0];
+        $this->ploomesServices = new PloomesServices($ploomesBase);
         $this->databaseServices = new DatabaseServices();
-        $this->rabbitMQServices = new RabbitMQServices();
-
+        $this->rabbitMQServices = new RabbitMQServices($vhost);
     }
-    //recebe webhook do omie
-    public function omieProducts()
-    {
-        $message = [];
-        $json = file_get_contents('php://input');
 
+    private function getProductHandler($args): ProductHandler
+    {
+        $this->formatter = ErpFormatterFactory::create($args);
+        $productHandler = new ProductHandler($this->ploomesServices, $this->databaseServices, $this->formatter);
+        
+        return $productHandler;
+    }
+    
+    //recebe webhook do omie
+    public function omieProducts($args)
+    {
+        $idUser = $args['Tenancy']['tenancies']['user_id'];
+        
+        $json = json_encode($args['body']);
+        $message = [];
+    
         try{
-            $productHandler = new ProductHandler($this->ploomesServices, $this->omieServices, $this->databaseServices);
-            $response = $productHandler->saveProductHook($json);
+            
+            $productHandler = $this->getProductHandler($args);
+            
+            $response = $productHandler->saveProductHook($json, $idUser);
+         
              // $rk = origem.entidade.ação
              $rk = array('Omie','Products');
              $this->rabbitMQServices->publicarMensagem('products_exc', $rk, 'omie_products',  $json);
@@ -79,19 +91,12 @@ class ProductController extends Controller {
         }
     }
     //processa webhook de produtos
-    public function processNewProduct()
+    public function processNewProduct($args)
     {
-        $json = file_get_contents('php://input');
-        // $decoded = json_decode($json,true);
-        // $status = $decoded['status'];
-        // $entity = $decoded['entity'];
         $message = [];
-
-        // processa o webhook 
         try{
-            
-            $productHandler = new ProductHandler($this->ploomesServices, $this->omieServices, $this->databaseServices);
-            $response = $productHandler->startProcess($json);
+            $productHandler = $this->getProductHandler($args);
+            $response = $productHandler->startProcess($args);
 
             $message =[
                 'status_code' => 200,
@@ -99,7 +104,6 @@ class ProductController extends Controller {
             ];
              
         }catch(WebhookReadErrorException $e){
-                
         }
         finally{
             if(isset($e)){
@@ -107,7 +111,7 @@ class ProductController extends Controller {
                 var_dump($e->getMessage());
                 $input = ob_get_contents();
                 ob_end_clean();
-                file_put_contents('./assets/logClient.log', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
+                file_put_contents('./assets/logProduct.log', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
                 //print $e->getMessage();
                 
                 $message =[
@@ -124,42 +128,42 @@ class ProductController extends Controller {
 
     } 
 
-    public function ploomesProducts()
-    {
-        $message = [];
-        $json = file_get_contents('php://input');
+    // public function ploomesProducts()
+    // {
+    //     $message = [];
+    //     $json = file_get_contents('php://input');
 
-        try{
-            $productHandler = new ProductHandler($this->ploomesServices, $this->omieServices, $this->databaseServices);
-            $response = $productHandler->saveProductHook($json);
-            // $rk = origem.entidade.ação
-            $rk = array('Ploomes','Products');
-            $this->rabbitMQServices->publicarMensagem('products_exc', $rk, 'ploomes_products',  $json);
+    //     try{
+    //         $productHandler = new ProductHandler($this->ploomesServices, $this->omieServices, $this->databaseServices);
+    //         $response = $productHandler->saveProductHook($json);
+    //         // $rk = origem.entidade.ação
+    //         $rk = array('Ploomes','Products');
+    //         //$this->rabbitMQServices->publicarMensagem('products_exc', $rk, 'ploomes_products',  $json);
             
-            if ($response > 0) {
+    //         if ($response > 0) {
                 
-                $message =[
-                    'status_code' => 200,
-                    'status_message' => 'Success: '. $response['msg'],
-                ];    
-            }
+    //             $message =[
+    //                 'status_code' => 200,
+    //                 'status_message' => 'Success: '. $response['msg'],
+    //             ];    
+    //         }
 
-        }catch(WebhookReadErrorException $e){        
-        }
-        finally{
-            if(isset($e)){
-                ob_start();
-                var_dump($e->getMessage());
-                $input = ob_get_contents();
-                ob_end_clean();
-                file_put_contents('./assets/log.log', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
+    //     }catch(WebhookReadErrorException $e){        
+    //     }
+    //     finally{
+    //         if(isset($e)){
+    //             ob_start();
+    //             var_dump($e->getMessage());
+    //             $input = ob_get_contents();
+    //             ob_end_clean();
+    //             file_put_contents('./assets/log.log', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
                 
-                return print $e->getMessage();
-            }
+    //             return print $e->getMessage();
+    //         }
                          
-             return print $message['status_message'];
-        }     
-    }
+    //          return print $message['status_message'];
+    //     }     
+    // }
 
     public function nasajonProducts(){
 

@@ -1,39 +1,38 @@
 <?php
+
 namespace src\controllers;
 
 use core\Controller;
 use src\exceptions\WebhookReadErrorException;
 use src\factories\ErpFormatterFactory;
-use src\functions\CustomFieldsFunction;
+use src\functions\DiverseFunctions;
 use src\handlers\ClientHandler;
 use src\handlers\LoginHandler;
 use src\services\DatabaseServices;
-use src\services\OmieServices;
 use src\services\PloomesServices;
 use src\services\RabbitMQServices;
 
-class ContactController extends Controller {
-    
+class ContactController extends Controller
+{
+
     private $loggedUser;
     private $ploomesServices;
-    private $omieServices;
     private $databaseServices;
-    //private $rabbitMQServices;
+    private $rabbitMQServices;
 
 
     public function __construct($args)
     {
         $ploomesBase = $args['Tenancy']['ploomes_bases'][0];
-        
+
         $args['Tenancy']['vhost'][0]['key'] = $args['Tenancy']['tenancies']['cpf_cnpj'];
-        $vhost = $args['Tenancy']['vhost'][0];        
+        $vhost = $args['Tenancy']['vhost'][0];
         $this->ploomesServices = new PloomesServices($ploomesBase);
         $this->databaseServices = new DatabaseServices();
         //$this->rabbitMQServices = new RabbitMQServices($vhost);
- 
     }
 
-    private function getContactHandler($args): ClientHandler
+    private function getClientHandler($args): ClientHandler
     {
         $formatter = ErpFormatterFactory::create($args);
         $clienteHandler = new ClientHandler($this->ploomesServices, $this->databaseServices, $formatter);
@@ -41,173 +40,154 @@ class ContactController extends Controller {
         return $clienteHandler;
     }
 
-
     //Ploomes
     //recebe webhook de cliente criado, alterado e excluído do PLOOMES CRM
     public function ploomesContacts($args)
     {
-        $idUser = $args['tenancy']['tenancies']['user_id'];
-        $body = $args['body'];
-        $json = json_encode($body);
+        $idUser = $args['Tenancy']['tenancies']['user_id'];
+        $json = json_encode($args['body']);
 
-        try{
-            
-            $erp = $args['user']['erp_name'];
-            $clienteHandler = $this->getContactHandler($erp);
+        try {
+            $ignorar = ['LastUpdateDate', 'UpdaterId'];
+            $diferencas = DiverseFunctions::compareArrays($args['body']['Old'], $args['body']['New'], $ignorar);
 
+            if(empty($diferencas)){
+                
+                throw new WebhookReadErrorException('Não houve alteração no array', 500);
+            }
+
+            $clienteHandler = $this->getClientHandler($args);
             $response = $clienteHandler->saveClientHook($json, $idUser);
 
             // $rk = origem.entidade.ação
-            $rk = array('Ploomes','Contacts');
+            $rk = array('Ploomes', 'Contacts');
             $this->rabbitMQServices->publicarMensagem('contacts_exc', $rk, 'ploomes_contacts',  $json);
 
             if ($response > 0) {
-                
-                $message =[
+                $message = [
                     'status_code' => 200,
-                    'status_message' => 'SUCCESS: '. $response['msg'],
+                    'status_message' => 'SUCCESS: ' . $response['msg'],
                 ];
-                
             }
+        } catch (WebhookReadErrorException $e) {
+        } finally {
+            ob_start();
+            var_dump($message);
 
-        }catch(WebhookReadErrorException $e){        
-        }
-        finally
-        {
-            if(isset($e)){
-               
-                $message =[
+            if (isset($e)) {
+                $message = [
                     'status_code' => 500,
                     'status_message' => $e->getMessage(),
                 ];
 
-                ob_start();
-                var_dump($e->getMessage());
                 $input = ob_get_contents();
                 ob_end_clean();
-                file_put_contents('./assets/log.log', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
+                file_put_contents('./assets/logClient', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
+                return print 'ERROR:' . $message['status_code'] . '. MESSAGE: ' . $message['status_message'];
+            }
 
-                return print 'ERROR:'. $message['status_code'].'. MESSAGE: ' .$message['status_message'];
-            }           
-             return print $message['status_message'];         
-        }        
+            $input = ob_get_contents();
+            ob_end_clean();
+            file_put_contents('./assets/logClient', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
+            return print $message['status_message'];
+        }
     }
 
     //processa contatos e clientes do ploomes ou do Omie
     public function processNewContact($args)
     {
-        
         $message = [];
         // processa o webhook 
-        try{
-            
-            $clienteHandler = $this->getContactHandler($args);
-            
+        try {
+            $clienteHandler = $this->getClientHandler($args);
             $response = $clienteHandler->startProcess($args);
 
-
-            $message =[
+            $message = [
                 'status_code' => 200,
                 'status_message' => $response['success'],
             ];
-        
-            //grava log
+        } catch (WebhookReadErrorException $e) {
+        } finally {
             ob_start();
-            print_r($message);
-            $input = ob_get_contents();
-            ob_end_clean();
-            file_put_contents('./assets/logClient.log', $input . PHP_EOL, FILE_APPEND);
-        
-        }catch(WebhookReadErrorException $e){
-                
-        }
-        finally{
-            if(isset($e)){
-                ob_start();
-                var_dump($e->getMessage());
+            
+            if (isset($e)) {
+
+                $message = [
+                    'status_code' => 500,
+                    'status_message' => $e->getMessage(),
+                ];
+                var_dump($message);
                 $input = ob_get_contents();
                 ob_end_clean();
                 file_put_contents('./assets/logClient.log', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
-                //print $e->getMessage();
-                
-                $message =[
-                    'status_code' => 500,
-                    'status_message' => $e->getMessage(),
-                ];
-               
-                // return print 'ERROR: '.$message['status_code'].' MENSAGEM: '.$message['status_message'];
-                 $m = json_encode($message);
-                 return print_r($m);
+                $m = json_encode($message);
+                return print_r($m);
             }
-            
-            //return print 'SUCCESS: '.$message['status_code'].' MENSAGEM: '.$message['status_message'];
+            var_dump($message);
+            $input = ob_get_contents();
+            ob_end_clean();
+            file_put_contents('./assets/logClient.log', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
             $m = json_encode($message);
             return print_r($m);
-               
         }
-
-    } 
+    }
 
     //Omie
     //recebe webhook de cliente criado, alterado e excluído do OMIE ERP
-    public function omieClients($args){
-       
+    public function omieClients($args)
+    {
+
         $idUser = $args['Tenancy']['tenancies']['user_id'];
-        $erp = $args['user']['erp_name'];
-        $body = $args['body'];
-        $json = json_encode($body);
-        
+        $json = json_encode($args['body']);
+
         $message = [];
-       
-        try{
 
-            $clienteHandler = $this->getContactHandler($erp);
-            
+        try {
+
+            $clienteHandler = $this->getClientHandler($args);
             $response = $clienteHandler->saveClientHook($json, $idUser);
-          
-            // $rk = origem.entidade.ação
-            $rk = array('Omie','Clientes');
-            $this->rabbitMQServices->publicarMensagem('contacts_exc', $rk, 'omie_clientes',  $json);
-            
-            if ($response > 0) {
-                
-                $message =[
-                    'status_code' => 200,
-                    'status_message' => 'Success: '. $response['msg'],
-                ];
-                
-            }
 
-        }catch(WebhookReadErrorException $e){        
-        }
-        finally{
-            if(isset($e)){
-                ob_start();
-                var_dump($e->getMessage());
-                $input = ob_get_contents();
-                ob_end_clean();
-                file_put_contents('./assets/log.log', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
-                $message =[
+            // $rk = origem.entidade.ação
+            $rk = array('Omie', 'Clientes');
+            $this->rabbitMQServices->publicarMensagem('contacts_exc', $rk, 'omie_clientes',  $json);
+
+            if ($response > 0) {
+
+                $message = [
+                    'status_code' => 200,
+                    'status_message' => 'Success: ' . $response['msg'],
+                ];
+            }
+        } catch (WebhookReadErrorException $e) {
+        } finally {
+            ob_start();
+            
+            if (isset($e)) {
+                
+                $message = [
                     'status_code' => 500,
                     'status_message' => $e->getMessage(),
                 ];
-               
-                // return print 'ERROR: '.$message['status_code'].' MENSAGEM: '.$message['status_message'];
-                 $m = json_encode($message);
-                 return print_r($m);
+                var_dump($message);
+                $input = ob_get_contents();
+                ob_end_clean();
+                file_put_contents('./assets/logClient', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
+                $m = json_encode($message);
+                return print_r($m);
             }
-            
-            //return print 'SUCCESS: '.$message['status_code'].' MENSAGEM: '.$message['status_message'];
+            var_dump($message);
+            $input = ob_get_contents();
+            ob_end_clean();
+            file_put_contents('./assets/logClient', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
             $m = json_encode($message);
             return print_r($m);
-           
         }
-
     }
 
-    public function nasajonClients(){
+    public function nasajonClients()
+    {
 
-         // Definir cabeçalhos CORS
+        // Definir cabeçalhos CORS
         header("Access-Control-Allow-Origin: *");
         header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
         header("Access-Control-Allow-Headers: Content-Type, Authorization");
@@ -222,19 +202,17 @@ class ContactController extends Controller {
         // Receber JSON normalmente
         $json = file_get_contents('php://input');
 
-            ob_start();
-            print_r($json);
-            $input = ob_get_contents();
-            ob_end_clean();
-            file_put_contents('./assets/nasajon.log', $input . PHP_EOL, FILE_APPEND);
+        ob_start();
+        print_r($json);
+        $input = ob_get_contents();
+        ob_end_clean();
+        file_put_contents('./assets/nasajon.log', $input . PHP_EOL, FILE_APPEND);
 
-            $r = [
-                'pong'=>true
-            ];
-            $jsonR = json_encode($r);
+        $r = [
+            'pong' => true
+        ];
+        $jsonR = json_encode($r);
 
         return print $jsonR;
     }
-
-
 }

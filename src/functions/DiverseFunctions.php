@@ -110,6 +110,35 @@ class DiverseFunctions{
         return $resultado;
     }
 
+    public static function compareArrays($old, $new, $ignorar = []) {
+        $diferencas = [];
+    
+        foreach ($old as $chave => $valorOld) {
+            if (in_array($chave, $ignorar)) {
+                continue;
+            }
+    
+            if (!array_key_exists($chave, $new)) {
+                $diferencas[$chave] = ['old' => $valorOld, 'new' => null];
+            } elseif (is_array($valorOld) && is_array($new[$chave])) {
+                if (json_encode($valorOld) !== json_encode($new[$chave])) {
+                    $diferencas[$chave] = ['old' => $valorOld, 'new' => $new[$chave]];
+                }
+            } elseif ($valorOld !== $new[$chave]) {
+                $diferencas[$chave] = ['old' => $valorOld, 'new' => $new[$chave]];
+            }
+        }
+    
+        // Verifica se há chaves novas no array New que não existem no Old
+        foreach ($new as $chave => $valorNew) {
+            if (!array_key_exists($chave, $old) && !in_array($chave, $ignorar)) {
+                $diferencas[$chave] = ['old' => null, 'new' => $valorNew];
+            }
+        }
+    
+        return $diferencas;
+    }
+
     // public static function compararArrays($old, $new, $path = '') 
     // {
     //     $diferencas = [];

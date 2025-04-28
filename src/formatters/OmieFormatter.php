@@ -2,8 +2,10 @@
 
 namespace src\formatters;
 
+use GrahamCampbell\ResultType\Success;
 use src\contracts\ErpFormattersInterface;
 use src\exceptions\PedidoInexistenteException;
+use src\exceptions\WebhookReadErrorException;
 use src\functions\CustomFieldsFunction;
 use src\functions\DiverseFunctions;
 use src\services\OmieServices;
@@ -12,11 +14,76 @@ use stdClass;
 Class OmieFormatter implements ErpFormattersInterface{
 
     private object $omieServices;
+    public mixed $current;    
 
     public function __construct($appk, $omieBases)
     {
         $this->omieServices = new OmieServices($appk, $omieBases);
+        $this->current = date('d/m/Y H:i:s');
     }
+
+    //identifica qual action do webhook
+    public function findAction(array $args): array
+    {
+        $current = date('d/m/Y H:i:s');
+        $decoded = $args['body'];
+        
+        if(isset($decoded['Action'])){
+            try{
+                $action = match($decoded['Action']){
+                    'Create' => 'create',
+                    'Update' => 'update',
+                    'Delete' => 'delete'
+                };
+
+                $array = [
+                    'action' =>$action,
+                    'origem' => 'CRMToERP'
+                ];
+
+            }catch(\UnhandledMatchError $e){
+                throw new WebhookReadErrorException('Não foi encontrada nenhuma ação no webhook ['.$e->getMessage().']'.$current, 500);
+            }
+            
+        }elseif(isset($decoded['topic'])){
+            try{
+                $action = match($decoded['topic']){
+                    'ClienteFornecedor.Incluido' => 'create',
+                    'ClienteFornecedor.Alterado' => 'update',
+                    'ClienteFornecedor.Excluido' => 'delete',
+                    'Produto.Incluido' => 'create',
+                    'Produto.Alterado' => 'update',
+                    'Produto.Excluido' => 'delete',
+                    'Produto.MovimentacaoEstoque' => 'stock',
+                    'Servico.Incluido' => 'create',
+                    'Servico.Alterado' => 'update',
+                    'Servico.Excluido' => 'delete',
+                };
+
+                $array = [
+                    'action' =>$action,
+                    'origem' => 'ERPToCRM'
+                ];
+
+            }catch(\UnhandledMatchError $e){
+                throw new WebhookReadErrorException('Não foi encontrada nenhuma ação no webhook ['.$e->getMessage().']'.$current, 500);
+            }
+        }else{
+            throw new WebhookReadErrorException('Não foi encontrada nenhuma ação no webhook '.$current, 500);
+        }
+
+        return $array;
+    }
+
+    public function detectLoop(array $args){
+        
+        if($args['body']['author']['name'] === 'Integração' || $args['body']['author']['email'] === 'no-reply@omie.com.br' ){
+            throw new WebhookReadErrorException('Dados de retorno da última integração', 500);
+        }
+
+        return true;
+    }
+
 
     public function createOrder(object $order, object $omie):string
     {        
@@ -79,7 +146,7 @@ Class OmieFormatter implements ErpFormattersInterface{
     }
 
     //cadastra obj cliente com dados vindos do erp para enviar ao crm
-    public function createClientErpToCrmObj(array $args):object
+    public function createObjectCrmContactFromErpData(array $args):object
     {
         $cliente = new stdClass();
         $decoded=$args['body'];
@@ -90,10 +157,8 @@ Class OmieFormatter implements ErpFormattersInterface{
         $c =  $this->omieServices->getClientById($cliente);
         
         $array = DiverseFunctions::achatarArray($c);
-
         $chave = 'idClienteOmie' . $omieApp['app_name'];
         $cliente->$chave = $array['codigo_cliente_omie'];
-      
     
         //$cliente->messageId = $array['messageId'];
         // $cliente->topic = $array['topic'];
@@ -166,7 +231,6 @@ Class OmieFormatter implements ErpFormattersInterface{
         $cliente->appKey = $decoded['appKey'];
         // $cliente->appHash = $array['appHash'];
         // $cliente->origin = $array['origin'];
-
         return $cliente;
     }
 
@@ -181,7 +245,8 @@ Class OmieFormatter implements ErpFormattersInterface{
         $omie->appKey = $omieApp['app_key'];
         $omie->ncc = $omieApp['ncc'];
         $omie->tenancyId = $omieApp['tenancy_id'];
-
+        $custom = $_SESSION['contact_custom_fields'][$omie->tenancyId];
+        
         $data = [];
         $data['TypeId'] = 1;
         $data['Name'] = $contact->nomeFantasia;
@@ -205,22 +270,23 @@ Class OmieFormatter implements ErpFormattersInterface{
         $data['Note'] = $contact->observacao ?? null;
         $data['Email'] = $contact->email ?? null;
         $data['Website'] = $contact->homepage ?? null;
-        //$data['RoleId'] = $contact->cargo ?? null;//Id do cargo do cliente(inexistente no omie)
-        //$data['DepartmentId'] = $contact->departamento ?? null;//Id do departamento do cliente(inexistente no omie)
-        //$data['Skype'] = $contact->skype ?? null;//Skype do cliente(inexistente no omie)
-        //$data['Facebook'] = $contact->facebook ?? null;//Facebook do cliente(inexistente no omie)
-        //$data['ForeignZipCode'] = $contact->cepInternacional ?? null;//(inexistente no omie)
-        //$data['CurrencyId'] = $contact->moeda ?? null;//(inexistente no omie)
-        //$data['EmailMarketing'] = $contact->marketing ?? null;//(inexistente no omie)
+        $data['RoleId'] = $contact->cargo ?? null;//Id do cargo do cliente(inexistente no omie)
+        $data['DepartmentId'] = $contact->departamento ?? null;//Id do departamento do cliente(inexistente no omie)
+        $data['Skype'] = $contact->skype ?? null;//Skype do cliente(inexistente no omie)
+        $data['Facebook'] = $contact->facebook ?? null;//Facebook do cliente(inexistente no omie)
+        $data['ForeignZipCode'] = $contact->cepInternacional ?? null;//(inexistente no omie)
+        $data['CurrencyId'] = $contact->moeda ?? null;//(inexistente no omie)
+        $data['EmailMarketing'] = $contact->marketing ?? null;//(inexistente no omie)
         $data['CNAECode'] = $contact->cnae ?? null;
-        //$data['Latitude'] = $contact->latitude ?? null;(inexistente no omie)
-        //$data['Longitude'] = $contact->longitude ?? null;(inexistente no omie)
+        $data['Latitude'] = $contact->latitude ?? null;//(inexistente no omie)
+        $data['Longitude'] = $contact->longitude ?? null;//(inexistente no omie)
         $data['Key'] = $contact->codigoClienteOmie ?? null;//chave externa do cliente(código Omie)
-        //$data['AvatarUrl'] = $contact->avatar ?? null;(inexistente no omie)
-        //$data['IdentityDocument'] = $contact->exterior ?? null;//(documento internacional exterior)
-        //$data['CNAEName'] = $contact->cnaeName ?? null;(inexistente no omie)
+        $data['AvatarUrl'] = $contact->avatar ?? null;//(inexistente no omie)
+        $data['IdentityDocument'] = $contact->exterior ?? null;//(documento internacional exterior)
+        $data['CNAEName'] = $contact->cnaeName ?? null;//(inexistente no omie)
+        //aqui cria um novo contato para a empresa com os dados do contato cadastrado no Omie
         // $person = [];
-        // $person['id'] = '';
+        // $person['Id'] = $contact->contatoId ?? null;
         // $person['TypeId'] = 2;
         // $person['Name'] = $contact->contato;
         
@@ -241,22 +307,30 @@ Class OmieFormatter implements ErpFormattersInterface{
         ];
         $data['Phones'][] = $phone1 ?? null;
         $data['Phones'][] = $phone2 ?? null;
+
+        //OtherProperties
         $op = [];
-        if(!empty($contact->tipoAtividade)){
+
+        if(!empty($contact->tipoAtividade) || $contact->tipoAtividade == 0){
             
-            $id = match($contact->tipoAtividade){  
-                '0'=>420130572,
-                '1'=>420130568,
-                '2'=>420130574,
-                '3'=>420130569,
-                '4'=>420130565,
-                '5'=>420130566,           
-                '6'=>420130571,
-                '7'=>420130570,
-                '8'=>420130563,
-                '9'=>420130573,
-            };
+            $atividade = $this->omieServices->getTipoAtividade( $omie, $contact->tipoAtividade, $name = null);
+            
+            foreach($custom['Cliente'] as $c){
+                if($c['SendExternalKey'] === 'bicorp_api_tipoAtividade_out'){
+                    
+                    foreach($c['Options'] as $optAtividade){
+                        
+                        if($optAtividade['Name'] === $atividade['cDescricao']){
+
+                            $contact->tipoAtividade = $optAtividade['Id'];
+                        }
+                    }
+                }
+            }
+
         }
+        
+        $ploomesTags = $ploomesServices->getTagsByEntityId(1);//id da entidade
         
         $tags = [];
         $tag = [];
@@ -264,192 +338,21 @@ Class OmieFormatter implements ErpFormattersInterface{
             
             foreach($contact->tags as $t)
             {
-                $idTag = match($t['tag']){
-                    "Fornecedor"=>40203491,         
-                    "Transportadora"=>40203492,
-                    "Funcionário"=>40203493,               
-                    "Min. da Fazenda"=>40203494,
-                    "Banco e Inst. Financeiras"=>40203495,
-                    "Diretor"=>40203497,
-                    "Cliente"=>40203778,
-                    "GAMATERMIC"=>40203778,
-                };
-                
-                $tag['TagId'] = $idTag;
-                $tag['Tag']['Name'] = $t['tag'];
-                
+                foreach($ploomesTags as $pTag){
+                    if(strtolower($pTag['Name']) === strtolower($t['tag'])){
+                        $tag['TagId'] = $pTag['Id'];
+                        $tag['Tag']['Name'] = $pTag['Name'];
+                    }
+                }                
+        
                 $tags[]=$tag;
             }
             $data['Tags'] = $tags;
         }else{
             $data['Tags'] = null;
         }     
-        
-
-        $custom = $_SESSION['contact_custom_fields'][$omie->tenancyId];
          
         $op = CustomFieldsFunction::createOtherPropertiesByEntity($custom['Cliente'], $contact);
-        // print_r($op);
-        // exit;
-        
-        // $tipo = [
-        //     'FieldKey'=>'contact_879A3AA2-57B1-49DC-AEC2-21FE89617665',
-        //     'IntegerValue'=>409150910,//pessoa juridica
-        // ];
-        // $porte = [
-        //     'FieldKey'=>'contact_FA99392B-CED8-4668-B003-DFC1111DACB0',
-        //     'IntegerValue'=>'',//pequeno, medio, grande
-        // ];
-        // $importancia = [
-        //     'FieldKey'=>'contact_20B72360-82CF-4806-BB05-21E89D5C61FD',
-        //     'IntegerValue'=>409150919,//alta
-        // ];
-        // $situacao = [
-            //     'FieldKey'=>'contact_5F52472B-E311-4574-96E2-3181EADFAFBE',
-            //     'IntegerValue'=>409150897,//ativo???
-            // ];
-            // $cicloCompra = [
-        //     'FieldKey'=>'contact_9E595E72-E50C-4E95-9A05-D3B024C177AD',
-        //     'StringValue'=>'',
-        // ];
-        // $inscEstadual = [
-        //     'FieldKey'=>'contact_5D5A8D57-A98F-4857-9D11-FCB7397E53CB',
-        //     'StringValue'=>$contact->inscricaoEstadual ?? null,
-        // ];
-        // $inscMunicipal = [
-        //     'FieldKey'=>'contact_D21FAEED-75B2-40E4-B169-503131EB3609',
-        //     'StringValue'=>$contact->inscricaoMunicipal ?? null,
-        // ];
-        // $inscSuframa = [
-        //     'FieldKey'=>'contact_3094AFFE-4263-43B6-A14B-8B0708CA1160',
-        //     'StringValue'=>$contact->inscricaoSuframa ?? null, 
-        // ];
-        // $simplesNacional = [
-        //     'FieldKey'=>'contact_9BB527FD-8277-4D1F-AF99-DD88D5064719',
-        //     'BoolValue'=>(isset($contact->simplesNacional) && $contact->simplesNacional === 'S') ? $contact->simplesNacional = true : $contact->simplesNacional = false,
-        // ];
-        // $contato1 = [
-        //     'FieldKey'=>'contact_3C521209-46BD-4EA5-9F41-34756621CCB4',
-        //     'StringValue'=>$contact->contato ?? null,
-        // ];
-        // $prodRural = [
-        //     'FieldKey'=>'contact_F9B60153-6BDF-4040-9C3A-E23B1469894A',
-        //     'BoolValue'=>(isset($contact->produtorRural) && $contact->produtorRural === 'S') ? $contact->produtorRural = true : $contact->produtorRural = false,
-        // ];
-        // $contribuinte = [
-        //     'FieldKey'=>'contact_FC16AEA5-E4BF-44CE-83DA-7F33B7D56453',
-        //     'BoolValue'=>(isset($contact->contribuinte) && $contact->contribuinte === 'S') ? $contact->contribuinte = true : $contact->contribuinte = false,
-        // ];
-        // $limiteCredito = [
-        //     'FieldKey'=>'contact_10D27B0F-F9EF-4378-B1A8-099319BAC0AD',
-        //     'DecimalValue'=>$contact->limiteCredito ?? null,
-        // ];
-        // $inativo = [
-        //     'FieldKey'=>'contact_CED4CBAD-92C7-4A51-9985-B9010D27E1A4',
-        //     'BoolValue'=>(isset($contact->inativo) && $contact->inativo === 'S') ? $contact->inativo = true : $contact->inativo = false,
-        // ];
-        // $bloqExclusao = [
-        //     'FieldKey'=>'contact_C613A391-155B-42F5-9C92-20C3371CC3DE',
-        //     'BoolValue'=>(isset($contact->bloquearExclusao) && $contact->bloquearExclusao === 'S') ? $contact->bloquearExclusao = true : $contact->bloquearExclusao = false,
-        // ];
-        // $transpPadrao = [
-        //     'FieldKey'=>'contact_77CCD2FB-53D7-4203-BE6B-14B671A06F33',
-        //     //'IntegerValue'=>'',
-        //     'StringValue'=>$contact->idTranspPadrao ?? null
-        // ];
-        // $idTranspPadrao = [
-        //     'FieldKey'=>'contact_3E075EA9-320C-479E-A956-5A3734C55E51',
-        //     //'IntegerValue'=>'',
-        //     'IntegerValue'=>$contact->idTranspPadraoPloomes ?? null
-        // ];
-        // $cBanco = [
-        //     'FieldKey'=>'contact_6BB80AEA-43D0-45E8-B9E4-28D89D9773B9',
-        //     'StringValue'=>$contact->cBanco ?? null,
-        // ];
-        // $agencia = [
-        //     'FieldKey'=>'contact_1F1E1F00-34CB-4356-B852-496D62A90E10',
-        //     'StringValue'=>$contact->agencia ?? null,
-        // ];
-        // $nContaCorrente = [
-        //     'FieldKey'=>'contact_38E58F93-1A6C-4E40-9F5B-45B5692D7C80',
-        //     'StringValue'=>$contact->nContaCorrente ?? null,
-        // ];
-        // $docTitular = [
-        //     'FieldKey'=>'contact_FDFB1BE8-ECC8-4CFF-8A37-58DCF24CDB50',
-        //     'StringValue'=>$contact->docTitular ?? null,
-        // ];
-        // $nomeTitular = [
-        //     'FieldKey'=>'contact_DDD76E27-8EFA-416B-B7DF-321C1FB31066',
-        //     'StringValue'=>$contact->nomeTitular ?? null,
-        // ];
-        // $cli = $this->omieServices->getClientById($contact);
-        // $chavePix = [
-        //     'FieldKey'=>'contact_847FE760-74D0-462D-B464-9E89C7E1C28E',
-        //     'StringValue'=>$cli['dadosBancarios']['cChavePix'] ?? null,
-        // ];
-        // $transferenciaPadrao = [
-        //     'FieldKey'=>'contact_33015EDD-B3A7-464E-81D0-5F38D31F604A',
-        //     'BoolValue'=>(isset($contact->transferenciaPadrao) && $contact->transferenciaPadrao === 'S') ? true : false,
-        // ];
-
-        //Abaixo tratamos dos campos que são indicativos de quais bases o cliente integra no erp.
-
-        // switch($contact->appKey){
-
-        //     case '1120581879417':
-        //         $integrarBase1 = [
-        //             'FieldKey'=>'contact_55D34FF5-2389-4FEE-947C-ACCC576DB85C',
-        //             'BoolValue'=> true,
-        //         ];
-        //         $op[] = $integrarBase1;
-        //         break;
-        //     case '146532853467':
-        //         $integrarBase2 = [
-        //             'FieldKey'=>'contact_32A7FEE7-C46A-40BE-BABD-2973A63C092C',
-        //             'BoolValue'=> true,
-        //         ];
-        //         $op[] = $integrarBase2;
-        //         break;
-        //     case '146571186762':
-        //         $integrarBase3 = [
-        //             'FieldKey'=>'contact_02AA406F-F955-4AE0-B380-B14301D1188B',
-        //             'BoolValue'=>true,
-        //         ];
-        //         $op[] = $integrarBase3;
-        //         break;
-        //     case '171250162083':
-        //         $integrarBase4 = [
-        //             'FieldKey'=>'contact_E497C521-4275-48E7-B44E-7A057844B045',
-        //             'BoolValue'=>true,
-        //         ];
-        //         $op[] = $integrarBase4;
-        //         break;
-        // }
-        //no caso de der certo funções personalizadas então não precisa mais do array abaixo
-        // $op[] = $ramo;
-        // $op[] = $tipo;
-        // $op[] = $importancia;
-        // // $op[] = $situacao;
-        // $op[] = $inscEstadual;
-        // $op[] = $inscMunicipal;
-        // $op[] = $inscSuframa;
-        // $op[] = $simplesNacional;
-        // $op[] = $contato1;
-        // $op[] = $prodRural;
-        // $op[] = $contribuinte;
-        // $op[] = $limiteCredito;
-        // $op[] = $inativo;
-        // $op[] = $bloqExclusao;
-        // $op[] = $transpPadrao;
-        // $op[] = $idTranspPadrao;
-        // $op[] = $cBanco;
-        // $op[] = $agencia;
-        // $op[] = $nContaCorrente;
-        // $op[] = $docTitular;
-        // $op[] = $nomeTitular;
-        // $op[] = $cOmie ?? null;
-        // $op[] = $chavePix;
-        // $op[] = $transferenciaPadrao;
         
         $data['OtherProperties'] = $op;
         
@@ -459,16 +362,27 @@ Class OmieFormatter implements ErpFormattersInterface{
 
     }
 
-    // createContactObjFromPloomesCrm - cria obj cliente vindo do Ploomes ao ERP Omie
-    public function createContactObjFromPloomesCrm(array $args, object $ploomesServices):object
+    // createObjectErpClientFromCrmData - cria obj cliente vindo do Ploomes ao ERP Omie
+    public function createObjectErpClientFromCrmData(array $args, object $ploomesServices):object
     {
         $decoded = $args['body'];
         $cliente = $ploomesServices->getClientById($decoded['New']['Id']);
+        $omie = new stdClass();
+        //este app omie só pode servir para buscar campos fixos do omie os dados dos usuários devem vir do ploomes
+        $omieApp =$args['Tenancy']['omie_bases'][0];
+        
+        $omie->appName = $omieApp['app_name'];
+        $omie->appSecret = $omieApp['app_secret'];
+        $omie->appKey = $omieApp['app_key'];
+        $omie->ncc = $omieApp['ncc'];
+        $omie->tenancyId = $omieApp['tenancy_id'];
         
         $contact = new stdClass(); 
         
         $custom = CustomFieldsFunction::compareCustomFields($decoded['New']['OtherProperties'],$args['Tenancy']['tenancies']['id'],'Cliente');
-    
+
+        $allCustoms = $_SESSION['contact_custom_fields'][$args['Tenancy']['tenancies']['id']];
+        
         /************************************************************
          *                   Other Properties                        *
          *                                                           *
@@ -486,27 +400,26 @@ Class OmieFormatter implements ErpFormattersInterface{
         $contact->tipoCliente = $prop['contact_879A3AA2-57B1-49DC-AEC2-21FE89617665'] ?? null;
         //contact_FF485334-CE8C-4FB9-B3CA-4FF000E75227 = ramo de atividade
         //$contact->ramoAtividade = $prop['contact_FF485334-CE8C-4FB9-B3CA-4FF000E75227'] ?? null;
-        $ramo= $prop['contact_FF485334-CE8C-4FB9-B3CA-4FF000E75227'] ?? null;
-        
-        if($ramo !== null){
-            $id = match($ramo){
+        // $ramo= $prop['contact_FF485334-CE8C-4FB9-B3CA-4FF000E75227'] ?? null;
+
+        foreach($allCustoms['Cliente'] as $ac){
+            
+            if ($ac['SendExternalKey'] === 'bicorp_api_tipoAtividade_out'){
                 
-                420130572=>0,
-                420130568=>1,
-                420130574=>2,
-                420130569=>3,
-                420130565=>4,
-                420130566=>5,           
-                420130571=>6,
-                420130570=>7,
-                420130563=>8,
-                420130573=>9,
-    
-            };
-            $contact->ramoAtividade = $id;
-        }else{
-            $contact->ramoAtividade = null;
+                $options = $ac['Options'];
+                
+                foreach($options as $opt){
+                    
+                    if($opt['Id'] === $custom['bicorp_api_tipoAtividade_out']){
+                     
+                        $atividade = $this->omieServices->getTipoATividade($omie, $id = null, $opt['Name']);
+                        $contact->tipoAtividade = $atividade['cCodigo'];
+                    }
+                }
+            }
         }
+        
+
         //contact_FA99392B-CED8-4668-B003-DFC1111DACB0 = Porte
         $contact->porte = $prop['contact_FA99392B-CED8-4668-B003-DFC1111DACB0'] ?? null;
         //contact_20B72360-82CF-4806-BB05-21E89D5C61FD = importância
@@ -600,8 +513,8 @@ Class OmieFormatter implements ErpFormattersInterface{
         $contact->legalName = $cliente['LegalName']; // Razão social do contact !obrigatório!
         $contact->cnpj = $cliente['CNPJ'] ?? null; // Contatos CNPJ !obrigatório!
         $contact->cpf = $cliente['CPF'] ?? null; // Contatos CPF !obrigatório!
-        $contact->documentoExterior = $cliente['IdentityDocument'] ?? null; // Documento extrangeiro CPF
-        $contact->segmento = $cliente['LineOfBusiness']['Id'] ?? null; // Segmento CPF
+        $contact->documentoExterior = (isset($cliente['IdentityDocument']) && $cliente['IdentityDocument'] === 'N' ) ? null :  $cliente['IdentityDocument']; // Documento extrangeiro CPF
+        $contact->segmento = ($cliente['LineOfBusiness']['Id']) ?? null; // Segmento CPF
         $contact->email = $cliente['Email']; // Contatos Email obrigatório
         $contact->website = $cliente['Website'] ?? null; // Contatos website obrigatório
         $contact->ddd1 = $phones[0]['ddd'] ?? null; //"telefone1_ddd": "011",
@@ -636,20 +549,21 @@ Class OmieFormatter implements ErpFormattersInterface{
         {   
             $name = strtolower($base['app_name']);
             $chaveId = "bicorp_api_id_cliente_omie_{$name}_out";
-  
+            
             $contact->codOmie[] = $custom[$chaveId] ?? null;           
-        
+            
             $chave = "bicorp_api_integrar_base_{$name}_out";
             
             if(isset($custom[$chave]) && $custom[$chave] !== false){
-                $base['SendExternalKey'] = $chave;
+                $base['sendExternalKey'] = $chave;
+                $base['sendExternalKeyIdOmie'] = $chaveId;
                 $base['integrar'] = 1;
             }
             
             $bases[] =$base; 
         }
 
-        $contact->basesFaturamento = $bases;    
+        $contact->basesFaturamento = $bases;      
         
         $tags = [];
 
@@ -673,166 +587,77 @@ Class OmieFormatter implements ErpFormattersInterface{
         return $contact;
     }
 
-    // updateContactCRMToERP - atualiza um contato do CRM para o ERP
-    public function updateContactCRMToERP(object $contact, object $ploomesServices):array
+    // updateContactCRMToERP - atualiza um contato do CRM para o ERP ok
+    public function updateContactCRMToERP(object $contact, object $ploomesServices, object $tenant):array
     {
-   
-        $messages = [
-            'success'=>[],
-            'error'=>[],
-        ];
-        $total = 0;
-        $current = date('d/m/Y H:i:s');
-        if(!empty($contact)){
-            
-            foreach($contact->basesFaturamento as $k => $bf)
-            {
-                $omie[$k] = new stdClass();
-                    if(isset($bf['integrar']) && $bf['integrar']  > 0){
-                        $total ++;
-                        $omie[$k]->baseFaturamentoTitle = $bf['app_name'];
-                        // $omie[$k]->target = $bf['sigla']; 
-                        $omie[$k]->appSecret = $bf['app_secret'];
-                        $omie[$k]->appKey = $bf['app_key'];
-                        
-                        $contact->idIntegracao = $contact->id;
-                        $contact->idOmie = $contact->codOmie[$k];
-                        $contact->cVendedorOmie = (isset($contact->ownerEmail) && $contact->ownerEmail !== null) ? $this->omieServices->vendedorIdOmie($omie[$k],$contact->ownerEmail) : null;
-                        $contact->cTransportadora = $contact->cTranspOmie[$k] ?? null;
-                        // $alterar = $this->omieServices->alteraCliente($omie[$k], $diff);
-                      
-                        $alterar = $this->omieServices->alteraClienteCRMToERP($omie[$k], $contact);
+        $json = $this->createJsonClienteCRMToERP($contact, $tenant); 
 
-                        //verifica se criou o cliente no omie
-                        if (isset($alterar['codigo_status']) && $alterar['codigo_status'] == "0") 
-                        {
-                            $message = 'Integração concluída com sucesso! Cliente Ploomes id: '.$contact->id.' alterado no Omie ERP ('.$omie[$k]->baseFaturamentoTitle.') com o numero: '.$alterar['codigo_cliente_omie'].' e mensagem enviada com sucesso em: '.$current;
+        $alterar = $this->omieServices->alteraClienteCRMToERP($json);
 
-                            $messages['success'][] = $message;
+        if(isset($alterar['codigo_status']) && $alterar['codigo_status'] == "0") 
+        {
+            $json = $this->insertIdClienteERPinContactCRM($alterar, $tenant);
+            //insere o id do omie no campo correspondente do cliente Ploomes
+            ($ploomesServices->updatePloomesContact($json, $contact->id)) ?
+            $mUpdateContact = 'Id cliente ERP inserido no cliente do CRM. ':
+            $mUpdateContact = 'Não foi possível inserir o Id cliente ERP no cliente do CRM ';
 
-                            //monta a mensagem para atualizar o cliente do ploomes
-                            // $msg=[
-                            // 'ContactId' => $contact->id,
-                            //     'Content' => 'Cliente '.$contact->name.' alterado no OMIE via API BICORP na base '.$omie[$k]->baseFaturamentoTitle,
-                            //     'Title' => 'Pedido Criado'
-                            // ];
-                            
-                            // //cria uma interação no card
-                            // ($ploomesServices->createPloomesIteraction(json_encode($msg)))?$message = 'Integração concluída com sucesso! Cliente Ploomes id: '.$contact->id.' alterado no Omie ERP ('.$omie[$k]->baseFaturamentoTitle.') com o numero: '.$alterar['codigo_cliente_omie'].' e mensagem enviada com sucesso em: '.$current : $message = 'Integração concluída com sucesso! Cliente Ploomes id: '.$contact->id.' alterado no Omie ERP com o numero: '.$alterar['codigo_cliente_omie'].' porém não foi possível gravar a mensagem no card do cliente do Ploomes: '.$current;
+            $messages['success'][] = "Integração concluída com sucesso! Cliente Ploomes id: {$contact->id} alterado no Omie ERP ({$tenant->tenant}) com o numero: {$alterar['codigo_cliente_omie']}.{$mUpdateContact} e mensagem enviada com sucesso em: {$this->current}";
 
-                            //aqui atualizaria a base de dados com sql de update
-                        
-                            // $messages['success'][] = $message;
-                            
-                        }else{
-                           
-                            //monta a mensagem para atualizar o card do ploomes
-                            $msg=[
-                                'ContactId' => $contact->id,
-                                'Content' => 'Erro ao alterar cliente no Omie: '. $alterar['faultstring'].' na base '.$omie[$k]->baseFaturamentoTitle.' Data = '.$current,
-                                'Title' => 'Erro ao alterar cliente'
-                            ];
-                            //cria uma interação no card
-                            ($ploomesServices->createPloomesIteraction(json_encode($msg)))?$message = 'Erro ao alterar cliente no Omie base '.$omie[$k]->baseFaturamentoTitle.': '. $alterar['faultstring'].' Data = '.$current: $message = 'Erro ao alterar cliente no Omie base '.$omie[$k]->baseFaturamentoTitle.': '. $alterar['faultstring'].' e erro ao enviar mensagem no card do cliente do Ploomes Data = '.$current;
-                            $messages['error'][]=$message;
-                        }       
-                    }else{
-                        $messages['error'][]='Base de faturamento ['.$bf['app_name'].'], não selecionada para integração';
-                    }
-            }   
         }else{
-            $messages['error'][]='Esta alteração já foi feita';
-        }
 
-        return $messages;       
+            //monta a mensagem para atualizar o card do ploomes
+            $msg=[
+                'ContactId' => $contact->id,
+                'Content' => 'Erro ao alterar cliente no Omie: '. $alterar['faultstring'].' na base '.$tenant->tenant.' Data = '.$this->current,
+                'Title' => 'Erro ao alterar cliente'
+            ];
+            //cria uma interação no card
+            ($ploomesServices->createPloomesIteraction(json_encode($msg))) ? $message = 'Erro ao alterar cliente no Omie base '.$tenant->tenant.': '. $alterar['faultstring'].' Data = '.$this->current: $message = 'Erro ao alterar cliente no Omie base '.$tenant->tenant.': '. $alterar['faultstring'].' e erro ao enviar mensagem no card do cliente do Ploomes Data = '.$this->current;
+            $messages['error'][]=$message;
+        } 
+        
+        return $messages;
+       
     }
 
-    // createContact - cria um contato no CRM envia ao ERP
-    public function createContact(object $contact, object $ploomesServices):array
-    {
+    // createContact - cria um contato no CRM envia ao ERP ok
+    public function createContactCRMToERP(object $contact, object $ploomesServices, object $tenant):array
+    { 
+        $messages=['success'=>[],'error'=>[]];
+                
+        $json = $this->createJsonClienteCRMToERP($contact, $tenant);
         
-        $messages = [
-            'success'=>[],
-            'error'=>[],
-        ];
-        
-        $current = date('d/m/Y H:i:s');
-        
-        foreach($contact->basesFaturamento as $k => $bf)
-        {
+        $criaClienteERP = $this->omieServices->criaClienteERP($json);
+
+        //verifica se criou o cliente no ERP (No caso do Omie, o prórpio retorn o traz o status da inserção e o ID do cliente)
+        if (isset($criaClienteERP['codigo_status']) && $criaClienteERP['codigo_status'] == "0") {
+
+            //atualiza contact ploomes com o id do cliente no ERP id omie no ploomes teste voltar a ele 1940698872
+            $json = $this->insertIdClienteERPinContactCRM($criaClienteERP, $tenant);
             
-            $omie[$k] = new stdClass();
+            //insere o id do omie no campo correspondente do cliente Ploomes
+            ($ploomesServices->updatePloomesContact($json, $contact->id)) ?
+            $mUpdateContact = 'Id cliente ERP inserido no cliente do CRM. ':
+            $mUpdateContact = 'Não foi possível inserir o Id cliente ERP no cliente do CRM ';
+         
+            $message = 'Integração concluída com sucesso! Cliente Ploomes id: '.$contact->id.' gravados no Omie ERP com o código: '.$criaClienteERP['codigo_cliente_omie']. ' e ' .$mUpdateContact. ' em: '.$this->current;
             
-            if(isset($bf['integrar']) &&  $bf['integrar'] > 0){
-                $omie[$k]->baseFaturamentoTitle = $bf['app_name'];
-                // $omie[$k]->target = $bf['sigla']; 
-                $omie[$k]->appSecret = $bf['app_secret'];
-                $omie[$k]->appKey = $bf['app_key'];
-                $contact->cVendedorOmie = $this->omieServices->vendedorIdOmie($omie[$k],$contact->ownerEmail) ?? null; 
-                $contact->idTransportadora = $this->omieServices->getShipping($omie[$k], $contact);
-                $criaClienteOmie = $this->omieServices->criaClienteOmie($omie[$k], $contact);
+            $messages['success'] = $message;
+   
+        }else{
+            //monta a mensagem para atualizar o card do ploomes
+            $msg=[
+                'ContactId' => $contact->id,
+                'Content' => 'Erro ao gravar cliente no Omie: '. $criaClienteERP['faultstring'].' na base '.$tenant->tenant.' Data = '.$this->current,
+                'Title' => 'Erro ao Gravar cliente'
+            ];
+            
+            //cria uma interação no card
+            ($ploomesServices->createPloomesIteraction(json_encode($msg)))?$message = 'Erro ao gravar cliente no Omie base '.$tenant->tenant.': '. $criaClienteERP['faultstring'].' Data = '.$this->current: $message = 'Erro ao gravar cliente no Omie base '.$tenant->tenant.': '. $criaClienteERP['faultstring'].' e erro ao enviar mensagem no card do cliente do Ploomes Data = '.$this->current;
 
-                //verifica se criou o cliente no omie
-                if (isset($criaClienteOmie['codigo_status']) && $criaClienteOmie['codigo_status'] == "0") {
-                    $match = match ($k) {
-                         0=> 'contact_4F0C36B9-5990-42FB-AEBC-5DCFD7A837C3',
-                         1=> 'contact_6DB7009F-1E58-4871-B1E6-65534737C1D0',
-                         2=> 'contact_AE3D1F66-44A8-4F88-AAA5-F10F05E662C2',
-                         3=> 'contact_07784D81-18E1-42DC-9937-AB37434176FB',
-                    };
-                    $codigoOmie = $criaClienteOmie['codigo_cliente_omie'];
-                    $array = [
-                        'TypeId'=>1,
-                        'OtherProperties'=>[
-                            [
-                                'FieldKey'=>$match,
-                                'StringValue'=>"$codigoOmie",
-                            ]
-                        ]
-                    ];
-                    $json = json_encode($array);
-                    
-                    //insere o id do omie no campo correspondente do cliente Ploomes
-                    $ploomesServices->updatePloomesContact($json, $contact->id);
-                    
-                    $message = 'Integração concluída com sucesso! Cliente Ploomes id: '.$contact->id.' gravados no Omie ERP com o numero: '.$criaClienteOmie['codigo_cliente_omie'].' em: '.$current;
-                    
-                    $messages['success'][]=$message;
-
-                    // $insertIdOmie = $ploomesServices->updatePloomesContact($json, $contact->id);
-                    //if($insertIdOmie){
-
-                        
-                        //monta a mensagem para atualizar o cliente do ploomes
-                        // $msg=[
-                        //     'ContactId' => $contact->id,
-                        //     'Content' => 'Cliente '.$contact->name.' criada no OMIE via API BICORP na base '.$omie[$k]->baseFaturamentoTitle,
-                        //     'Title' => 'Pedido Criado'
-                        // ];
-                        
-                        // //cria uma interação no card
-                        // ($ploomesServices->createPloomesIteraction(json_encode($msg)))?$message = 'Integração concluída com sucesso! Cliente Ploomes id: '.$contact->id.' gravados no Omie ERP com o numero: '.$criaClienteOmie['codigo_cliente_omie'].' e mensagem enviada com sucesso em: '.$current : $message = 'Integração concluída com sucesso! Cliente Ploomes id: '.$contact->id.' gravados no Omie ERP com o numero: '.$criaClienteOmie['codigo_cliente_omie'].' porém não foi possível gravar a mensagem no card do cliente do Ploomes: '.$current;
-
-                    //}
-                    
-                    // $messages['success'][]=$message;
-                    
-                }else{
-                    //monta a mensagem para atualizar o card do ploomes
-                    $msg=[
-                        'ContactId' => $contact->id,
-                        'Content' => 'Erro ao gravar cliente no Omie: '. $criaClienteOmie['faultstring'].' na base '.$omie[$k]->baseFaturamentoTitle.' Data = '.$current,
-                        'Title' => 'Erro ao Gravar cliente'
-                    ];
-                    
-                    //cria uma interação no card
-                    ($ploomesServices->createPloomesIteraction(json_encode($msg)))?$message = 'Erro ao gravar cliente no Omie base '.$omie[$k]->baseFaturamentoTitle.': '. $criaClienteOmie['faultstring'].' Data = '.$current: $message = 'Erro ao gravar cliente no Omie base '.$omie[$k]->baseFaturamentoTitle.': '. $criaClienteOmie['faultstring'].' e erro ao enviar mensagem no card do cliente do Ploomes Data = '.$current;
-
-                    $messages['error'][]=$message;
-                }       
-            }
-        }   
-
+           $messages['error']= $message;
+        }       
         return $messages;
     }
 
@@ -914,7 +739,546 @@ Class OmieFormatter implements ErpFormattersInterface{
         return $messages;
     }
 
+    public function createJsonClienteCRMToERP(object $contact, object $tenant)
+    {
+        $array = [
+            'app_key'=>$tenant->appKey,
+            'app_secret'=>$tenant->appSecret,
+            'call'=>'UpsertClienteCpfCnpj',
+            'param'=>[]
+        ];
+    
+        $clienteJson = [];
+
+        $clienteJson['razao_social'] = htmlspecialchars_decode($contact->legalName) ?? null; 
+        $clienteJson['nome_fantasia'] = htmlspecialchars_decode($contact->name) ?? null;
+        $clienteJson['cnpj_cpf'] = $contact->cnpj ?? $contact->cpf ?? null;
+        $clienteJson['email'] = $contact->email ?? null;
+        $clienteJson['homepage'] = $contact->website ?? null;
+        $clienteJson['telefone1_ddd'] = $contact->ddd1 ?? null;
+        $clienteJson['telefone1_numero'] = $contact->phone1 ?? null;
+        $clienteJson['telefone2_ddd'] = $contact->ddd2 ?? null;
+        $clienteJson['telefone2_numero'] = $contact->phone2 ?? null;
+        $clienteJson['contato'] = $contact->contato1 ?? null;
+        $clienteJson['endereco'] = $contact->streetAddress ?? null;
+        $clienteJson['endereco_numero'] = $contact->streetAddressNumber ?? null;
+        $clienteJson['bairro'] = $contact->neighborhood ?? null;
+        $clienteJson['complemento'] = $contact->streetAddressLine2 ?? null;
+        $clienteJson['estado'] = $contact->stateShort ?? null;//usar null para teste precisa pegar o codigo da sigla do estado na api omie
+        //$clienteJson['cidade'] = $contact->cityName;
+        $clienteJson['cidade_ibge'] = $contact->cityId ?? null;
+        // $clienteJson['cep'] = $contact->streetAdress ?? null;
+        $clienteJson['cep'] = $contact->zipCode ?? null;
+        $clienteJson['documento_exterior'] = $contact->documentoExterior ?? null;
+        $clienteJson['inativo'] = $contact->inativo ?? null;
+        $clienteJson['bloquear_exclusao'] = $contact->bloquearExclusao ?? null;
+        //inicio aba CNAE e Outros
+        $clienteJson['cnae'] = $contact->cnaeCode ?? null;//3091102 ?? null;
+        $clienteJson['inscricao_estadual'] = $contact->inscricaoEstadual ?? null;
+        $clienteJson['inscricao_municipal'] = $contact->inscricaoMunicipal ?? null;
+        $clienteJson['inscricao_suframa'] = $contact->inscricaoSuframa ?? null;
+        $clienteJson['optante_simples_nacional'] = $contact->simplesNacional ?? null;
+        $clienteJson['produtor_rural'] = $contact->produtorRural ?? null;
+        $clienteJson['contribuinte'] = $contact->contribuinte ?? null;
+        $clienteJson['tipo_atividade'] = $contact->tipoAtividade ?? null;
+        $clienteJson['valor_limite_credito'] = $contact->limiteCredito ?? null;
+        $clienteJson['observacao'] = $contact->observacao ?? null;
+        //fim aba CNAE e Outros
+        //inicio array dados bancários
+        $clienteJson['dadosBancarios'] =[];
+        $dadosBancarios =[];
+        $dadosBancarios['codigo_banco'] = $contact->cBanco ?? null;
+        $dadosBancarios['agencia'] = $contact->agencia ?? null;
+        $dadosBancarios['conta_corrente'] = $contact->nContaCorrente ?? null;
+        $dadosBancarios['doc_titular'] = $contact->docTitular ?? null;
+        $dadosBancarios['nome_titular'] = $contact->nomeTitular ?? null;
+        $dadosBancarios['transf_padrao'] = $contact->transferenciaPadrao ?? null;
+        $dadosBancarios['cChavePix'] = $contact->chavePix ?? null;
+        $clienteJson['dadosBancarios'][] =array_filter($dadosBancarios); 
+        //fim array dados bancários
+        //inicio array recoja mendações
+        $clienteJson['recomendacoes'] = [];
+        $recomendacoes = [];//vendedor padrão
+
+        $recomendacoes['codigo_vendedor'] = $contact->cVendedorOmie ?? null;
+        $recomendacoes['codigo_transportadora']=$contact->cTransportadora ?? null;//6967396742;// $contact->ownerId ?? null;
+        $clienteJson['recomendacoes'][] = array_filter($recomendacoes);
+        
+        //fim array recomendações
+        
+        $clienteJson['tags']=$contact->tags ?? null;
+           
+        $array['param'][] = array_filter($clienteJson);
+
+        $json = json_encode($array);
+        // print_r($tenant);
+        // print_r($contact);
+        // // print_r($clienteJson);
+        // print_r($json);
+        //  exit;
+
+        return $json;
+
+    }
+
+    //Insere o id do ERP no Contact do CRM e retorna mensagem de sucesso
+    public function insertIdClienteERPinContactCRM ($criaClienteERP, $tenant){
+
+        $custom = CustomFieldsFunction::getCustomFields();
+        
+        foreach($custom['Cliente'] as $op){
+            if($op['SendExternalKey'] === $tenant->sendExternalKeyIdOmie)
+            {
+                $fieldKey = $op['Key'];
+            }
+        }
+
+        $codigoERP = $criaClienteERP['codigo_cliente_omie'];
+
+        $array = [
+            'TypeId'=>1,
+            'OtherProperties'=>[
+                [
+                    'FieldKey'=>$fieldKey,
+                    'StringValue'=>"$codigoERP",
+                ]
+            ]
+        ];
+
+        $json = json_encode($array);
+        
+        return $json;
+    }
+
+    //products
+
+    //cria um objeto do webhook vindo do omie para enviar ao ploomes
+    public function createObjectCrmProductFromErpData($args, $ploomesServices)
+    {
+        $decoded = $args['body'];
+    
+        // Função recursiva para limpar todos os campos do array
+        function auto_clean_json($data) {
+            $entidades_customizadas = [
+                "+Chr(39)+" => "'", // Aspas simples
+                "Chr(34)"   => '"', // Aspas duplas
+                "&apos;"    => "'", // Entidade HTML para aspas simples
+            ];
+
+            foreach ($data as $key => &$value) {
+                if (is_array($value)) {
+                    $value = auto_clean_json($value);
+                } elseif (is_string($value)) {
+                    // Decodifica entidades HTML
+                    $value = htmlspecialchars_decode($value, ENT_QUOTES);
+
+                    // Substitui padrões específicos
+                    $value = strtr($value, $entidades_customizadas);
+
+                    // Substitui múltiplas aspas simples (3 ou mais) por uma única
+                    $value = preg_replace("/'{2,}/", "'", $value);
+                }
+            }
+            return $data;
+        }
+
+
+        // Aplica a função para limpar todos os campos do JSON decodificado
+        $cleaned_data = auto_clean_json($decoded);
+
+        //achata o array multidimensional decoded em um array simples
+        $array = DiverseFunctions::achatarArray($cleaned_data);
+        //cria o objeto de produtos
+        $product = new stdClass();
+        $omieApp = $this->omieServices->getOmieApp();
+
+        $chave = 'idProductOmie' . $omieApp['app_name'];
+        $product->$chave = $array['event_codigo_produto'];
+
+        $product->appKey = $array['appKey'];
+        $product->appSecret = $omieApp['app_secret'];
+        $pFamily = explode('.' , $array['topic']);
+        $nameFamily= $pFamily[0].'s';//o s é para o topic Produto ficar no plural
+        $verifyFamily = $ploomesServices->getFamilyByName($nameFamily);
+        if(isset($verifyFamily['Id'])){
+            $product->idFamily =  $verifyFamily['Id'];
+        }else{
+            $createFamily = $ploomesServices->createNewFamily($nameFamily);
+            $product->idFamily =  $createFamily['Id'];
+        }        
+        $product->messageId = $array['messageId'];
+        $product->altura = $array['event_altura'];
+        $product->bloqueado = $array['event_bloqueado'];
+        $product->cnpj_fabricante = $array['event_cnpj_fabricante'];
+        $product->codigo = $array['event_codigo'];
+        $product->codigo_familia = $array['event_codigo_familia'];
+        ($product->codigo_familia == 0 || $product->codigo_familia == null) ? $product->nome_familia = $nameFamily : $product->nome_familia = $this->omieServices->getFamiliaById($product);
+        $verifyGroup = $ploomesServices->getGroupByName($product->nome_familia);
+        if(isset($verifyGroup['Id'])){
+            $product->idGroup =  $verifyGroup['Id'];
+        }else{
+            $createGroup = $ploomesServices->createNewGroup($product->nome_familia, $product->idFamily);
+            $product->idGroup =  $createGroup['Id'];
+        }
+        $product->codigo_produto = $array['event_codigo_produto'];
+        $product->codigo_produto_integracao = $array['event_codigo_produto_integracao'];
+        $product->combustivel_codigo_anp = $array['event_combustivel_codigo_anp'];
+        $product->combustivel_descr_anp = $array['event_combustivel_descr_anp'];
+        $product->cupom_fiscal = $array['event_cupom_fiscal'];
+        $product->descr_detalhada = $array['event_descr_detalhada'];
+        $product->descricao = $array['event_descricao'];
+        $product->dias_crossdocking = $array['event_dias_crossdocking'];
+        $product->dias_garantia = $array['event_dias_garantia'];
+        $product->ean = $array['event_ean'];
+        $product->estoque_minimo = $array['event_estoque_minimo'];
+        $product->id_cest = $array['event_id_cest'];
+        $product->id_preco_tabelado = $array['event_id_preco_tabelado'];
+        $product->inativo = $array['event_inativo'];
+        $product->indicador_escala = $array['event_indicador_escala'];
+        $product->largura = $array['event_largura'];
+        $product->marca = $array['event_marca'];
+        $product->market_place = $array['event_market_place'];
+        $product->modelo = $array['event_modelo'];
+        $product->ncm = $array['event_ncm'];
+        $product->obs_internas = $array['event_obs_internas'];
+        $product->origem_mercadoria = $array['event_origem_mercadoria'];
+        $product->peso_bruto = $array['event_peso_bruto'];
+        $product->peso_liq = $array['event_peso_liq'];
+        $product->profundidade = $array['event_profundidade'];
+        $product->quantidade_estoque = $array['event_quantidade_estoque'];
+        $product->tipoItem = $array['event_tipoItem'];
+        $product->unidade = $array['event_unidade'];
+        $product->valor_unitario = $array['event_valor_unitario'];
+        $product->author_email = $array['author_email'];
+        $product->author_name = $array['author_name'];
+        $product->author_userId = $array['author_userId'];
+        
+        $product->appHash = $array['appHash'];
+        $product->origin = $array['origin'];      
+        //estoque
+
+        $k = 'tabela_estoque_'.strtolower($omieApp['app_name']);
+        $product->$k = $this->getStock($product, $omieApp); 
+        //$product->stock = $this->getStock($product, $omieApp);      
+        
+        return $product;
+    }
+
+    public function getStock(object $product, array $omieApp){
+
+        $array = [
+                    'app_key' => $omieApp['app_key'],
+                    'app_secret' => $omieApp['app_secret'],
+                    'call' => 'PosicaoEstoque',
+                    'param' => [
+                        [
+                            'id_prod'=>$product->codigo_produto,
+                            'data'=>date('d/m/Y'),
+                        ]
+                    ]
+                ];
+
+        $json = json_encode($array);
+        $stock = $this->omieServices->getStockById($json);
+        $table = $this->createTableStock($stock);
+
+        return $table;
+
+    }
+
+    public function createTableStock($stock)
+    {
+        $local = ($stock['codigo_local_estoque'] === 6879399409)? 'Padrão' : $stock['codigo_local_estoque'];
+        //$html = file_get_contents('http://localhost/gamatermic/src/views/pages/gerenciador.pages.stockTable.php');
+        $html = file_get_contents('https://integracao.dev-webmurad.com.br/src/views/pages/gerenciador.pages.stockTable.php');
+        $html = str_replace('{local}', $local, $html);
+        $html = str_replace('{saldo}', $stock['saldo'], $html);
+        $html = str_replace('{minimo}', $stock['estoque_minimo'], $html);
+        $html = str_replace('{pendente}', $stock['pendente'], $html);
+        $html = str_replace('{reservado}', $stock['reservado'], $html);
+        $html = str_replace('{fisico}', $stock['fisico'], $html);
+        $html = str_replace('{data}', date('d/m/Y H:i:s'), $html);
+
+        return $html;
+    }
+
+    public function moveStock($args,  $ploomesServices)
+    {
+        $omie = new stdClass();
+        $omieApp = $this->omieServices->getOmieApp();
+        
+        $omie->appName = $omieApp['app_name'];
+        $omie->appSecret = $omieApp['app_secret'];
+        $omie->appKey = $omieApp['app_key'];
+        $omie->ncc = $omieApp['ncc'];
+        $omie->tenancyId = $omieApp['tenancy_id'];
+        $custom = $_SESSION['contact_custom_fields'][$omie->tenancyId];
+        
+        $decoded = $args['body'];
+        //1 - preciso montar a tabela html cm estoque do produto 
+        $stock = [];
+        foreach($decoded['event'] as $k => $v){
+            $stock[$k] = $v;
+        }
+        $table = $this->createTableStock($stock);
+
+        //2 - para encontrar o produto podemos pesquisar no ploomes pelo idPloomes(codigo integração omie), pelo Code(código omie) porém eles precisam ser unicos 
+        // 2-1 - estamos com webhook do omie, temos o id omie mas não o id ploomes. Temos o code mas ele pode se repitir no ploomes. neste caso precisamos do id de integração no produto pois ele é o id unico do produto no ploomes. sendo assim precisamos forçar este codigo no produto do omie antes de fazer a consulta.
+
+        //$pPloomes = $ploomesService->getProductById($stock['codigo_produto_integracao']);
+        $product = new stdClass();
+        $product->codigo = $stock['codigo'];
+
+        $key = 'tabela_estoque_'.strtolower($omieApp['app_name']);
+        $product->$key = $table;
+
+        $op = CustomFieldsFunction::createOtherPropertiesByEntity($custom['Produto'], $product);
+
+        $array = [];
+        // $op =[];
+        // $op []= $stockTable;
+        $array['OtherProperties'] = $op;
+        $json = json_encode($array);
+        $pProduct = $ploomesServices->getProductByCode($decoded['event']['codigo']);
+
+        if(!isset($pProduct['Id'])){
+            throw new WebhookReadErrorException('Erro ao alterar o estoque do produto: produto ['.$decoded['event']['codigo'].'] não encontrado no Ploomes');
+        }
+
+        return $ploomesServices->updatePloomesProduct($json, $pProduct['Id']);
+
+
+    }
+
+    // cria o objet e a requisição a ser enviada ao ploomes com o objeto do omie
+    public function createPloomesProductFromErpObject($product, $ploomesServices)
+    {
+        $omie = new stdClass();
+        $omieApp = $this->omieServices->getOmieApp();
+        
+        $omie->appName = $omieApp['app_name'];
+        $omie->appSecret = $omieApp['app_secret'];
+        $omie->appKey = $omieApp['app_key'];
+        $omie->ncc = $omieApp['ncc'];
+        $omie->tenancyId = $omieApp['tenancy_id'];
+        $custom = $_SESSION['contact_custom_fields'][$omie->tenancyId];
+
+        //cria o produto formato ploomes 
+        $data = [];
+        $data['Name'] = $product->descricao;
+        $data['GroupId'] = $product->idGroup;
+        $data['FamilyId'] = $product->idFamily;
+        $data['Code'] = $product->codigo;
+        // $data['Code'] = $product->codigo_produto;
+        $data['MeasurementUnit'] = $product->unidade;
+        //$data['ImageUrl'] = $product->endereco ?? null;
+        //$data['CurrencyId'] = $product->enderecoNumero ?? null;
+        $data['UnitPrice'] = $product->valor_unitario ?? null;
+        // $data['CreateImportId'] = $city['Id'];//pegar na api do ploomes
+        // $data['UpdateImportId'] = $product->segmento ?? null;//Id do Tipo de atividade(não veio no webhook de cadastro do omie)
+        // $data['Editable'] = $product->nFuncionarios ?? null;//Id do número de funcionários(não veio no webhook de cadastro do omie)
+        // $data['Deletable'] = $product->cVendedorPloomes ?? null;//Id do vendedor padrão(comparar api ploomes)
+        // $data['Suspended'] = $product->observacao ?? null;
+        // $data['CreatorId'] = $product->email ?? null;
+        // $data['UpdaterId'] = $product->homepage ?? null;
+        // $data['CreateDate'] = $product->cnae ?? null;
+        // $data['LastUpdateDate'] = $product->codigoClienteOmie ?? null;//chave externa do cliente(código Omie)
+        //$data['ImportationIdCreate'] = $product->latitude ?? null;(inexistente no omie)
+        //$data['ImportationIdUpdate'] = $product->longitude ?? null;(inexistente no omie)
+
+        //     $data['Lists']=null;
+        // }else{
+           
+        //     $marcador = $ploomesServices->getListByTagName($product->nome_familia);
+
+        //     if($marcador){
+        
+        //         $data['Lists'] = [
+        //             [
+        //                 'ListId'=> $marcador['Id'],
+        //                 'ProductId'=> $pProduct['Id']
+        //             ]
+        //         ];
+    
+        //     }else{
+        //         $array = [
+        //             'Name'=>$product->nome_familia,
+        //             'Editable'=>true
+        //         ];
+        //         $json = json_encode($array);
+    
+        //         $nMarcador = $ploomesServices->createNewListTag($json);
+
+        //         $data['Lists'] = [
+        //             [
+        //                 'ListId'=> $nMarcador['Id'],
+        //                 'ProductId'=> $pProduct['Id']
+        //             ]
+        //         ];
+        //     }
+        // }
+
+        // $pProduct = $ploomesServices->getProductByCode($product->codigo);
+        
+        // if(!$pProduct){
+        $op = CustomFieldsFunction::createOtherPropertiesByEntity($custom['Produto'], $product);
+        $data['OtherProperties'] = $op;
+        $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        
+        return $json;
+
+    }
+
+
+    //Serviços
+    //cria um objeto do webhook vindo do omie para enviar ao ploomes
+    public function createObjectCrmServiceFromErpData($args, $ploomesServices)
+    {
+        $decoded = $args['body'];
+        //achata o array multidimensional decoded em um array simples
+        $array = DiverseFunctions::achatarArray($decoded);
+        //cria o objeto de produtos
+        $service = new stdClass();
+
+        $omieApp = $this->omieServices->getOmieApp();
+
+        $chave = 'idProductOmie' . $omieApp['app_name'];
+        $service->$chave = $array['event_intListar_nCodServ'];
+       
+        $service->appKey = $array['appKey'];
+        $service->appSecret = $omieApp['app_secret'];
+        $pFamily = explode('.' , $array['topic']);
+        $nFamily = $pFamily[0].'s';//o s é para o topic Produto ficar no plural
+        $nameFamily= str_replace('c', 'ç', $nFamily);
+
+        $verifyFamily = $ploomesServices->getFamilyByName($nFamily);
+
+        if(isset($verifyFamily['Id'])){
+            $service->idFamily =  $verifyFamily['Id'];
+        }else{
+            $createFamily = $ploomesServices->createNewFamily($nameFamily);
+            $service->idFamily =  $createFamily['Id'];
+        }        
+        $verifyGroup = $ploomesServices->getGroupByName($nFamily);
+        if(isset($verifyGroup['Id'])){
+            $service->idGroup =  $verifyGroup['Id'];
+        }else{
+            $createGroup = $ploomesServices->createNewGroup($nameFamily, $service->idFamily);
+            $service->idGroup =  $createGroup['Id'];
+        }
+       
+        $service->messageId = $array['messageId'];
+        $service->topic = $array['topic'];
+        $service->codLC116 = $array['event_cabecalho_cCodLC116'];
+        $service->codServMun = $array['event_cabecalho_cCodServMun'];
+        $service->codigo = $array['event_cabecalho_cCodigo'];
+        $service->descricao = $array['event_cabecalho_cDescricao'];
+        $service->idTrib = $array['event_cabecalho_cIdTrib'];
+        $service->idNBS = $array['event_cabecalho_nIdNBS'];
+        $service->precoUnit = $array['event_cabecalho_nPrecoUnit'];
+        $service->descrCompleta = $array['event_descricao_cDescrCompleta'];
+        $service->retCOFINS = $array['event_impostos_cRetCOFINS'];
+        $service->retCSLL = $array['event_impostos_cRetCSLL'];
+        $service->retINSS = $array['event_impostos_cRetINSS'];
+        $service->retIR = $array['event_impostos_cRetIR'];
+        $service->retISS = $array['event_impostos_cRetISS'];
+        $service->retPIS = $array['event_impostos_cRetPIS'];
+        $service->aliqCOFINS = $array['event_impostos_nAliqCOFINS'];
+        $service->aliqCSLL = $array['event_impostos_nAliqCSLL'];
+        $service->aliqINSS = $array['event_impostos_nAliqINSS'];
+        $service->aliqIR = $array['event_impostos_nAliqIR'];
+        $service->aliqISS = $array['event_impostos_nAliqISS'];
+        $service->aliqPIS = $array['event_impostos_nAliqPIS'];
+        $service->redBaseINSS = $array['event_impostos_nRedBaseINSS'];
+        $service->impAPI = $array['event_info_cImpAPI'];
+        $service->inativo = $array['event_info_cInativo'];
+        $service->dAlt = $array['event_info_dAlt'];
+        $service->dInc = $array['event_info_dInc'];
+        $service->hAlt = $array['event_info_hAlt'];
+        $service->hInc = $array['event_info_hInc'];
+        $service->uAlt = $array['event_info_uAlt'];
+        $service->uInc = $array['event_info_uInc'];
+        $service->codIntServ = $array['event_intListar_cCodIntServ'];
+        $service->codServ = $array['event_intListar_nCodServ'];
+        $service->author_email = $array['author_email'];
+        $service->author_name = $array['author_name'];
+        $service->author_userId = $array['author_userId'];
+        $service->appKey = $array['appKey'];
+        $service->appHash = $array['appHash'];
+        $service->origin = $array['origin'];    
+ 
+        return $service;
+    }
+
+    // cria o objet e a requisição a ser enviada ao ploomes com o objeto do omie
+    public function createCrmServiceFromErpObject($service, $ploomesServices)
+    {
+        $omie = new stdClass();
+        $omieApp = $this->omieServices->getOmieApp();
+        
+        $omie->appName = $omieApp['app_name'];
+        $omie->appSecret = $omieApp['app_secret'];
+        $omie->appKey = $omieApp['app_key'];
+        $omie->ncc = $omieApp['ncc'];
+        $omie->tenancyId = $omieApp['tenancy_id'];
+        $custom = $_SESSION['contact_custom_fields'][$omie->tenancyId];
+        //cria o produto formato ploomes 
+        $data = [];
+        $data['Name'] = $service->descricao;
+        $data['GroupId'] = $service->idGroup;
+        $data['FamilyId'] = $service->idFamily;
+        $data['Code'] = $service->codigo;
+        //$data['ImageUrl'] = $service->endereco ?? null;
+        $data['UnitPrice'] = $service->precoUnit ?? null;
+        // $data['CreateImportId'] = $city['Id'];//pegar na api do ploomes
+        // $data['UpdateImportId'] = $service->segmento ?? null;//Id do Tipo de atividade(não veio no webhook de cadastro do omie)
+        // $data['Editable'] = $service->nFuncionarios ?? null;//Id do número de funcionários(não veio no webhook de cadastro do omie)
+        // $data['Deletable'] = $service->cVendedorPloomes ?? null;//Id do vendedor padrão(comparar api ploomes)
+        // $data['Suspended'] = $service->observacao ?? null;
+        // $data['CreatorId'] = $service->email ?? null;
+        // $data['UpdaterId'] = $service->homepage ?? null;
+        // $data['CreateDate'] = $service->cnae ?? null;
+        // $data['LastUpdateDate'] = $service->codigoClienteOmie ?? null;//chave externa do cliente(código Omie)
+        //$data['ImportationIdCreate'] = $service->latitude ?? null;(inexistente no omie)
+        //$data['ImportationIdUpdate'] = $service->longitude ?? null;(inexistente no omie)
+        $op = CustomFieldsFunction::createOtherPropertiesByEntity($custom['Produto'], $service);
+       
+        // $ncm = [
+        //     'FieldKey'=> 'product_15405B03-AA47-4921-BC83-E358501C3227',
+        //     'StringValue'=>$service->ncm ?? null,
+        // ];
+        // $marca = [
+        //     'FieldKey'=>'product_4C2CCB79-448F-49CF-B27A-822DA762BE5E',
+        //     'StringValue'=>$service->marca ?? null,
+        // ];
+
+        // $modelo = [
+        //     'FieldKey'=>'product_A92259E5-1E19-44AC-B781-CB908F5602EC',
+        //     'StringValue'=>$service->modelo ?? null,
+        // ];
+        // $descDetalhada = [
+        //     'FieldKey'=>'product_F48280B4-688C-4346-833C-03E28991564C',
+        //     'BigStringValue'=>$service->descrCompleta ?? null,
+        // ];
+        // $obsInternas = [
+        //     'FieldKey'=>'product_5FB6D80C-CB90-4A46-95BD-1A18141FBC46',
+        //     'BigStringValue'=>$service->nCodServ ?? null,
+        // ];
+        // $categoria = [
+        //     'FieldKey'=>'product_44CCBB11-CD81-439A-8304-921C2E39C25D',
+        //     'StringValue'=>$service->codigo_familia ?? null,
+        // ];
+
+        // $op[] = $descDetalhada;
+        // $op[] = $obsInternas;
+        // $op[] = $cOmie;
+        // $op[] = $categoria;
+   
+        $data['OtherProperties'] = $op;
+      
+        $json = json_encode($data);
+
+        return $json;
+
+    }
 }
-
-
-

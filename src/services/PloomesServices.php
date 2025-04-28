@@ -653,7 +653,7 @@ class PloomesServices implements PloomesManagerInterface{
         $curl = curl_init();
         
         curl_setopt_array($curl, array(
-            CURLOPT_URL => $this->baseApi .'Fields?$filter=Dynamic+eq+true&$expand=Type($select=NativeType),Entity($select=Id,Name)&$select=Name,Key,Type,SendExternalKey',
+            CURLOPT_URL => $this->baseApi .'Fields?$filter=Dynamic+eq+true&$expand=Type($select=NativeType),Entity($select=Id,Name)&$select=Name,Key,TypeId,SendExternalKey,OptionsTableId',
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_ENCODING => '',
             CURLOPT_MAXREDIRS => 10,
@@ -671,6 +671,33 @@ class PloomesServices implements PloomesManagerInterface{
         curl_close($curl);
 
         return $response['value'];
+
+    }
+
+    public function getOptionsTableById($id):array
+    {
+
+        $curl = curl_init();
+        
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => $this->baseApi ."Fields@OptionsTables?\$expand=Options&\$filter=Id+eq+{$id}",
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => strtoupper($this->method[0]),
+            CURLOPT_HTTPHEADER => $this->headers
+            
+        ));
+        
+        $response = curl_exec($curl);
+        $response =json_decode($response, true);
+        
+        curl_close($curl);
+
+        return $response['value'][0];
 
     }
 
@@ -679,7 +706,7 @@ class PloomesServices implements PloomesManagerInterface{
         $curl = curl_init();
         
         curl_setopt_array($curl, array(
-            CURLOPT_URL => $this->baseApi .'Tags?$filter=EntityId+eq+1',
+            CURLOPT_URL => "{$this->baseApi}Tags?\$filter=EntityId+eq+{$entityId}",
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_ENCODING => '',
             CURLOPT_MAXREDIRS => 10,
@@ -699,5 +726,123 @@ class PloomesServices implements PloomesManagerInterface{
         return $response['value'];
 
     }
+
+    public function getFamilyByName($family){
+
+        $curl = curl_init();
+        
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => "{$this->baseApi}Products@Families?\$filter=Name+eq+'{$family}'",
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => strtoupper($this->method[0]),
+            CURLOPT_HTTPHEADER => $this->headers
+            
+        ));
+        
+        $response = curl_exec($curl);
+        $response =json_decode($response, true);
+        
+        curl_close($curl);
+
+        return $response['value'][0] ?? false;
+
+    }
+
+    public function createNewFamily($family){
+
+        $array = ['Name'=> $family];
+
+        $json = json_encode($array);
+
+        $curl = curl_init();
+ 
+         curl_setopt_array($curl, array(
+             CURLOPT_URL => $this->baseApi .'Products@Families',
+             CURLOPT_RETURNTRANSFER => true,
+             CURLOPT_ENCODING => '',
+             CURLOPT_MAXREDIRS => 10,
+             CURLOPT_TIMEOUT => 0,
+             CURLOPT_FOLLOWLOCATION => true,
+             CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+             CURLOPT_CUSTOMREQUEST => strtoupper($this->method[1]),
+             CURLOPT_POSTFIELDS => $json,
+             CURLOPT_HTTPHEADER => $this->headers
+ 
+         ));
+ 
+         $response = curl_exec($curl);
+         $response =json_decode($response, true);
+         
+         curl_close($curl);
+
+         return $response['value'][0] ?? false;
+ 
+     }
+
+     public function getGroupByName($group){
+
+        
+        
+        $curl = curl_init();
+        
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => "{$this->baseApi}Products@Groups?\$filter=Name+eq+'{$group}'",
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => strtoupper($this->method[0]),
+            CURLOPT_HTTPHEADER => $this->headers
+            
+        ));
+        
+        $response = curl_exec($curl);
+        $response =json_decode($response, true);
+      
+        curl_close($curl);
+
+        return $response['value'][0] ?? false;
+
+     }
+
+     public function createNewGroup($group, $familyId){
+
+        $array = ['Name'=> $group, 'FamilyId'=>$familyId];
+
+        $json = json_encode($array);
+
+        $curl = curl_init();
+ 
+         curl_setopt_array($curl, array(
+             CURLOPT_URL => $this->baseApi .'Products@Groups',
+             CURLOPT_RETURNTRANSFER => true,
+             CURLOPT_ENCODING => '',
+             CURLOPT_MAXREDIRS => 10,
+             CURLOPT_TIMEOUT => 0,
+             CURLOPT_FOLLOWLOCATION => true,
+             CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+             CURLOPT_CUSTOMREQUEST => strtoupper($this->method[1]),
+             CURLOPT_POSTFIELDS => $json,
+             CURLOPT_HTTPHEADER => $this->headers
+ 
+         ));
+ 
+         $response = curl_exec($curl);
+         $response =json_decode($response, true);
+         
+         curl_close($curl);
+
+         return $response['value'][0] ?? false;
+ 
+     }
+
+   
 
 }

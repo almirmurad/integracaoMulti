@@ -3,6 +3,7 @@ namespace src\controllers;
 
 use core\Controller;
 use src\exceptions\WebhookReadErrorException;
+use src\factories\ErpFormatterFactory;
 use src\handlers\ClientHandler;
 use src\handlers\LoginHandler;
 use src\handlers\ProductHandler;
@@ -19,37 +20,40 @@ class ServiceController extends Controller {
     private $omieServices;
     private $databaseServices;
     private $rabbitMQServices;
+    private $formatter;
 
-    public function __construct()
+    public function __construct($args)
     {
-        if($_SERVER['REQUEST_METHOD'] !== "POST"){
-            $this->loggedUser = LoginHandler::checkLogin();
-            if ($this->loggedUser === false) {
-                $this->redirect('/login');
-            }
-        }
+        
+        $ploomesBase = $args['Tenancy']['ploomes_bases'][0];
 
-        $this->ploomesServices = new PloomesServices();
-        $this->omieServices = new OmieServices();
+        $args['Tenancy']['vhost'][0]['key'] = $args['Tenancy']['tenancies']['cpf_cnpj'];
+        $vhost = $args['Tenancy']['vhost'][0];
+        $this->ploomesServices = new PloomesServices($ploomesBase);
         $this->databaseServices = new DatabaseServices();
-        $this->rabbitMQServices = new RabbitMQServices();
-
+        $this->rabbitMQServices = new RabbitMQServices($vhost);
     }
-    //recebe webhook do omie
-    public function omieServices()
-    {
-        $message = [];
-        $json = file_get_contents('php://input');
 
-        ob_start();
-        var_dump($json);
-        $input = ob_get_contents();
-        ob_end_clean();
-        file_put_contents('./assets/services.log', $input . PHP_EOL . date('d/m/Y H:i:s') . PHP_EOL, FILE_APPEND);
+    private function getServiceHandler($args): ServiceHandler
+    {
+        $this->formatter = ErpFormatterFactory::create($args);
+        $serviceHandler = new ServiceHandler($this->ploomesServices, $this->databaseServices, $this->formatter);
+        
+        return $serviceHandler;
+    }
+
+    //recebe webhook do omie
+    public function omieServices($args)
+    {
+        $idUser = $args['Tenancy']['tenancies']['user_id'];
+        
+        $json = json_encode($args['body']);
+        $message = [];
 
         try{
-            $serviceHandler = new ServiceHandler($this->ploomesServices, $this->omieServices, $this->databaseServices);
-            $response = $serviceHandler->saveServiceHook($json);
+
+            $serviceHandler = $this->getServiceHandler($args);
+            $response = $serviceHandler->saveServiceHook($json, $idUser);
             $rk = array('Omie','Services');
             $this->rabbitMQServices->publicarMensagem('services_exc', $rk, 'omie_services',  $json);
             
@@ -70,7 +74,7 @@ class ServiceController extends Controller {
                 var_dump($e->getMessage());
                 $input = ob_get_contents();
                 ob_end_clean();
-                file_put_contents('./assets/log.log', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
+                file_put_contents('./assets/service.log', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
                 
                 return print $e->getMessage();
             }
@@ -79,7 +83,7 @@ class ServiceController extends Controller {
              print_r($message);
              $input = ob_get_contents();
              ob_end_clean();
-             file_put_contents('./assets/log.log', $input . PHP_EOL, FILE_APPEND);
+             file_put_contents('./assets/service.log', $input . PHP_EOL, FILE_APPEND);
              
              return print $message['status_message'];
            
@@ -87,19 +91,14 @@ class ServiceController extends Controller {
             
     }
     //processa webhook de produtos
-    public function processNewService()
+    public function processNewService($args)
     {
-        $json = file_get_contents('php://input');
-        //$decoded = json_decode($json,true);
-        // $status = $decoded['status'];
-        // $entity = $decoded['entity'];
         $message = [];
-
         // processa o webhook 
         try{
             
-            $ServiceHandler = new ServiceHandler($this->ploomesServices, $this->omieServices, $this->databaseServices);
-            $response = $ServiceHandler->startProcess($json);
+            $serviceHandler = $this->getServiceHandler($args);
+            $response = $serviceHandler->startProcess($args);
 
             $message =[
                 'status_code' => 200,
@@ -111,10 +110,9 @@ class ServiceController extends Controller {
             print_r($message);
             $input = ob_get_contents();
             ob_end_clean();
-            file_put_contents('./assets/logClient.log', $input . PHP_EOL, FILE_APPEND);
+            file_put_contents('./assets/service.log', $input . PHP_EOL, FILE_APPEND);
         
         }catch(WebhookReadErrorException $e){
-                
         }
         finally{
             if(isset($e)){
@@ -122,15 +120,14 @@ class ServiceController extends Controller {
                 var_dump($e->getMessage());
                 $input = ob_get_contents();
                 ob_end_clean();
-                file_put_contents('./assets/logClient.log', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
+                file_put_contents('./assets/service.log', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
                 //print $e->getMessage();
                 
                 $message =[
                     'status_code' => 500,
                     'status_message' => $e->getMessage(),
                 ];
-               
-                // return print 'ERROR: '.$message['status_code'].' MENSAGEM: '.$message['status_message'];
+
                 $m = json_encode($message);
                  return print_r($m);
             }

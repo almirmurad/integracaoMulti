@@ -14,12 +14,12 @@ Class CustomFieldsFunction{
             //pega todos os campos personalizados
             $custom = $ploomesServices->getContactCustomFields();
             //cria um array separado por entidade
-            $customFields = self::divideCustomForEntity($custom);
+            $customFields = self::divideCustomForEntity($custom, $ploomesServices);
             self::$customFields = $customFields;
         }
     }
 
-    private static function divideCustomForEntity($customFields)
+    private static function divideCustomForEntity($customFields, $ploomesServices)
     {
         $cf = [];
         $contacts = []; // id = 1 name =Cliente
@@ -29,7 +29,7 @@ Class CustomFieldsFunction{
         $products = []; //id = 10 name = produto
 
         foreach($customFields as $custom){
-
+        
             switch($custom['Entity']['Id']){
 
                 case 1:
@@ -37,7 +37,12 @@ Class CustomFieldsFunction{
                     $contacts['Key'] = $custom['Key'];
                     $contacts['SendExternalKey'] = $custom['SendExternalKey'];
                     $contacts['Type'] = $custom['Type']['NativeType'];
-                    $contacts['Entity'] = $custom['Entity']['Name'];
+                    $contacts['Entity'] = $custom['Entity']['Name']; 
+                    $contacts['TypeId'] = $custom['TypeId']; 
+                    if($contacts['TypeId'] == 7 && !empty($custom['OptionsTableId']) ){
+                        $opt = $ploomesServices->getOptionsTableById($custom['OptionsTableId']);
+                        $contacts['Options'] = $opt['Options'];
+                    }
                     $cf[$custom['Entity']['Name']][] = $contacts;
                     break;
                 case 2:
@@ -46,6 +51,11 @@ Class CustomFieldsFunction{
                     $deals['SendExternalKey'] = $custom['SendExternalKey'];
                     $deals['Type'] = $custom['Type']['NativeType'];
                     $deals['Entity'] = $custom['Entity']['Name'];
+                    $deals['TypeId'] = $custom['TypeId'];
+                    if($deals['TypeId'] == 7 && !empty($custom['OptionsTableId']) ){
+                        $opt = $ploomesServices->getOptionsTableById($custom['OptionsTableId']);
+                        $contacts['Options'] = $opt['Options'];
+                    }
                     $cf[$custom['Entity']['Name']][] = $deals;
                     break;
                 case 7:
@@ -54,7 +64,13 @@ Class CustomFieldsFunction{
                     $quotes['SendExternalKey'] = $custom['SendExternalKey'];
                     $quotes['Type'] = $custom['Type']['NativeType'];
                     $quotes['Entity'] = $custom['Entity']['Name'];
+                    $quotes['TypeId'] = $custom['TypeId'];
+                    if($quotes['TypeId'] == 7 && !empty($custom['OptionsTableId']) ){
+                        $opt = $ploomesServices->getOptionsTableById($custom['OptionsTableId']);
+                        $contacts['Options'] = $opt['Options'];
+                    }
                     $cf[$custom['Entity']['Name']][] = $quotes;
+
                     break;
                 case 8:
                     $quoteSection['Name'] = $custom['Name'];
@@ -62,6 +78,11 @@ Class CustomFieldsFunction{
                     $quoteSection['SendExternalKey'] = $custom['SendExternalKey'];
                     $quoteSection['Type'] = $custom['Type']['NativeType'];
                     $quoteSection['Entity'] = $custom['Entity']['Name'];
+                    $quoteSection['TypeId'] = $custom['TypeId'];
+                    if($quoteSection['TypeId'] == 7 && !empty($custom['OptionsTableId']) ){
+                        $opt = $ploomesServices->getOptionsTableById($custom['OptionsTableId']);
+                        $contacts['Options'] = $opt['Options'];
+                    }
                     $cf[$custom['Entity']['Name']][] = $quoteSection;
                     break;
                 case 10:
@@ -70,12 +91,17 @@ Class CustomFieldsFunction{
                     $products['SendExternalKey'] = $custom['SendExternalKey'];
                     $products['Type'] = $custom['Type']['NativeType'];
                     $products['Entity'] = $custom['Entity']['Name'];
+                    $products['TypeId'] = $custom['TypeId'];
+                    if($products['TypeId'] == 7 && !empty($custom['OptionsTableId']) ){
+                        $opt = $ploomesServices->getOptionsTableById($custom['OptionsTableId']);
+                        $contacts['Options'] = $opt['Options'];
+                    }
                     $cf[$custom['Entity']['Name']][] = $products;
                 break;
             }
             
         }
-    
+
         return $cf;
 
     }
@@ -94,8 +120,6 @@ Class CustomFieldsFunction{
         }else{
             $customFields = $_SESSION['contact_custom_fields'][$id];
         }
-       
-        $customFields = self::getCustomFields();
         
         $custom =[]; 
         //pega array OtherProperties separa chave e valor
@@ -115,8 +139,9 @@ Class CustomFieldsFunction{
     }        
 
 
-    public static function compareCustomFieldsFromOtherProperties(array $otherProperties, $id):array{
-
+    public static function compareCustomFieldsFromOtherProperties(array $otherProperties, $id):array
+    {
+        //traz os campos ohterProperties com suas chaves convertidas para SendExternalKey
       
         $array = [];
         if(!$_SESSION['contact_custom_fields'][$id]){
@@ -133,10 +158,8 @@ Class CustomFieldsFunction{
             $customFieldMap[$field['Key']] = $field['Name'];
         }
 
-
        // Mapear os valores de OtherProperties com os nomes dos campos
         foreach ($otherProperties as $property) {
-           
             $fieldKey = $property['FieldKey'];
             
             if (isset($customFieldMap[$fieldKey])) {
@@ -150,8 +173,9 @@ Class CustomFieldsFunction{
 
     public static function createOtherPropertiesByEntity(array $custom, array|object $data)
     {
-        //para cada ERP teremos campos personalizados com valores diferentes. Talvez seja preciso criar um modelo desta função para cada erp ou fazer com que esta função receba os campos diferentes de cada erp;
-    
+        //cria um array OtherProperties com os campos customizados vindo de $customFIelds porém a chave $k faz referencia a chave do array $data. ou seja a SendExternaKey bicorp_api_$k_out onde $k = $data['ncm'] por exemplo.
+        // print_r($data);
+        // exit;
         $otherProperties = [];
         $b =[];
         $type='';

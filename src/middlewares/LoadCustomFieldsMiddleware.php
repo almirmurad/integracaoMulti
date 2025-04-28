@@ -21,8 +21,10 @@ class LoadCustomFieldsMiddleware extends Middleware
 
 
         // Carrega os campos personalizados do Ploomes
-        CustomFieldsFunction::loadCustomField($ploomesBase);       
+        CustomFieldsFunction::loadCustomField($ploomesBase);    
+         
         $_SESSION['contact_custom_fields'][$args['Tenancy']['tenancies']['id']] = CustomFieldsFunction::getCustomFields();
+
 
         // Passa a requisição para o próximo middleware ou controller
         return $next($args);
