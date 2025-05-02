@@ -30,7 +30,7 @@ class ProductController extends Controller {
         $vhost = $args['Tenancy']['vhost'][0];
         $this->ploomesServices = new PloomesServices($ploomesBase);
         $this->databaseServices = new DatabaseServices();
-        $this->rabbitMQServices = new RabbitMQServices($vhost);
+        // $this->rabbitMQServices = new RabbitMQServices($vhost);
     }
 
     private function getProductHandler($args): ProductHandler
@@ -57,7 +57,7 @@ class ProductController extends Controller {
          
              // $rk = origem.entidade.ação
              $rk = array('Omie','Products');
-             $this->rabbitMQServices->publicarMensagem('products_exc', $rk, 'omie_products',  $json);
+            //  $this->rabbitMQServices->publicarMensagem('products_exc', $rk, 'omie_products',  $json);
             
             if ($response > 0) {
                 

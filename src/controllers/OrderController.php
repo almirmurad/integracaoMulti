@@ -19,55 +19,50 @@ class OrderController extends Controller {
     
     private $loggedUser;
     private $ploomesServices;
-    private $omieServices;
     private $databaseServices;
-    private $rabbitMQServices;
+    // private $rabbitMQServices;
     private $formatter;
 
-    public function __construct()
+
+    public function __construct($args)
     {
-        if($_SERVER['REQUEST_METHOD'] !== "POST"){
-            $this->loggedUser = LoginHandler::checkLogin();
-            if ($this->loggedUser === false) {
-                $this->redirect('/login');
-            }
-        }
+        
+        $ploomesBase = $args['Tenancy']['ploomes_bases'][0];
 
-        $this->ploomesServices = new ploomesServices();
-        $this->omieServices = new omieServices();
+        $args['Tenancy']['vhost'][0]['key'] = $args['Tenancy']['tenancies']['cpf_cnpj'];
+        $vhost = $args['Tenancy']['vhost'][0];
+        $this->ploomesServices = new PloomesServices($ploomesBase);
         $this->databaseServices = new DatabaseServices();
-        $this->rabbitMQServices = new RabbitMQServices();
-
+        // $this->rabbitMQServices = new RabbitMQServices($vhost);
     }
 
-    private function getOrderHandler(): OrderHandler
+    private function getOrderHandler($args): OrderHandler
     {
-        $erp = $_ENV['ERP']; // Pode vir de um parâmetro, sessão, banco, etc.
-        $formatter = ErpFormatterFactory::create($erp);
-
-        $orderHandler = new OrderHandler($this->ploomesServices, $this->omieServices, $this->databaseServices, $formatter);
+        $this->formatter = ErpFormatterFactory::create($args);
+        $orderHandler = new OrderHandler($this->ploomesServices, $this->databaseServices, $this->formatter);
 
         return $orderHandler;
     }
 
-    public function ploomesOrder()
+    public function ploomesOrder($args)
     {
-        /*
-        *Recebe o webhook de card ganho, salva na base e retorna 200
-        */
-        $json = file_get_contents('php://input');
+        $idUser = $args['Tenancy']['tenancies']['user_id'];
+        
+        $json = json_encode($args['body']);
+        $message = [];
 
         try{
-            $orderHandler = $this->getOrderHandler();
-            $response = $orderHandler->saveDealHook($json);
+
+            $orderHandler = $this->getOrderHandler($args);
+
+            $response = $orderHandler->saveDealHook($json, $idUser);
                         
             // $rk = origem.entidade.ação
             $rk = array('Ploomes','Orders');
-            $this->rabbitMQServices->publicarMensagem('orders_exc', $rk, 'ploomes_orders',  $json);
+            // $this->rabbitMQServices->publicarMensagem('orders_exc', $rk, 'ploomes_orders',  $json);
 
             if ($response > 0) {
 
-                $message = [];
                 $message =[
                     'status_code' => 200,
                     'status_message' => 'SUCCESS: '. $response['msg'],
@@ -78,7 +73,7 @@ class OrderController extends Controller {
         }
         finally{
             if(isset($e)){
-                $message = [];
+                
                 $message =[
                     'status_code' => 500,
                     'status_message' => $e->getMessage(),
@@ -88,7 +83,7 @@ class OrderController extends Controller {
                 var_dump($e->getMessage());
                 $input = ob_get_contents();
                 ob_end_clean();
-                file_put_contents('./assets/log.log', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
+                file_put_contents('./assets/orders.log', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
 
                 return print 'ERROR:'. $message['status_code'].'. MESSAGE: ' .$message['status_message'];
             }
@@ -97,17 +92,15 @@ class OrderController extends Controller {
         }        
     }
 
-    public function processNewOrder()
-    {
-        $json = file_get_contents('php://input');
-        
+    public function processNewOrder($args)
+    {        
         $message = [];
       
         try{
         
-            $orderHandler = $this->getOrderHandler();
+            $orderHandler = $this->getOrderHandler($args);
 
-            $response = $orderHandler->startProcess($json);
+            $response = $orderHandler->startProcess($args);
 
             $message =[
                 'status_code' => 200,
@@ -119,7 +112,7 @@ class OrderController extends Controller {
             print_r($message);
             $input = ob_get_contents();
             ob_end_clean();
-            file_put_contents('./assets/log.log', $input . PHP_EOL, FILE_APPEND);
+            file_put_contents('./assets/orders.log', $input . PHP_EOL, FILE_APPEND);
             //return $message['status_message'];
         
         }catch(WebhookReadErrorException $e){                      
@@ -130,7 +123,7 @@ class OrderController extends Controller {
                 var_dump($e->getMessage());
                 $input = ob_get_contents();
                 ob_end_clean();
-                file_put_contents('./assets/log.log', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
+                file_put_contents('./assets/orders.log', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
                 //print $e->getMessage();
               
                 $message =[

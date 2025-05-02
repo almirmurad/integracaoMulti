@@ -696,7 +696,8 @@ class PloomesServices implements PloomesManagerInterface{
         $response =json_decode($response, true);
         
         curl_close($curl);
-
+        // var_dump($response);
+        // exit;
         return $response['value'][0];
 
     }

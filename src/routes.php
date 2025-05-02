@@ -118,14 +118,13 @@ return [
             'middlewares' => [RequestMiddleware::class, LoadCustomFieldsMiddleware::class]
         ],
         //Orders
-        //https://gamatermic.bicorp.online/public/ploomesOrder
         '/ploomesOrder'=>[
             'callback' => 'OrderController@ploomesOrder', //novo pedido no ploomes
-            'middlewares' => []
+            'middlewares' => [RequestMiddleware::class,]
         ],
         '/processNewOrder'=>[
             'callback' => 'OrderController@processNewOrder', //inicia processo
-            'middlewares' => []
+            'middlewares' => [RequestMiddleware::class, LoadCustomFieldsMiddleware::class]
         ],
         //Invoices NFE
         '/invoiceIssue'=>[

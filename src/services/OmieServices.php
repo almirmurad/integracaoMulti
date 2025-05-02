@@ -7,6 +7,7 @@ use src\functions\DiverseFunctions;
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\CurlFactory;
 use GuzzleHttp\Handler\CurlHandler;
+use GuzzleHttp\Psr7\Response;
 use src\exceptions\WebhookReadErrorException;
 
 class OmieServices implements OmieManagerInterface{
@@ -381,6 +382,8 @@ class OmieServices implements OmieManagerInterface{
     // CRIA PEDIDO DE VENDA DE PRODUTO NO OMIE
     public function criaPedidoOmie(string $json)
     {      
+       
+        // {"app_key":"4194053472609","app_secret":"43cf1d9c1d63974acf152aeeab8777ef","call":"IncluirPedido","param":[{"cabecalho":{"codigo_cliente":"7118052178","codigo_pedido_integracao":"VEN_PRD\/406775106","data_previsao":"30\/04\/2025","etapa":"10","numero_pedido":406775106,"codigo_parcela":"000","origem_pedido":"API"},"det":[{"ide":{"codigo_item_integracao":466694095},"produto":{"quantidade":1,"valor_unitario":140,"codigo_produto":"7121784805"},"inf_adic":{"numero_pedido_compra":null,"item_pedido_compra":1}},{"ide":{"codigo_item_integracao":466694096},"produto":{"quantidade":2,"valor_unitario":53,"codigo_produto":"7121784805"},"inf_adic":{"numero_pedido_compra":null,"item_pedido_compra":2}}],"frete":{"modalidade":null},"informacoes_adicionais":{"codigo_categoria":"1.01.03","codigo_conta_corrente":"1234","numero_pedido_cliente":"0","codVend":null,"codproj":null,"dados_adicionais_nf":null},"observacoes":{"obs_venda":null}}]}
         
         $curl = curl_init();
 
@@ -402,6 +405,8 @@ class OmieServices implements OmieManagerInterface{
         $response = curl_exec($curl);
 
         curl_close($curl);
+        // print_r($response);
+        // exit;
         
         return json_decode($response, true);
       

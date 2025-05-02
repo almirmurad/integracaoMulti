@@ -84,6 +84,40 @@ Class OmieFormatter implements ErpFormattersInterface{
         return true;
     }
 
+    //order
+    public function distinctProductsServicesFromOmieOrders(array $orderArray, bool $isService, string $idItemOmie, object $order):array
+    {
+        $productsOrder = [];
+        $contentServices = [];
+          //separa e monta os arrays de produtos e serviços
+        $opItem = [];       
+        
+        foreach($orderArray['Products'] as $prdItem)
+        {   
+            foreach($prdItem['Product']['OtherProperties'] as $otherp){
+                $opItem[$otherp['FieldKey']] = $otherp['ObjectValueName'] ?? 
+                $otherp['BigStringValue'] ?? $otherp['StringValue'] ??  $otherp['IntegerValue'] ?? $otherp['DateTimeValue'];
+            }
+            
+            if(!array_key_exists($idItemOmie, $opItem )){
+                throw new PedidoInexistenteException('Erro ao montar pedido para enviar ao Omie: Não foi encontrado o id do produto  Omie para o aplicativo de faturamento escolhido no pedido.', 500);
+            }
+
+            //verifica se é venda de serviço 
+            if($isService){
+               //retorna o modelo de serviço para o erp de destino 
+               $contentServices[] = $this->getOrdersServicesItens($prdItem, $opItem[$idItemOmie], $order);
+                
+            }else{
+                
+
+                $productsOrder[] = $this->getOrdersProductsItens($prdItem, $opItem[$idItemOmie], $order);
+               
+            }
+        }
+
+        return ['products'=>$productsOrder, 'services'=>$contentServices];
+    }
 
     public function createOrder(object $order, object $omie):string
     {        
@@ -108,7 +142,7 @@ Class OmieFormatter implements ErpFormattersInterface{
         $informacoes_adicionais['codigo_categoria'] = '1.01.03';//string
         $informacoes_adicionais['codigo_conta_corrente'] = $omie->ncc;//int
         $informacoes_adicionais['numero_pedido_cliente']= $order->numPedidoCliente ?? "0";
-        $informacoes_adicionais['codVend']= $order->codVendedorOmie ?? null;
+        $informacoes_adicionais['codVend']= $order->codVendedorErp ?? null;
         $informacoes_adicionais['codproj']= $order->codProjeto ?? null;
         $informacoes_adicionais['dados_adicionais_nf'] = $order->notes;
     
@@ -144,6 +178,72 @@ Class OmieFormatter implements ErpFormattersInterface{
         }
     
     }
+
+    public function createOrderErp(string $jsonPedido): array{
+
+        return $this->omieServices->criaPedidoOmie($jsonPedido);
+
+    }
+
+    public function getOrdersServicesItens(array $prdItem, int $idItemOmie, object $order):array
+    {
+        $serviceOrder = [];
+        $pu = [];
+        $service = [];
+        $produtosUtilizados = [];
+
+        //verifica se tem serviço com produto junto
+        if($prdItem['Product']['Group']['Name'] !== 'Serviços'){
+                     
+            //monts o produtos utilizados (pu)
+            $pu['nCodProdutoPU'] = $idItemOmie;
+            $pu['nQtdePU'] = $prdItem['Quantity'];
+            
+            $produtosUtilizados[] = $pu;
+            
+        }else{
+            
+            //monta o serviço
+            $service['nCodServico'] = $idItemOmie;
+            $service['nQtde'] = $prdItem['Quantity'];
+            $service['nValUnit'] = $prdItem['UnitPrice'];
+            $service['cDescServ'] = $order->descricaoServico;
+            
+            $serviceOrder[] = $service;
+        }
+
+        $contentServices['servicos'] = $serviceOrder;
+        $contentServices['produtosServicos'] = $produtosUtilizados;
+
+        return $contentServices;
+
+    }
+
+    public function getOrdersProductsItens(array $prdItem, int $idItemOmie, object $order):array
+    {
+        $det = [];  
+        $det['ide'] = [];
+        $det['produto'] = [];
+
+        $det['ide']['codigo_item_integracao'] = $prdItem['Id'];
+        $det['produto']['quantidade'] = $prdItem['Quantity'];
+        $det['produto']['valor_unitario'] = $prdItem['UnitPrice'];
+        $det['produto']['codigo_produto'] = $idItemOmie;
+
+        $det['inf_adic'] = [];
+        $det['inf_adic']['numero_pedido_compra'] = $order->numPedidoCompra;
+        $det['inf_adic']['item_pedido_compra'] =$prdItem['Ordination']+1;
+
+        return $productsOrder[] = $det;
+
+    }
+
+    public function getIdVendedorERP(object $omie, string $mailVendedor):string|null
+    {
+        return $this->omieServices->vendedorIdOmie($omie, $mailVendedor);
+    }
+
+    //clientes
 
     //cadastra obj cliente com dados vindos do erp para enviar ao crm
     public function createObjectCrmContactFromErpData(array $args):object

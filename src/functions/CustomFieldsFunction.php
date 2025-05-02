@@ -39,6 +39,7 @@ Class CustomFieldsFunction{
                     $contacts['Type'] = $custom['Type']['NativeType'];
                     $contacts['Entity'] = $custom['Entity']['Name']; 
                     $contacts['TypeId'] = $custom['TypeId']; 
+                    $contacts['Options'] = null;
                     if($contacts['TypeId'] == 7 && !empty($custom['OptionsTableId']) ){
                         $opt = $ploomesServices->getOptionsTableById($custom['OptionsTableId']);
                         $contacts['Options'] = $opt['Options'];
@@ -52,11 +53,28 @@ Class CustomFieldsFunction{
                     $deals['Type'] = $custom['Type']['NativeType'];
                     $deals['Entity'] = $custom['Entity']['Name'];
                     $deals['TypeId'] = $custom['TypeId'];
+                    $deals['Options'] = null;
                     if($deals['TypeId'] == 7 && !empty($custom['OptionsTableId']) ){
                         $opt = $ploomesServices->getOptionsTableById($custom['OptionsTableId']);
                         $contacts['Options'] = $opt['Options'];
                     }
                     $cf[$custom['Entity']['Name']][] = $deals;
+                    break;
+                case 4:
+                    $orders['Name'] = $custom['Name'];
+                    $orders['Key'] = $custom['Key'];
+                    $orders['SendExternalKey'] = $custom['SendExternalKey'];
+                    $orders['Type'] = $custom['Type']['NativeType'];
+                    $orders['Entity'] = $custom['Entity']['Name'];
+                    $orders['TypeId'] = $custom['TypeId'];
+                    $orders['Options'] = null;
+                    if($custom['TypeId'] == 7 && !empty($custom['OptionsTableId'])){
+                        
+                        $opt = $ploomesServices->getOptionsTableById($custom['OptionsTableId']);                        
+                        $orders['Options'] = $opt['Options'];
+                      
+                    }
+                    $cf[$custom['Entity']['Name']][] = $orders;
                     break;
                 case 7:
                     $quotes['Name'] = $custom['Name'];
@@ -65,6 +83,7 @@ Class CustomFieldsFunction{
                     $quotes['Type'] = $custom['Type']['NativeType'];
                     $quotes['Entity'] = $custom['Entity']['Name'];
                     $quotes['TypeId'] = $custom['TypeId'];
+                    $quotes['Options'] = null;
                     if($quotes['TypeId'] == 7 && !empty($custom['OptionsTableId']) ){
                         $opt = $ploomesServices->getOptionsTableById($custom['OptionsTableId']);
                         $contacts['Options'] = $opt['Options'];
@@ -79,6 +98,7 @@ Class CustomFieldsFunction{
                     $quoteSection['Type'] = $custom['Type']['NativeType'];
                     $quoteSection['Entity'] = $custom['Entity']['Name'];
                     $quoteSection['TypeId'] = $custom['TypeId'];
+                    $quoteSection['Options'] = null;
                     if($quoteSection['TypeId'] == 7 && !empty($custom['OptionsTableId']) ){
                         $opt = $ploomesServices->getOptionsTableById($custom['OptionsTableId']);
                         $contacts['Options'] = $opt['Options'];
@@ -92,6 +112,7 @@ Class CustomFieldsFunction{
                     $products['Type'] = $custom['Type']['NativeType'];
                     $products['Entity'] = $custom['Entity']['Name'];
                     $products['TypeId'] = $custom['TypeId'];
+                    $products['Options'] = null;
                     if($products['TypeId'] == 7 && !empty($custom['OptionsTableId']) ){
                         $opt = $ploomesServices->getOptionsTableById($custom['OptionsTableId']);
                         $contacts['Options'] = $opt['Options'];
@@ -113,9 +134,14 @@ Class CustomFieldsFunction{
         return self::$customFields;
     }
 
+    public static function getCustomFieldsByEntity($entity) {
+        
+        return self::$customFields[$entity];
+    }
+
     public static function compareCustomFields(array $otherProperties, int $id, $entity):array{
 
-        if(!$_SESSION['contact_custom_fields'][$id]){
+        if(!isset($_SESSION['contact_custom_fields'][$id])){
             $customFields = self::getCustomFields();
         }else{
             $customFields = $_SESSION['contact_custom_fields'][$id];
@@ -139,26 +165,28 @@ Class CustomFieldsFunction{
     }        
 
 
-    public static function compareCustomFieldsFromOtherProperties(array $otherProperties, $id):array
+    public static function compareCustomFieldsFromOtherProperties(array $otherProperties, string $entity, $id = null):array
     {
-        //traz os campos ohterProperties com suas chaves convertidas para SendExternalKey
-      
+        //traz os campos otherProperties com suas chaves convertidas para SendExternalKey
         $array = [];
-        if(!$_SESSION['contact_custom_fields'][$id]){
-
+        if(!isset($_SESSION['contact_custom_fields'][$id])){
+          
             $customFields = self::getCustomFields();
+      
         }else{
+          
             $customFields = $_SESSION['contact_custom_fields'][$id];
+            
         }
-
-
+        //  print_r($customFields);
         // Criar um índice associativo para facilitar a busca
         $customFieldMap = [];
-        foreach ($customFields['Cliente'] as $field) {
-            $customFieldMap[$field['Key']] = $field['Name'];
+        foreach ($customFields[$entity] as $field) {
+            
+            $customFieldMap[$field['Key']] = $field['SendExternalKey'];
         }
-
-       // Mapear os valores de OtherProperties com os nomes dos campos
+        // print_r($customFieldMap);
+        // Mapear os valores de OtherProperties com os nomes dos campos
         foreach ($otherProperties as $property) {
             $fieldKey = $property['FieldKey'];
             
