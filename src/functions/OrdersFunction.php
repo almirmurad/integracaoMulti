@@ -253,7 +253,7 @@ class OrdersFunction{
          $order->amount = $orderArray['Amount']; // Valor
  
          //previsão de faturamento
-         $order->previsaoFaturamento =(isset($customFiels['Previsão de Faturamento']) && !empty($customFiels['api_bicorp_previsao_faturamento_out']))? $customFiels['api_bicorp_previsao_faturamento_out'] : date('Y-m-d');
+         $order->previsaoFaturamento =(isset($customFiels['api_bicorp_previsao_faturamento_out']) && !empty($customFiels['api_bicorp_previsao_faturamento_out']))? $customFiels['api_bicorp_previsao_faturamento_out'] : date('Y-m-d');
  
          //template id (tipo de venda produtos ou serviços) **Obrigatório
          $order->templateId =(isset($customFields['bicorp_api_tipo_venda_tratado_out']) && !empty($customFields['bicorp_api_tipo_venda_tratado_out']))? $customFields['bicorp_api_tipo_venda_tratado_out'] : $m[] = 'Erro: não foi possível identificar o tipo de venda (Produtos ou serviços)';
