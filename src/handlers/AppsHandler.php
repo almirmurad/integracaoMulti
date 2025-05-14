@@ -9,7 +9,7 @@ use src\services\DatabaseServices;
 
 class AppsHandler {
 
-    public static function createNewAppOmie($data): array
+    public static function createNewAppErp($data): array
     {
         $response=[];
         try{
@@ -24,7 +24,7 @@ class AppsHandler {
             $data['tenancy_id'] = $t['id'];
             
             $dataBaseServices = new DatabaseServices();
-            $id = $dataBaseServices->createNewAppOmie($data);
+            $id = $dataBaseServices->createNewAppErp($data);
             $response['status'] = 200;
             $response['content'] = $id;
             

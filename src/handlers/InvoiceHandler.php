@@ -114,12 +114,12 @@ class InvoiceHandler
             
 
         // busca o pedido através id do pedido no omie retorna exceção se não encontra 
-        // if(!$pedidoOmie = $this->omieServices->consultaPedidoOmie($omie, $decoded['event']['idPedido'])){throw new WebhookReadErrorException('Pedido '.$decoded['event']['idPedido'].' não encontrado no Omie ERP',1023);     
+        // if(!$pedidoOmie = $this->omieServices->consultaPedidoErp($omie, $decoded['event']['idPedido'])){throw new WebhookReadErrorException('Pedido '.$decoded['event']['idPedido'].' não encontrado no Omie ERP',1023);     
 
         if($decoded['topic'] === 'VendaProduto.Faturada')
         {
             //consulta a nota fiscal no omie para retornar o numero da nota.            
-            $nfe = $this->omieServices->consultaNotaOmie($omie, $decoded['event']['idPedido']);
+            $nfe = $this->omieServices->consultaNotaErp($omie, $decoded['event']['idPedido']);
             ($nfe) ? $nfe : throw new Exception('NF-e não encontrada (ou não foi faturada), para o pedido: '.$decoded['event']['idPedido'], 1022); 
             $invoicing->nNF =intval($nfe);
             $content ='NF-e ('. $invoicing->nNF .') emitida no Omie ERP na base: '.$invoicing->baseFaturamentoTitle;
@@ -134,7 +134,7 @@ class InvoiceHandler
         }
 
         //busca o cnpj do cliente para consultar o contact id no ploomes
-        $cnpjClient = $this->omieServices->clienteCnpjOmie($omie);
+        $cnpjClient = $this->omieServices->clienteCnpjErp($omie);
 
         if (!empty($cnpjClient)){
             //busca o contact_id artravés do cnpj do cliente do omie

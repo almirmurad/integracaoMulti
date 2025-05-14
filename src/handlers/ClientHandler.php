@@ -52,8 +52,8 @@ class ClientHandler
     //PROCESSA E CRIA O cliente. CHAMA O REPROCESS CASO DE ERRO
     public function startProcess($args)
     {   
-        $action = $this->formatter->findAction($args);
-
+        $action = DiverseFunctions::findAction($args);
+        
         if(isset($action['origem']) && $action['origem'] === 'CRMToERP'){
             
             return ClientsFunctions::processContactCrmToErp($args, $this->ploomesServices, $this->formatter, $action);                                                   

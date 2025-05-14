@@ -2,6 +2,6 @@
 namespace src\models;
 use \core\Model;
 
-class Homologacao_invoicing extends Model {
+class Nasajon_base extends Model {
 
 }

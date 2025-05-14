@@ -57,7 +57,8 @@ class OrderHandler
     public function startProcess($args)
     {   
 
-        $action = $this->formatter->findAction($args);
+        //$action = $this->formatter->findAction($args);
+        $action = DiverseFunctions::findAction($args);
 
         if(isset($action['origem']) && $action['origem'] === 'CRMToERP'){
             

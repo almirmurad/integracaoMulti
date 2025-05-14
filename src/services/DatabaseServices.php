@@ -17,10 +17,12 @@ use src\models\Manospr_invoicing;
 use src\models\Manospr_order;
 use src\models\Manossc_invoicing;
 use src\models\Manossc_order;
+use src\models\Nasajon_base;
 use src\models\Omie_base;
 use src\models\Ploomes_base;
 use src\models\Tenancie;
 use src\models\Tenancy;
+use src\models\User;
 use src\models\Vhost;
 use src\models\Webhook;
 
@@ -428,22 +430,28 @@ class DatabaseServices implements DatabaseManagerInterface{
         }
     }
 
-    public function getAllDataTenancyById($id){
+    public function getAllDataTenancyById($id, $erpName){
 
         try{
             $tenancy = Tenancie::select('*')
             ->where('id', $id)
             ->first();
 
+            $tenancy['erp_name'] = $erpName;
+
+            // print_r($tenancy);
+            // exit;
+
             if (!$tenancy) {
                 throw new Exception('Tenancy não encontrado! ', 500);
             }
 
+            $model = $this->getModelClassByErp($erpName);
             // Buscar os apps Omie cadastrados para esse tenancy
-            $omieBases = Omie_base::select('*')
+            $bases = $model::select('*')
             ->where('tenancy_id', $tenancy['id'])
-            ->get();
-
+            ->get();           
+            
             // Buscar o app Ploomes cadastrado para esse tenancy
             $ploomesBases = Ploomes_base::select('*')
             ->where('tenancy_id', $tenancy['id'])
@@ -457,10 +465,15 @@ class DatabaseServices implements DatabaseManagerInterface{
             // Montar o array no formato desejado
             $resultado = [
                 'tenancies' => $tenancy,
-                'omie_bases' => $omieBases ?? null,
+                'erp_bases' => $bases ?? null,
                 'ploomes_bases' => $ploomesBases ?? null,
                 'vhost' => $vhost ?? null
             ];
+
+        
+
+            // print_r($resultado);
+            // exit;
 
             return $resultado; 
 
@@ -472,21 +485,42 @@ class DatabaseServices implements DatabaseManagerInterface{
 
         
     }
-    public function createNewAppOmie($data){
-        
+    public function createNewAppErp($data){
+
         try{
-            $id=Omie_base::insert(
-                [
-                    'app_name'=>$data['app_name'],
-                    'app_key'=>$data['app_key'],
-                    'app_secret'=>$data['app_secret'],
-                    'ncc'=>$data['ncc'] ?? null,
-                    'tenancy_id'=>$data['tenancy_id'],
-                    'created_at'=> date('Y-m-d H:i:s'),
-                ]
-            )->execute();
+            switch(strtolower($data['erp_name'])){
+
+                case 'omie':
+                    $id=Omie_base::insert(
+                        [
+                            'app_name'=>$data['app_name'],
+                            'app_key'=>$data['app_key'],
+                            'app_secret'=>$data['app_secret'],
+                            'ncc'=>$data['ncc'] ?? null,
+                            'tenancy_id'=>$data['tenancy_id'],
+                            'created_at'=> date('Y-m-d H:i:s'),
+                        ]
+                    )->execute();
+                    
+                    return $id;
+                case 'nasajon':
+                    $id=Nasajon_base::insert(
+                        [
+                            'app_name'=>$data['app_name'],
+                            'client_id'=>$data['client_id'],
+                            'client_secret'=>$data['client_secret'],
+                            'access_token'=>$data['access_token'] ?? null,
+                            'refresh_token'=>$data['refresh_token'] ?? null,
+                            'email'=>$data['email'],
+                            'password'=>$data['password'],
+                            'tenancy_id'=>$data['tenancy_id'],
+                            'created_at'=> date('Y-m-d H:i:s'),
+                        ]
+                    )->execute();
+                    
+                    return $id;
+            }
             
-            return $id;
 
         }catch(PDOException $e){
             return  $e->getMessage();
@@ -530,6 +564,26 @@ class DatabaseServices implements DatabaseManagerInterface{
         }
 
     }
+
+    public function getUserById($idUser){
+
+        try{
+            $user = User::select('*')
+            ->where('id', $idUser)
+            ->first();
+
+            if (!$user) {
+                throw new Exception('Usuário não encontrado! ', 500);
+            }
+
+            return $user;
+
+        }catch(PDOException $e){
+            throw new Exception('Erro ao buscar dados do Usuário no banco de dados: ' .$e->getMessage());
+        }
+
+    }
+
     public function createNewVHostRabbitMQ($data)
     {
         try{
@@ -550,6 +604,36 @@ class DatabaseServices implements DatabaseManagerInterface{
         }catch(PDOException $e){
             return  $e->getMessage();
         }
+
+    }
+
+    public function getModelClassByErp(string $erpName): string {
+        $class = 'src\\models\\' . ucfirst($erpName) . '_base';
+        if (!class_exists($class)) {
+            throw new \Exception("Classe '$class' não encontrada.");
+        }
+        return $class;
+    }
+
+    public function setNasajonInfo(array $nasajonInfos){
+        try{
+
+            Nasajon_base::update()
+                ->set('access_token', $nasajonInfos['access_token'])
+                ->set('refresh_token', $nasajonInfos['refresh_token'])
+                ->set('auth_time', $nasajonInfos['auth_time'])
+                ->set('expires_in', $nasajonInfos['expires_in'])
+                ->set('updated_at', date('Y-m-d H:i:s'))
+                ->where('id',$nasajonInfos['id'])
+                ->execute();
+
+            return true;
+
+
+        }catch(PDOException $e){
+            throw new WebhookReadErrorException("Erro ao atualizar os dados da tabela nasajon_bases após autenticar o usuário: {$e->getMessage()}", 500);
+        }
+        
 
     }
 

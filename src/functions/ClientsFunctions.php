@@ -13,23 +13,51 @@ class ClientsFunctions{
     //processa o contato do CRM para o ERP
     public static function processContactCrmToErp($args, $ploomesServices, $formatter, $action):array
     {
+       
         $contact = $formatter->createObjectErpClientFromCrmData($args, $ploomesServices);
-        
+
         $total = 0;
         foreach($contact->basesFaturamento as $k => $tnt)
         {
             $tenant[$k] = new stdClass();
   
-            if(isset($tnt['integrar']) &&  $tnt['integrar'] > 0){
+            if(isset($tnt['integrar']) && $tnt['integrar'] > 0){
                 
-                $tenant[$k]->tenant = $tnt['app_name'];
-                $tenant[$k]->appSecret = $tnt['app_secret'];
-                $tenant[$k]->appKey = $tnt['app_key'];
-                $tenant[$k]->ncc = $tnt['ncc'];
-                $tenant[$k]->integrar = $tnt['integrar'];
-                $tenant[$k]->sendExternalKeyIdOmie = $tnt['sendExternalKeyIdOmie'];
-                $contact->tenant = $tenant[$k];
+                switch (strtolower($args['user']['erp_name'])){
+                    case 'omie':
+                        $tenant[$k]->tenant = $tnt['app_name'];
+                        $tenant[$k]->appSecret = $tnt['app_secret'];
+                        $tenant[$k]->appKey = $tnt['app_key'];
+                        $tenant[$k]->ncc = $tnt['ncc'];
+                        $tenant[$k]->integrar = $tnt['integrar'];
+                        $tenant[$k]->sendExternalKeyIdErp = $tnt['sendExternalKeyIdErp'];
+                        $contact->tenant = $tenant[$k];
+                        break;
+                    case 'nasajon':
+                        $tenant[$k]->tenant = $tnt['app_name'];
+                        $tenant[$k]->client_id = $tnt['client_id'];
+                        $tenant[$k]->client_secret = $tnt['client_secret'];
+                        $tenant[$k]->access_token = $tnt['access_token'];
+                        $tenant[$k]->refresh_token = $tnt['refresh_token'];
+                        $tenant[$k]->email = $tnt['email'];
+                        $tenant[$k]->password = $tnt['password'];
+                        $tenant[$k]->integrar = $tnt['integrar'];
+                        $tenant[$k]->sendExternalKeyIdErp = $tnt['sendExternalKeyIdErp'];
+                        $contact->tenant = $tenant[$k]->tenant;
+                        break;
+                    default:
+                        $tenant[$k]->tenant = $tnt['app_name'];
+                        $tenant[$k]->appSecret = $tnt['app_secret'];
+                        $tenant[$k]->appKey = $tnt['app_key'];
+                        $tenant[$k]->ncc = $tnt['ncc'];
+                        $tenant[$k]->integrar = $tnt['integrar'];
+                        $tenant[$k]->sendExternalKeyIdErp = $tnt['sendExternalKeyIdErp'];
+                        $contact->tenant = $tenant[$k];
+                        break;
+                }
+                
                 $contact->totalTenanties = ++$total;
+                
                 if($action['action'] === 'create'){
                     //aqui manda pro formatter para criar o cliente no ERP e Retorna mensagem de sucesso ou erro
                     $responseMessages = $formatter->createContactCRMToERP($contact, $ploomesServices, $tenant[$k]); 

@@ -22,59 +22,6 @@ Class OmieFormatter implements ErpFormattersInterface{
         $this->current = date('d/m/Y H:i:s');
     }
 
-    //identifica qual action do webhook
-    public function findAction(array $args): array
-    {
-        $current = date('d/m/Y H:i:s');
-        $decoded = $args['body'];
-        
-        if(isset($decoded['Action'])){
-            try{
-                $action = match($decoded['Action']){
-                    'Create' => 'create',
-                    'Update' => 'update',
-                    'Delete' => 'delete'
-                };
-
-                $array = [
-                    'action' =>$action,
-                    'origem' => 'CRMToERP'
-                ];
-
-            }catch(\UnhandledMatchError $e){
-                throw new WebhookReadErrorException('Não foi encontrada nenhuma ação no webhook ['.$e->getMessage().']'.$current, 500);
-            }
-            
-        }elseif(isset($decoded['topic'])){
-            try{
-                $action = match($decoded['topic']){
-                    'ClienteFornecedor.Incluido' => 'create',
-                    'ClienteFornecedor.Alterado' => 'update',
-                    'ClienteFornecedor.Excluido' => 'delete',
-                    'Produto.Incluido' => 'create',
-                    'Produto.Alterado' => 'update',
-                    'Produto.Excluido' => 'delete',
-                    'Produto.MovimentacaoEstoque' => 'stock',
-                    'Servico.Incluido' => 'create',
-                    'Servico.Alterado' => 'update',
-                    'Servico.Excluido' => 'delete',
-                };
-
-                $array = [
-                    'action' =>$action,
-                    'origem' => 'ERPToCRM'
-                ];
-
-            }catch(\UnhandledMatchError $e){
-                throw new WebhookReadErrorException('Não foi encontrada nenhuma ação no webhook ['.$e->getMessage().']'.$current, 500);
-            }
-        }else{
-            throw new WebhookReadErrorException('Não foi encontrada nenhuma ação no webhook '.$current, 500);
-        }
-
-        return $array;
-    }
-
     public function detectLoop(array $args){
         
         if($args['body']['author']['name'] === 'Integração' || $args['body']['author']['email'] === 'no-reply@omie.com.br' ){
@@ -181,7 +128,7 @@ Class OmieFormatter implements ErpFormattersInterface{
 
     public function createOrderErp(string $jsonPedido): array{
 
-        return $this->omieServices->criaPedidoOmie($jsonPedido);
+        return $this->omieServices->criaPedidoErp($jsonPedido);
 
     }
 
@@ -240,7 +187,7 @@ Class OmieFormatter implements ErpFormattersInterface{
 
     public function getIdVendedorERP(object $omie, string $mailVendedor):string|null
     {
-        return $this->omieServices->vendedorIdOmie($omie, $mailVendedor);
+        return $this->omieServices->vendedorIdErp($omie, $mailVendedor);
     }
 
     //clientes
@@ -416,7 +363,7 @@ Class OmieFormatter implements ErpFormattersInterface{
             $atividade = $this->omieServices->getTipoAtividade( $omie, $contact->tipoAtividade, $name = null);
             
             foreach($custom['Cliente'] as $c){
-                if($c['SendExternalKey'] === 'bicorp_api_tipoAtividade_out'){
+                if($c['SendExternalKey'] === 'bicorp_api_tipo_atividade_out'){
                     
                     foreach($c['Options'] as $optAtividade){
                         
@@ -469,7 +416,7 @@ Class OmieFormatter implements ErpFormattersInterface{
         $cliente = $ploomesServices->getClientById($decoded['New']['Id']);
         $omie = new stdClass();
         //este app omie só pode servir para buscar campos fixos do omie os dados dos usuários devem vir do ploomes
-        $omieApp =$args['Tenancy']['omie_bases'][0];
+        $omieApp =$args['Tenancy']['erp_bases'][0];
         
         $omie->appName = $omieApp['app_name'];
         $omie->appSecret = $omieApp['app_secret'];
@@ -504,13 +451,13 @@ Class OmieFormatter implements ErpFormattersInterface{
 
         foreach($allCustoms['Cliente'] as $ac){
             
-            if ($ac['SendExternalKey'] === 'bicorp_api_tipoAtividade_out'){
+            if ($ac['SendExternalKey'] === 'bicorp_api_tipo_atividade_out'){
                 
                 $options = $ac['Options'];
                 
                 foreach($options as $opt){
                     
-                    if($opt['Id'] === $custom['bicorp_api_tipoAtividade_out']){
+                    if($opt['Id'] === $custom['bicorp_api_tipo_atividade_out']){
                      
                         $atividade = $this->omieServices->getTipoATividade($omie, $id = null, $opt['Name']);
                         $contact->tipoAtividade = $atividade['cCodigo'];
@@ -521,13 +468,13 @@ Class OmieFormatter implements ErpFormattersInterface{
         
 
         //contact_FA99392B-CED8-4668-B003-DFC1111DACB0 = Porte
-        $contact->porte = $prop['contact_FA99392B-CED8-4668-B003-DFC1111DACB0'] ?? null;
+        //$contact->porte = $prop['contact_FA99392B-CED8-4668-B003-DFC1111DACB0'] ?? null;
         //contact_20B72360-82CF-4806-BB05-21E89D5C61FD = importância
-        $contact->importancia = $prop['contact_20B72360-82CF-4806-BB05-21E89D5C61FD'] ?? null;
+        //$contact->importancia = $prop['contact_20B72360-82CF-4806-BB05-21E89D5C61FD'] ?? null;
         //contact_5F52472B-E311-4574-96E2-3181EADFAFBE = situação
         $contact->situacao = $prop['contact_5F52472B-E311-4574-96E2-3181EADFAFBE'] ?? null;
         //contact_9E595E72-E50C-4E95-9A05-D3B024C177AD = ciclo de compra
-        $contact->cicloCompra = $prop['contact_9E595E72-E50C-4E95-9A05-D3B024C177AD'] ?? null;
+        //$contact->cicloCompra = $prop['contact_9E595E72-E50C-4E95-9A05-D3B024C177AD'] ?? null;
         //contact_5D5A8D57-A98F-4857-9D11-FCB7397E53CB = inscrição estadual
         // $contact->inscricaoEstadual = $prop['contact_5D5A8D57-A98F-4857-9D11-FCB7397E53CB'] ?? null; //estava com esta linha aqui ativa
         $contact->inscricaoEstadual = $custom['bicorp_api_inscricaoEstadual_out'] ?? null;
@@ -645,10 +592,10 @@ Class OmieFormatter implements ErpFormattersInterface{
         
         $bases =[];
         $contact->codOmie = [];
-        foreach($args['Tenancy']['omie_bases'] as $base)
+        foreach($args['Tenancy']['erp_bases'] as $base)
         {   
             $name = strtolower($base['app_name']);
-            $chaveId = "bicorp_api_id_cliente_omie_{$name}_out";
+            $chaveId = "bicorp_api_id_cliente_erp_{$name}_out";
             
             $contact->codOmie[] = $custom[$chaveId] ?? null;           
             
@@ -656,7 +603,7 @@ Class OmieFormatter implements ErpFormattersInterface{
             
             if(isset($custom[$chave]) && $custom[$chave] !== false){
                 $base['sendExternalKey'] = $chave;
-                $base['sendExternalKeyIdOmie'] = $chaveId;
+                $base['sendExternalKeyIdErp'] = $chaveId;
                 $base['integrar'] = 1;
             }
             
@@ -927,7 +874,7 @@ Class OmieFormatter implements ErpFormattersInterface{
         $custom = CustomFieldsFunction::getCustomFields();
         
         foreach($custom['Cliente'] as $op){
-            if($op['SendExternalKey'] === $tenant->sendExternalKeyIdOmie)
+            if($op['SendExternalKey'] === $tenant->sendExternalKeyIdErp)
             {
                 $fieldKey = $op['Key'];
             }

@@ -161,7 +161,7 @@
 
     private function getIdVendedorOmieFromMail(object $omie, string $mail): int | null
     {
-        return $this->omieServices->vendedorIdOmie($omie, $mail);
+        return $this->omieServices->vendedorIdErp($omie, $mail);
 
     }
 
@@ -318,7 +318,7 @@
 
     private function createRequestNewOrder(object $omie, object $order, array $pedido):array
     {
-        $incluiPedidoOmie = $this->omieServices->criaPedidoOmie($omie, $order, $pedido);
+        $incluiPedidoOmie = $this->omieServices->criaPedidoErp($omie, $order, $pedido);
 
         //verifica se criou o pedido no omie
         if(isset($incluiPedidoOmie['codigo_status']) && $incluiPedidoOmie['codigo_status'] == "0") 
@@ -416,7 +416,7 @@
     private function createRequestOS(object $omie, object $os, array $structureOS):array
     {
         //inclui a ordem de serviço
-        $incluiOS = $this->omieServices->criaOS($omie, $os, $structureOS);
+        $incluiOS = $this->omieServices->criaOSErp($omie, $os, $structureOS);
 
         /**
          * array de retorno da inclusão de OS

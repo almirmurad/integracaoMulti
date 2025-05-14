@@ -33,7 +33,7 @@ class ContactController extends Controller
     }
 
     private function getClientHandler($args): ClientHandler
-    {
+    {   
         $formatter = ErpFormatterFactory::create($args);
         $clienteHandler = new ClientHandler($this->ploomesServices, $this->databaseServices, $formatter);
 
@@ -44,24 +44,29 @@ class ContactController extends Controller
     //recebe webhook de cliente criado, alterado e excluído do PLOOMES CRM
     public function ploomesContacts($args)
     {
+        $message = [];
         $idUser = $args['Tenancy']['tenancies']['user_id'];
         $json = json_encode($args['body']);
-
+        
         try {
-            $ignorar = ['LastUpdateDate', 'UpdaterId'];
-            $diferencas = DiverseFunctions::compareArrays($args['body']['Old'], $args['body']['New'], $ignorar);
 
-            if(empty($diferencas)){
-                
-                throw new WebhookReadErrorException('Não houve alteração no array', 500);
+            if(!$args['body']['Action'] == "Create"){
+
+                $ignorar = ['LastUpdateDate', 'UpdaterId'];
+                $diferencas = DiverseFunctions::compareArrays($args['body']['Old'], $args['body']['New'], $ignorar);
+    
+                if(empty($diferencas)){
+                    
+                    throw new WebhookReadErrorException('Não houve alteração no array', 500);
+                }
             }
-
+            
             $clienteHandler = $this->getClientHandler($args);
             $response = $clienteHandler->saveClientHook($json, $idUser);
 
             // $rk = origem.entidade.ação
             $rk = array('Ploomes', 'Contacts');
-            $this->rabbitMQServices->publicarMensagem('contacts_exc', $rk, 'ploomes_contacts',  $json);
+            //$this->rabbitMQServices->publicarMensagem('contacts_exc', $rk, 'ploomes_contacts',  $json);
 
             if ($response > 0) {
                 $message = [

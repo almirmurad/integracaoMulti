@@ -21,6 +21,7 @@ class UserHandler {
                 $users->name = $dt['name'];
                 $users->mail = $dt['email'];
                 $users->avatar = $dt['avatar'];
+                $users->erp_name = $dt['erp_name'];
                 $users->type = $dt['type'];
                 $users->id_permission = $dt['id_permission'];
                 $users->active = $dt['active'];
