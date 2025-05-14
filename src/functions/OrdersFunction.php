@@ -32,7 +32,7 @@ class OrdersFunction{
         $contact = $orderArray['Contact'];
 
         //pega as informações dos aplicativos
-        $bases = $args['Tenancy']['omie_bases'];
+        $bases = $args['Tenancy']['erp_bases'];
         
         //busca o Id do cliente no contact do ploomes
         $order->ids = self::getIdCustomerErpFromContactPloomes($contact['OtherProperties'], $bases, 'Cliente', $tenancyId);
@@ -439,7 +439,7 @@ class OrdersFunction{
      private static function createRequestOS(object $omie, object $os, array $structureOS):array
      {
          //inclui a ordem de serviço
-         $incluiOS = $this->omieServices->criaOS($omie, $os, $structureOS);
+         $incluiOS = $this->omieServices->criaOSErp($omie, $os, $structureOS);
  
          /**
           * array de retorno da inclusão de OS

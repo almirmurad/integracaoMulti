@@ -27,12 +27,12 @@ class RequestMiddleware extends Middleware {
                 $host = $_SERVER['HTTP_HOST'] ?? '';
                 $subdomain = explode('.', $host)[0]; // Supondo que seja algo como "cliente.dominio.com"
                 // Busca o cliente no banco de dados pelo subdominio, quando vem dos erps/crms
-                $subdomain = strtolower('JUAN');
+                $subdomain = strtolower('MARIA');
                 $user = ClientHandler::getClientBySubdomain($subdomain);
     
             }
             // Busca as credenciais do usuário no banco
-            $tenancy = TenancyHandler::getAllInfoUserAPi($user['id']);
+            $tenancy = TenancyHandler::getAllInfoUserAPi($user['id'], $user['erp_name']);
             $tenancy['tenancies']['erp_name'] = $user['erp_name'];
             
             if (!$tenancy) {
@@ -51,7 +51,7 @@ class RequestMiddleware extends Middleware {
         $args['user'] = $user;
         $args['Tenancy'] = $tenancy;
         $args['clientIp'] = $clientIp; // Adiciona o IP à requisição
-
+        
         return $next($args);
     }
 }

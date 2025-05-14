@@ -56,9 +56,9 @@ return [
             'callback' => 'TenancyController@createNewTenancyAction',
             'middlewares' => [AuthenticateMiddleware::class] 
         ],
-        // /api/omie/add
-        '/api/omie/add' => [
-            'callback' => 'TenancyController@createNewAppOmie',
+        // /api/erp/add
+        '/api/erp/add' => [
+            'callback' => 'TenancyController@createNewAppErp',
             'middlewares' => [AuthenticateMiddleware::class] 
         ],
         // /api/ploomes/add

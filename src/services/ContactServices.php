@@ -35,7 +35,7 @@ class ContactServices
                         
                         $diff['idIntegracao'] = $contact->id;
                         $diff['idOmie'] = $contact->codOmie[$k];
-                        $diff['cVendedorOmie'] = (isset($diff['ownerEmail']['new']) && $diff['ownerEmail']['new'] !== null) ? $omieServices->vendedorIdOmie($omie[$k],$diff['ownerEmail']['new']) : null;
+                        $diff['cVendedorOmie'] = (isset($diff['ownerEmail']['new']) && $diff['ownerEmail']['new'] !== null) ? $omieServices->vendedorIdErp($omie[$k],$diff['ownerEmail']['new']) : null;
                         $alterar = $omieServices->alteraCliente($omie[$k], $diff);
 
                         //verifica se criou o cliente no omie

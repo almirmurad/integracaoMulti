@@ -140,7 +140,7 @@ class ClientPloomesHandler
 
             
             //busca o cnpj do cliente através do id do omie
-            $cnpjClient = (InvoiceHandler::clienteIdOmie($order->codCliente, $order->appKey, $appSecret));
+            $cnpjClient = (InvoiceHandler::clientIdErp($order->codCliente, $order->appKey, $appSecret));
             //busca o contactId do cliente no ploomes pelo cnpj
             (!empty($contactId = InvoiceHandler::consultaClientePloomesCnpj($cnpjClient, $baseApi, $method='get', $apiKey)))?$contactId : throw new ContactIdInexistentePloomesCRM('Não foi Localizado no Ploomes CRM cliente cadastrado com o CNPJ: '.$cnpjClient.'',1505);
             //monta a mensadem para atualizar o ploomes       
@@ -323,7 +323,7 @@ class ClientPloomesHandler
             }
 
             //busca o cnpj do cliente através do id do omie
-            $cnpjClient = (InvoiceHandler::clienteIdOmie($decoded['event']['idCliente'], $decoded['appKey'], $appSecret));
+            $cnpjClient = (InvoiceHandler::clientIdErp($decoded['event']['idCliente'], $decoded['appKey'], $appSecret));
             //busca o contact id do cliente no P`loomes CRM através do cnpj do cliente no Omie ERP
             $contactId = InvoiceHandler::consultaClientePloomesCnpj($cnpjClient,$baseApi, $method='GET', $apiKey);
             //monta a mensadem para atualizar o card do ploomes
@@ -382,7 +382,7 @@ class ClientPloomesHandler
         }
 
         //busca o cnpj do cliente através do id do omie
-        $cnpjClient = (InvoiceHandler::clienteIdOmie($decoded['event']['idCliente'], $decoded['appKey'], $appSecret));
+        $cnpjClient = (InvoiceHandler::clientIdErp($decoded['event']['idCliente'], $decoded['appKey'], $appSecret));
         //busca o contact id do cliente no P`loomes CRM através do cnpj do cliente no Omie ERP
         $contactId = InvoiceHandler::consultaClientePloomesCnpj($cnpjClient,$baseApi, $method='GET', $apiKey);
         //monta a mensadem para atualizar o card do ploomes

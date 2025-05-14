@@ -4,6 +4,7 @@ namespace src\handlers;
 
 use src\contracts\ErpFormattersInterface;
 use src\exceptions\WebhookReadErrorException;
+use src\functions\DiverseFunctions;
 use src\functions\ServicesFunctions;
 use src\models\Webhook;
 use src\services\DatabaseServices;
@@ -51,7 +52,8 @@ class ServiceHandler
     //PROCESSA E CRIA O cliente. CHAMA O REPROCESS CASO DE ERRO
     public function startProcess($args)
     {   
-        $action = $this->formatter->findAction($args);
+        //$action = $this->formatter->findAction($args);
+        $action = DiverseFunctions::findAction($args);
                     
         return ServicesFunctions::processServiceErpToCrm($args, $this->ploomesServices, $this->formatter, $action);
 

@@ -55,9 +55,10 @@ class TenancyHandler {
         try{
 
             $dataBaseServices = new DatabaseServices();
+            $user = $dataBaseServices->getUserById($idTenancy);
             $array = $dataBaseServices->getTenancyByUserId($idTenancy);
-            $tenancy = $dataBaseServices->getAllDataTenancyById($array['id']);
-                
+            $tenancy = $dataBaseServices->getAllDataTenancyById($array['id'], $user['erp_name']);
+            $tenancy['owner'] = $user; 
             return $tenancy;
         }
         catch(Exception $e){

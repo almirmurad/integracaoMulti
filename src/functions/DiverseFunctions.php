@@ -2,7 +2,62 @@
 
 namespace src\functions;
 
+use src\exceptions\WebhookReadErrorException;
+
 class DiverseFunctions{
+
+           //identifica qual action do webhook
+    public static function findAction(array $args): array
+    {
+        $current = date('d/m/Y H:i:s');
+        $decoded = $args['body'];
+        
+        if(isset($decoded['Action'])){
+            try{
+                $action = match($decoded['Action']){
+                    'Create' => 'create',
+                    'Update' => 'update',
+                    'Delete' => 'delete'
+                };
+
+                $array = [
+                    'action' =>$action,
+                    'origem' => 'CRMToERP'
+                ];
+
+            }catch(\UnhandledMatchError $e){
+                throw new WebhookReadErrorException('Não foi encontrada nenhuma ação no webhook ['.$e->getMessage().']'.$current, 500);
+            }
+            
+        }elseif(isset($decoded['topic'])){
+            try{
+                $action = match($decoded['topic']){
+                    'ClienteFornecedor.Incluido' => 'create',
+                    'ClienteFornecedor.Alterado' => 'update',
+                    'ClienteFornecedor.Excluido' => 'delete',
+                    'Produto.Incluido' => 'create',
+                    'Produto.Alterado' => 'update',
+                    'Produto.Excluido' => 'delete',
+                    'Produto.MovimentacaoEstoque' => 'stock',
+                    'Servico.Incluido' => 'create',
+                    'Servico.Alterado' => 'update',
+                    'Servico.Excluido' => 'delete',
+                };
+
+                $array = [
+                    'action' =>$action,
+                    'origem' => 'ERPToCRM'
+                ];
+
+            }catch(\UnhandledMatchError $e){
+                throw new WebhookReadErrorException('Não foi encontrada nenhuma ação no webhook ['.$e->getMessage().']'.$current, 500);
+            }
+        }else{
+            throw new WebhookReadErrorException('Não foi encontrada nenhuma ação no webhook '.$current, 500);
+        }
+
+        return $array;
+    }
 
     //CONVERTE PARA DATA EM PORTUGUÊS
     public static function convertDate($date)
@@ -138,6 +193,8 @@ class DiverseFunctions{
     
         return $diferencas;
     }
+
+
 
     // public static function compararArrays($old, $new, $path = '') 
     // {

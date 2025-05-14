@@ -89,6 +89,7 @@ class TenancyController extends Controller
 
     public function allInfoUserApi($idTenancy)
     {   
+        
         $response =[];
         //recebe todas as informações do usuário de api pelo código
         $t = TenancyHandler::getAllInfoUserAPi($idTenancy['id']);
@@ -108,17 +109,18 @@ class TenancyController extends Controller
     }
 
     //na evolução do sitema teremos um create new ERP
-    public function createNewAppOmie()
+    public function createNewAppErp()
     {
         $this->loggedUser  = LoginHandler::checkLogin();
 
         $json = file_get_contents('php://input');
         
-        $data = json_decode($json, true);            
+        $data = json_decode($json, true);        
+        
                 
         if($this->loggedUser)
         {                
-            $response = AppsHandler::createNewAppOmie($data);
+            $response = AppsHandler::createNewAppErp($data);
 
             return print_r(json_encode($response));
         }else{
@@ -127,6 +129,7 @@ class TenancyController extends Controller
             return print_r(json_encode($response));     
         }
     }
+
 
     //na evolução do sitema teremos um create new CRM
     public function createNewAppPloomes()
