@@ -3,6 +3,7 @@
 namespace src\formatters;
 
 use src\contracts\ErpFormattersInterface;
+use src\exceptions\WebhookReadErrorException;
 use src\functions\CustomFieldsFunction;
 use src\services\NasajonServices;
 use src\services\PloomesServices;
@@ -10,7 +11,7 @@ use stdClass;
 
 Class NasajonFormatter implements ErpFormattersInterface{
 
-    private object $nasajonServices;
+    private NasajonServices $nasajonServices;
     public mixed $current;    
 
     public function __construct($erpBases)
@@ -181,9 +182,14 @@ Class NasajonFormatter implements ErpFormattersInterface{
     {
         $json = $this->createJsonClienteCRMToERP($contact, $tenant);
 
-        $criaClienteERP = $this->nasajonServices->criaClienteERP($json);
+        $updateClienteERP = $this->nasajonServices->criaClienteERP($json);
 
-        print_r($json);
+        if(isset($updateClienteERP['code']) && $updateClienteERP['code'] != 200)
+        {
+            throw new WebhookReadErrorException('Erro ao alterar o cliente no ERP: '.$updateClienteERP['message'], $updateClienteERP['code']);
+        }
+
+        print_r($updateClienteERP);
         exit;
         
 
@@ -231,7 +237,7 @@ Class NasajonFormatter implements ErpFormattersInterface{
         unset($contact->basesFaturamento);
         unset($contact->codErp);
         unset($contact->totalTenanties);
-        $json = json_encode($contact);
+        $json = json_encode($contact, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
 
         return $json;       
 

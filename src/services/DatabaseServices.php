@@ -512,7 +512,7 @@ class DatabaseServices implements DatabaseManagerInterface{
                             'access_token'=>$data['access_token'] ?? null,
                             'refresh_token'=>$data['refresh_token'] ?? null,
                             'email'=>$data['email'],
-                            'password'=>$data['password'],
+                            'password'=>$data['hash'],
                             'tenancy_id'=>$data['tenancy_id'],
                             'created_at'=> date('Y-m-d H:i:s'),
                         ]

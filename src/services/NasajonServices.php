@@ -116,11 +116,10 @@ class NasajonServices implements ErpManagerInterface
         $credentials['client_id'] = $erpBases[0]['client_id'];
         $credentials['client_secret']=$erpBases[0]['client_secret'];
         $credentials['username'] = $erpBases[0]['email'];
-        $credentials['password'] = $erpBases[0]['password'];
+        $credentials['password'] = $this->decrypt($erpBases);
         $credentials['scope'] = 'offline_access';
         $credentials['grant_type'] = 'password';
-        
-
+   
         //$data = http_build_query($credentials);
 
         //POST https://auth.nasajon.com.br/auth/realms/master/protocol/openid-connect/token HTTP/1.1
@@ -198,6 +197,18 @@ class NasajonServices implements ErpManagerInterface
 
 
         return $json;
+    }
+
+    private function decrypt($erpBases){
+        
+        $cpf_cnpj = $erpBases[0]['key']; // A mesma URL usada antes
+        $key = hash('sha256', $cpf_cnpj, true); // Gera a mesma chave de 32 bytes
+        $encryptedData = base64_decode($erpBases[0]['password']); // Recupera do banco
+        $iv = substr($encryptedData, 0, 16); // Extrai IV
+        $encryptedPass = substr($encryptedData, 16);
+        $decryptedPass = openssl_decrypt($encryptedPass, 'aes-256-cbc', $key, 0, $iv);
+
+        return $decryptedPass;
     }
 
 

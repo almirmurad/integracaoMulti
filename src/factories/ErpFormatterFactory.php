@@ -12,7 +12,14 @@ class ErpFormatterFactory
     {
         
         $erp = $args['user']['erp_name'];
-        $erpBases = $args['Tenancy']['erp_bases'];
+        $erpBases = [];
+        foreach($args['Tenancy']['erp_bases'] as $base){
+
+            $base['key'] = $args['Tenancy']['tenancies']['cpf_cnpj'];
+
+            $erpBases[] = $base;
+        }
+        
         $appk = $args['body']['appKey'] ?? null;
        
         return match (strtolower($erp)) {

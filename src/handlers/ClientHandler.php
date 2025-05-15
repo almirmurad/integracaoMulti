@@ -17,10 +17,10 @@ use src\services\PloomesServices;
 class ClientHandler
 {
     private ErpFormattersInterface $formatter;
+    private PloomesServices $ploomesServices;
+    private DatabaseServices $databaseServices;
     private $current;
-    private $ploomesServices;
-    private $databaseServices;
-
+    
     public function __construct(PloomesServices $ploomesServices, DatabaseServices $databaseServices,ErpFormattersInterface $formatter)
     {
         $this->formatter = $formatter;
