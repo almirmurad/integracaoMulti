@@ -191,7 +191,7 @@ Class CustomFieldsFunction{
             $fieldKey = $property['FieldKey'];
             
             if (isset($customFieldMap[$fieldKey])) {
-                $array[$customFieldMap[$fieldKey]] =  $property['StringValue'] ?? $property['BigStringValue'] ?? $property['IntegerValue'] ?? $property['DecimalValue'] ?? $property['DateTimeValue'];
+                $array[$customFieldMap[$fieldKey]] =  $property['StringValue'] ?? $property['BigStringValue'] ?? $property['IntegerValue'] ?? $property['DecimalValue'] ?? $property['DateTimeValue'] ?? $property['BoolValue'] ;
             }
         }
         

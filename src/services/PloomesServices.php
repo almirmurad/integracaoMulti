@@ -271,6 +271,9 @@ class PloomesServices implements PloomesManagerInterface{
 
         $response = curl_exec($curl);
         $response =json_decode($response, true);
+print'aqui';
+        print_r($response);
+        exit;
         
         curl_close($curl);
 
@@ -480,7 +483,7 @@ class PloomesServices implements PloomesManagerInterface{
     }
 
     //CRIA CONTACT NO PLOOMES
-    public function createPloomesContact(string $json):bool
+    public function createPloomesContact(string $json):int
     {
     
         //CHAMADA CURL PRA CRIAR WEBHOOK NO PLOOMES
@@ -502,11 +505,48 @@ class PloomesServices implements PloomesManagerInterface{
         $response = json_decode(curl_exec($curl),true);
         curl_close($curl);
 
-        $idIntegration = $response['value'][0]['Id']??Null;
+        $idIntegration = $response['value'][0]['Id'] ?? 0;
 
-        return ($idIntegration !== null)?true:false;
+        return $idIntegration;
        
     }
+
+        //CRIA CONTACT NO PLOOMES
+    public function createPloomesPerson(string $json):int
+    {
+        // print_r($json);
+        // exit;
+    
+        //CHAMADA CURL PRA CRIAR WEBHOOK NO PLOOMES
+        $curl = curl_init();
+
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => $this->baseApi . 'Contacts',//ENDPOINT PLOOMES
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST =>strtoupper($this->method[1]),
+            CURLOPT_POSTFIELDS => $json,
+            CURLOPT_HTTPHEADER => $this->headers
+        ));
+
+        $response = json_decode(curl_exec($curl),true);
+
+        curl_close($curl);
+// print_r($response);
+// exit;
+        $idIntegration = $response['value'][0]['Id'] ?? 0;
+
+        return $idIntegration;
+       
+    }
+
+
+
+    
 
     //CRIA Produto NO PLOOMES
     public function createPloomesProduct(string $json):bool|string|int
@@ -538,14 +578,14 @@ class PloomesServices implements PloomesManagerInterface{
     }
 
     //ATUALIZA CONTACT NO PLOOMES
-    public function updatePloomesContact(string $json, int $idContact):bool
+    public function updatePloomesContact(string $json, int $idContact):array
     {
             
         //CHAMADA CURL PRA CRIAR WEBHOOK NO PLOOMES
         $curl = curl_init();
 
         curl_setopt_array($curl, array(
-            CURLOPT_URL => $this->baseApi . 'Contacts('.$idContact.')',//ENDPOINT PLOOMES
+            CURLOPT_URL => $this->baseApi . 'Contacts('.$idContact.')?$expand=OtherProperties,City,State,Country,Owner($select=Id,Name,Email,Phone),Tags($expand=Tag),Phones($expand=Type),LineOfBusiness,Contacts($expand=Phones($expand=Type))',//ENDPOINT PLOOMES
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_ENCODING => '',
             CURLOPT_MAXREDIRS => 10,
@@ -558,10 +598,10 @@ class PloomesServices implements PloomesManagerInterface{
         ));
 
         $response = json_decode(curl_exec($curl),true);
-        curl_close($curl);
-        $idIntegration = $response['value'][0]['Id'] ?? Null;
 
-        return ($idIntegration !== null)?true:false;
+        curl_close($curl);
+        
+        return $response['value'][0] ?? null;
     
     }
 

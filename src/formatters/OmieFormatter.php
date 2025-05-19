@@ -8,7 +8,9 @@ use src\exceptions\PedidoInexistenteException;
 use src\exceptions\WebhookReadErrorException;
 use src\functions\CustomFieldsFunction;
 use src\functions\DiverseFunctions;
+use src\models\Contact;
 use src\services\OmieServices;
+use src\services\PloomesServices;
 use stdClass;
 
 Class OmieFormatter implements ErpFormattersInterface{
@@ -204,6 +206,7 @@ Class OmieFormatter implements ErpFormattersInterface{
         $c =  $this->omieServices->getClientById($cliente);
         
         $array = DiverseFunctions::achatarArray($c);
+
         $chave = 'idClienteOmie' . $omieApp['app_name'];
         $cliente->$chave = $array['codigo_cliente_omie'];
     
@@ -282,10 +285,12 @@ Class OmieFormatter implements ErpFormattersInterface{
     }
 
     // createPloomesContactFromErpObject - cria o json no formato do ploomes para enviar pela API do Ploomes
-    public function createPloomesContactFromErpObject(object $contact, object $ploomesServices):string
+    public function createPloomesContactFromErpObject(object $contact, PloomesServices $ploomesServices):string
     {
         $omie = new stdClass();
         $omieApp = $this->omieServices->getOmieApp();
+
+
         
         $omie->appName = $omieApp['app_name'];
         $omie->appSecret = $omieApp['app_secret'];
@@ -410,10 +415,12 @@ Class OmieFormatter implements ErpFormattersInterface{
     }
 
     // createObjectErpClientFromCrmData - cria obj cliente vindo do Ploomes ao ERP Omie
-    public function createObjectErpClientFromCrmData(array $args, object $ploomesServices):object
+    public function createObjectErpClientFromCrmData(array $args, PloomesServices $ploomesServices):object
     {
         $decoded = $args['body'];
-        $cliente = $ploomesServices->getClientById($decoded['New']['Id']);
+        //aqui ele busca o cliente no Ploomes pelo id, se for tipo 2 (contato) ele vai atualizar o cliente no omie buscando as informações da empresa no ploomes através do companyId do contato do cliente 
+        ($decoded['New']['TypeId'] === 2 )? $cliente = $ploomesServices->getClientById($decoded['New']['CompanyId']):$cliente = $ploomesServices->getClientById($decoded['New']['Id']);
+       
         $omie = new stdClass();
         //este app omie só pode servir para buscar campos fixos do omie os dados dos usuários devem vir do ploomes
         $omieApp =$args['Tenancy']['erp_bases'][0];
@@ -426,7 +433,7 @@ Class OmieFormatter implements ErpFormattersInterface{
         
         $contact = new stdClass(); 
         
-        $custom = CustomFieldsFunction::compareCustomFields($decoded['New']['OtherProperties'],$args['Tenancy']['tenancies']['id'],'Cliente');
+        $custom = CustomFieldsFunction::compareCustomFieldsFromOtherProperties($cliente['OtherProperties'],'Cliente',$args['Tenancy']['tenancies']['id']);
 
         $allCustoms = $_SESSION['contact_custom_fields'][$args['Tenancy']['tenancies']['id']];
         
@@ -457,15 +464,18 @@ Class OmieFormatter implements ErpFormattersInterface{
                 
                 foreach($options as $opt){
                     
-                    if($opt['Id'] === $custom['bicorp_api_tipo_atividade_out']){
+                    if(isset($custom['bicorp_api_tipo_atividade_out']) && $opt['Id'] === $custom['bicorp_api_tipo_atividade_out']){
                      
                         $atividade = $this->omieServices->getTipoATividade($omie, $id = null, $opt['Name']);
                         $contact->tipoAtividade = $atividade['cCodigo'];
+                    }else{
+                        $contact->tipoAtividade = null;
                     }
                 }
             }
         }
-        
+
+             
 
         //contact_FA99392B-CED8-4668-B003-DFC1111DACB0 = Porte
         //$contact->porte = $prop['contact_FA99392B-CED8-4668-B003-DFC1111DACB0'] ?? null;
@@ -487,7 +497,7 @@ Class OmieFormatter implements ErpFormattersInterface{
         (isset($contact->simplesNacional) && $contact->simplesNacional !== false) ? $contact->simplesNacional = 'S' : $contact->simplesNacional = 'N';
         //contact_3C521209-46BD-4EA5-9F41-34756621CCB4 = contato1
         // $contact->contato1 = $prop['contact_3C521209-46BD-4EA5-9F41-34756621CCB4'] ?? null; //estava com esta linha aqui ativa
-        $contact->contato1 = $custom['bicorp_api_contato_out'] ?? null;
+        $contact->contato1 = $cliente['Contacts'][0]['Name'] ?? null;
         //contact_F9B60153-6BDF-4040-9C3A-E23B1469894A = Produtor Rural
         $contact->produtorRural = $prop['contact_F9B60153-6BDF-4040-9C3A-E23B1469894A'] ?? null;
         (isset($contact->produtorRural) && $contact->produtorRural !== false) ? $contact->produtorRural = 'S' : $contact->produtorRural = 'N';
@@ -630,12 +640,12 @@ Class OmieFormatter implements ErpFormattersInterface{
         }
         
         $contact->tags = $tags;
-        
+
         return $contact;
     }
 
     // updateContactCRMToERP - atualiza um contato do CRM para o ERP ok
-    public function updateContactCRMToERP(object $contact, object $ploomesServices, object $tenant):array
+    public function updateContactCRMToERP(object $contact, PloomesServices $ploomesServices, object $tenant):array
     {
         $json = $this->createJsonClienteCRMToERP($contact, $tenant); 
 
@@ -645,7 +655,7 @@ Class OmieFormatter implements ErpFormattersInterface{
         {
             $json = $this->insertIdClienteERPinContactCRM($alterar, $tenant);
             //insere o id do omie no campo correspondente do cliente Ploomes
-            ($ploomesServices->updatePloomesContact($json, $contact->id)) ?
+            ($ploomesServices->updatePloomesContact($json, $contact->id) !== null) ?
             $mUpdateContact = 'Id cliente ERP inserido no cliente do CRM. ':
             $mUpdateContact = 'Não foi possível inserir o Id cliente ERP no cliente do CRM ';
 
@@ -669,7 +679,7 @@ Class OmieFormatter implements ErpFormattersInterface{
     }
 
     // createContact - cria um contato no CRM envia ao ERP ok
-    public function createContactCRMToERP(object $contact, object $ploomesServices, object $tenant):array
+    public function createContactCRMToERP(object $contact, PloomesServices $ploomesServices, object $tenant):array
     { 
         $messages=['success'=>[],'error'=>[]];
                 
@@ -684,7 +694,7 @@ Class OmieFormatter implements ErpFormattersInterface{
             $json = $this->insertIdClienteERPinContactCRM($criaClienteERP, $tenant);
             
             //insere o id do omie no campo correspondente do cliente Ploomes
-            ($ploomesServices->updatePloomesContact($json, $contact->id)) ?
+            ($ploomesServices->updatePloomesContact($json, $contact->id) !== null) ?
             $mUpdateContact = 'Id cliente ERP inserido no cliente do CRM. ':
             $mUpdateContact = 'Não foi possível inserir o Id cliente ERP no cliente do CRM ';
          
@@ -709,7 +719,7 @@ Class OmieFormatter implements ErpFormattersInterface{
     }
 
     // createContactERP - cria um contato no ERP envia ao CMR
-    public function createContactERP(string $json, object $ploomesServices):array
+    public function createContactERP(string $json, PloomesServices $ploomesServices):array
     {
 
         $contact = json_decode($json);
@@ -749,7 +759,7 @@ Class OmieFormatter implements ErpFormattersInterface{
     }
 
     // updateContactERP - atualiza um contato do ERP para o CRM
-    public function updateContactERP(string $json, object $contact, object $ploomesServices):array
+    public function updateContactERP(string $json, object $contact, PloomesServices $ploomesServices):array
     {
         $cpf = $contact->cnpjCpf ?? $contact->Register;
         $messages = [
@@ -1327,5 +1337,39 @@ Class OmieFormatter implements ErpFormattersInterface{
 
         return $json;
 
+    }
+
+    public function createPersonArrays(object $contact): array
+    {
+        $array = [];
+        $jsonPerson =[];
+
+        if(isset($contact->contato)){
+            $jsonPerson['TypeId'] = 2;
+            $jsonPerson['Name'] = $contact->contato;
+            $jsonPerson['CompanyId'] = $contact->companyId;
+
+            $jsonPerson['Phones'] = [];
+            $ddd1 = preg_replace("/[^0-9]/", "", $contact->telefoneDdd1);
+            $ddd2 = preg_replace("/[^0-9]/", "", $contact->telefoneDdd2);
+            $phone1 = [
+                'PhoneNumber'=>"($ddd1) $contact->telefoneNumero1" ?? null,
+                'TypeId'=>1,
+                'CountryId'=>76,
+            ];
+            
+            $phone2 = [
+                'PhoneNumber'=>"($ddd2) $contact->telefoneNumero2",
+                'TypeId' => 2,
+                'CountryId' => 76,
+            ];
+            $jsonPerson['Phones'][] = $phone1 ?? null;
+            $jsonPerson['Phones'][] = $phone2 ?? null;
+     
+        }
+
+        $array[] = json_encode($jsonPerson);
+
+        return $array;
     }
 }

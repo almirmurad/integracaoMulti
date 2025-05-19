@@ -50,13 +50,18 @@ class ContactController extends Controller
         
         try {
 
-            if(!$args['body']['Action'] == "Create"){
+            $action = DiverseFunctions::findAction($args);
+       
+            if($action['type'] === 'pessoa' && $args['body']['New']['CompanyId'] === null){
+                throw new WebhookReadErrorException('Cadastro de pessoa sem empresa referenciada', 500);
+            }
+
+            if($action['action'] === "update"){
 
                 $ignorar = ['LastUpdateDate', 'UpdaterId'];
                 $diferencas = DiverseFunctions::compareArrays($args['body']['Old'], $args['body']['New'], $ignorar);
     
                 if(empty($diferencas)){
-                    
                     throw new WebhookReadErrorException('Não houve alteração no array', 500);
                 }
             }

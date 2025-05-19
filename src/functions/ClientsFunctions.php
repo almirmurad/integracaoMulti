@@ -1,18 +1,18 @@
 <?php
 namespace src\functions;
 
-use src\exceptions\ClienteInexistenteException;
+use src\contracts\ErpFormattersInterface;
 use src\exceptions\WebhookReadErrorException;
-use src\handlers\TenancyHandler;
-use src\models\Contact;
+use src\services\PloomesServices;
 use stdClass;
 
 
 class ClientsFunctions{
 
     //processa o contato do CRM para o ERP
-    public static function processContactCrmToErp($args, $ploomesServices, $formatter, $action):array
+    public static function processContactCrmToErp($args, PloomesServices $ploomesServices, ErpFormattersInterface $formatter, $action):array
     {
+        
        
         $contact = $formatter->createObjectErpClientFromCrmData($args, $ploomesServices);
 
@@ -58,7 +58,7 @@ class ClientsFunctions{
                 
                 $contact->totalTenanties = ++$total;
                 
-                if($action['action'] === 'create'){
+                if($action['action'] === 'create' && $action['type'] === 'empresa'){
                     //aqui manda pro formatter para criar o cliente no ERP e Retorna mensagem de sucesso ou erro
                     $responseMessages = $formatter->createContactCRMToERP($contact, $ploomesServices, $tenant[$k]); 
                 }
@@ -66,7 +66,6 @@ class ClientsFunctions{
                     //aqui manda pro formatter que altera o cliente nbo ERP e retorna mensagem de erro ou sucesso   
                     $responseMessages = $formatter->updateContactCRMToERP($contact, $ploomesServices, $tenant[$k]);
                 }  
-
                 // Agrupa mensagens no array principal
                 if (!empty($responseMessages['success'])) {
                     $messages['success'][] = $responseMessages['success'];
@@ -93,10 +92,30 @@ class ClientsFunctions{
 
         if($idContact !== null || $action['action'] !== 'create')
         {
-            if($ploomesServices->updatePloomesContact($json, $idContact)){
+            $contactUpdated = $ploomesServices->updatePloomesContact($json, $idContact);
+            if($contactUpdated !== null){
+                
+                if(isset($contact->contato))
+                {
+                    $contact->companyId = $contactUpdated['Contacts'][0]['Id'];
+                    
+                    $arrayPersonsJson = $formatter->createPersonArrays($contact);
+                    $createPersonsIds = [];
+                    foreach($arrayPersonsJson as $personJson){
+                        $idPerson = $ploomesServices->updatePloomesContact($personJson, $contact->companyId);
+                        $createPersonsIds[] = $idPerson;
+                    }
 
-                $message['success'] = 'Integração concluída com sucesso! Cliente Ploomes id: '.$idContact.' alterado no Ploomes CRM com sucesso em: '.$current;
+                    if(count($createPersonsIds) > 0){
+                        $message['success'] = 'Cliente '.$contact->nomeFantasia.' Alterado no Ploomes CRM com sucesso! Foram alterados também '. count($createPersonsIds) .' contatos para este cliente. Data: '.$current;
+                    }else{
+                        $message['success'] = 'Cliente '.$contact->nomeFantasia.' Alterado no Ploomes CRM com sucesso! Porém não foi possível alterar seu(s) contatos. Data: '.$current;
+                    }
 
+                }else{
+                    $message['success'] = 'Cliente '.$contact->nomeFantasia.' Alterado no Ploomes CRM com sucesso! Porém não haviam contatos cadastrados ERP. Data: '.$current;
+                }
+               
                 return $message;
             
                 // $msg=[
@@ -113,9 +132,29 @@ class ClientsFunctions{
         }
         else
         {
+            $createContactId = $ploomesServices->createPloomesContact($json);
+            //$createContactId = 123456;
+            $contact->companyId = $createContactId;
 
-            if($ploomesServices->createPloomesContact($json)){
-                $message['success'] = 'Cliente '.$contact->nomeFantasia.' Cadastrado no Ploomes CRM com sucesso! Data: '.$current;
+            if($createContactId > 0){
+
+                if(isset($contact->contato)){
+                    $arrayPersonsJson = $formatter->createPersonArrays($contact);
+                    $createPersonsIds = [];
+                    foreach($arrayPersonsJson as $personJson){
+                        $idPerson = $ploomesServices->createPloomesPerson($personJson);
+                        $createPersonsIds[] = $idPerson;
+                    }
+
+                    if(count($createPersonsIds) > 0){
+
+                        $message['success'] = 'Cliente '.$contact->nomeFantasia.' Cadastrado no Ploomes CRM com sucesso! Foram cadastrados também '. count($createPersonsIds) .' contatos para este cliente. Data: '.$current;
+                    }else{
+                        $message['success'] = 'Cliente '.$contact->nomeFantasia.' Cadastrado no Ploomes CRM com sucesso! Porém não foi possível cadastrar seu(s) contatos. Data: '.$current;
+                    }
+
+                }
+                
                 return $message;
             }
             

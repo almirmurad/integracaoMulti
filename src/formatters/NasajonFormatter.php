@@ -33,17 +33,20 @@ Class NasajonFormatter implements ErpFormattersInterface{
         return $o;
     }
 
-    public function createPloomesContactFromErpObject(object $contact, object $ploomesServices): string
+    public function createPloomesContactFromErpObject(object $contact, PloomesServices $ploomesServices): string
     {
         return '';
     }
 
     public function createObjectErpClientFromCrmData(array $contactData, PloomesServices $ploomesServices): object
     {
-
         $decoded = $contactData['body'];
-        $custom = CustomFieldsFunction::compareCustomFields($decoded['New']['OtherProperties'],$contactData['Tenancy']['tenancies']['id'],'Cliente');
+        
+        ($decoded['New']['TypeId'] === 2 )? $dataContact = $ploomesServices->getClientById($decoded['New']['CompanyId']):$dataContact = $ploomesServices->getClientById($decoded['New']['Id']);
+    
+        $custom = CustomFieldsFunction::compareCustomFieldsFromOtherProperties($dataContact['OtherProperties'],'Cliente',$contactData['Tenancy']['tenancies']['id']);
 
+  
         $contact = new stdClass();
         $bases =[];
         $contact->codErp = [];
@@ -69,19 +72,19 @@ Class NasajonFormatter implements ErpFormattersInterface{
 
         $contact->id = 123;//required
         $contact->codigo = 123456;//required
-        $contact->qualificacao = ($decoded['New']['CPF'] === null)?"juridica":"fisica";//required
-        $contact->nome = $decoded['New']['LegalName'];//required
-        $contact->nome_fantasia = $decoded['New']['Name'] ?? null;
+        $contact->qualificacao = ($dataContact['CPF'] === null)?"juridica":"fisica";//required
+        $contact->nome = $dataContact['LegalName'];//required
+        $contact->nome_fantasia = $dataContact['Name'] ?? null;
         $contact->inativo = false ?? null;
         $contact->situacao_financeiro = "nenhum" ?? null;
         $contact->indicador_inscricao_estadual = "contribuinte_icms" ?? null;
         $contact->inscricao_estadual = $custom['bicorp_api_inscricao_estadual_out'] ?? null;
         $contact->contribuinte_icms = true  ?? null;
-        $contact->email = $decoded['New']['Email'] ?? null;
-        $contact->observacao = $decoded['New']['Note'] ?? null;
+        $contact->email = $dataContact['Email'] ?? null;
+        $contact->observacao = $dataContact['Note'] ?? null;
         $contact->grupo_empresarial = 'Gamatermic';//required
         $contact->tenant = 123;//required
-        $dataContact = $ploomesServices->getClientById($decoded['New']['Id']);
+        
 
         $contatos = [];
         if(isset($dataContact['Contacts']) && !empty($dataContact['Contacts']))
@@ -173,12 +176,10 @@ Class NasajonFormatter implements ErpFormattersInterface{
         $enderecos[0]['atualizado_em'] = "2019-08-24T14:15:22Z";
         $contact->enderecos = $enderecos;
 
-        
-
         return $contact;
     }
 
-    public function updateContactCRMToERP(object $contact, object $ploomesServices, object $tenant): array
+    public function updateContactCRMToERP(object $contact, PloomesServices $ploomesServices, object $tenant): array
     {
         $json = $this->createJsonClienteCRMToERP($contact, $tenant);
 
@@ -199,23 +200,22 @@ Class NasajonFormatter implements ErpFormattersInterface{
         return [];
     }
 
-    public function createContactCRMToERP(object $contact, object $ploomesServices, object $tenant): array
+    public function createContactCRMToERP(object $contact, PloomesServices $ploomesServices, object $tenant): array
     {
-        
-        print'aqui create';
+        $json = $this->createJsonClienteCRMToERP($contact, $tenant);
 
-        print_r($tenant);
-        print_r($contact);
-                exit;
+        print_r($json);
+        exit;
+        
         return [];
     }
 
-    public function createContactERP(string $json, object $ploomesServices): array
+    public function createContactERP(string $json, PloomesServices $ploomesServices): array
     {
         return[];
     }
 
-    public function updateContactERP(string $json, object $contact, object $ploomesServices): array
+    public function updateContactERP(string $json, object $contact, PloomesServices $ploomesServices): array
     {
         return [];
     }

@@ -20,8 +20,14 @@ class DiverseFunctions{
                     'Delete' => 'delete'
                 };
 
+                $type = match($decoded['New']['TypeId']){
+                    1 => 'empresa',
+                    2 => 'pessoa'
+                };
+
                 $array = [
                     'action' =>$action,
+                    'type' => $type,
                     'origem' => 'CRMToERP'
                 ];
 
@@ -55,7 +61,7 @@ class DiverseFunctions{
         }else{
             throw new WebhookReadErrorException('Não foi encontrada nenhuma ação no webhook '.$current, 500);
         }
-
+        
         return $array;
     }
 
@@ -165,35 +171,53 @@ class DiverseFunctions{
         return $resultado;
     }
 
-    public static function compareArrays($old, $new, $ignorar = []) {
-        $diferencas = [];
-    
-        foreach ($old as $chave => $valorOld) {
-            if (in_array($chave, $ignorar)) {
-                continue;
+public static function compareArrays($old, $new, $ignorar = [])
+{
+    $diferencas = [];
+
+    // Função auxiliar para ordenar arrays associativos e seus subarrays recursivamente
+    $ordenarRecursivo = function (&$array) use (&$ordenarRecursivo) {
+        if (!is_array($array)) return;
+
+        foreach ($array as &$valor) {
+            if (is_array($valor)) {
+                $ordenarRecursivo($valor);
             }
-    
-            if (!array_key_exists($chave, $new)) {
-                $diferencas[$chave] = ['old' => $valorOld, 'new' => null];
-            } elseif (is_array($valorOld) && is_array($new[$chave])) {
-                if (json_encode($valorOld) !== json_encode($new[$chave])) {
-                    $diferencas[$chave] = ['old' => $valorOld, 'new' => $new[$chave]];
-                }
-            } elseif ($valorOld !== $new[$chave]) {
+        }
+
+        // Ordena pelas chaves
+        ksort($array);
+    };
+
+    foreach ($old as $chave => $valorOld) {
+        if (in_array($chave, $ignorar)) {
+            continue;
+        }
+
+        if (!array_key_exists($chave, $new)) {
+            $diferencas[$chave] = ['old' => $valorOld, 'new' => null];
+        } elseif (is_array($valorOld) && is_array($new[$chave])) {
+            // Ordena os dois arrays recursivamente antes de comparar
+            $ordenarRecursivo($valorOld);
+            $ordenarRecursivo($new[$chave]);
+
+            if (json_encode($valorOld) !== json_encode($new[$chave])) {
                 $diferencas[$chave] = ['old' => $valorOld, 'new' => $new[$chave]];
             }
+        } elseif ($valorOld !== $new[$chave]) {
+            $diferencas[$chave] = ['old' => $valorOld, 'new' => $new[$chave]];
         }
-    
-        // Verifica se há chaves novas no array New que não existem no Old
-        foreach ($new as $chave => $valorNew) {
-            if (!array_key_exists($chave, $old) && !in_array($chave, $ignorar)) {
-                $diferencas[$chave] = ['old' => null, 'new' => $valorNew];
-            }
-        }
-    
-        return $diferencas;
     }
 
+    // Verifica se há chaves novas no array $new que não existem no $old
+    foreach ($new as $chave => $valorNew) {
+        if (!array_key_exists($chave, $old) && !in_array($chave, $ignorar)) {
+            $diferencas[$chave] = ['old' => null, 'new' => $valorNew];
+        }
+    }
+
+    return $diferencas;
+}
 
 
     // public static function compararArrays($old, $new, $path = '') 
