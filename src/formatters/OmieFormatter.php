@@ -46,10 +46,10 @@ Class OmieFormatter implements ErpFormattersInterface{
             foreach($prdItem['Product']['OtherProperties'] as $otherp){
                 $opItem[$otherp['FieldKey']] = $otherp['ObjectValueName'] ?? 
                 $otherp['BigStringValue'] ?? $otherp['StringValue'] ??  $otherp['IntegerValue'] ?? $otherp['DateTimeValue'];
-            }
-            
+            } 
+ 
             if(!array_key_exists($idItemOmie, $opItem )){
-                throw new PedidoInexistenteException('Erro ao montar pedido para enviar ao Omie: Não foi encontrado o id do produto  Omie para o aplicativo de faturamento escolhido no pedido.', 500);
+                throw new WebhookReadErrorException('Erro ao montar pedido para enviar ao Omie: Não foi encontrado o id do produto  Omie para o aplicativo de faturamento escolhido no pedido.', 500);
             }
 
             //verifica se é venda de serviço 
@@ -123,7 +123,7 @@ Class OmieFormatter implements ErpFormattersInterface{
             return json_encode($array, JSON_UNESCAPED_UNICODE);       
 
         }else{
-            throw new PedidoInexistenteException('Erro ao montar o pedido para enviar ao Omie: Estrutura de pedido com problema',500);
+            throw new WebhookReadErrorException('Erro ao montar o pedido para enviar ao Omie: Estrutura de pedido com problema',500);
         }
     
     }
