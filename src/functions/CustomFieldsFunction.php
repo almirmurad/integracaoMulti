@@ -244,7 +244,7 @@ Class CustomFieldsFunction{
 
             }
         }
-       
+        
         return $otherProperties;
 
     }

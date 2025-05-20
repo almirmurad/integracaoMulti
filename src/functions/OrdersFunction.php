@@ -24,7 +24,7 @@ class OrdersFunction{
         
         //Cria o objeto de order e seta o id da Venda no plooomes
         $order = self::createNewOrder($decoded);
-               
+        
         //Array de detalhes do item da venda ***Obrigatório (Busca a venda original no Ploomes com campos expandidos)
         $orderArray = self::getDetailsOrderFromPloomes($order, $ploomesServices);
 
@@ -42,10 +42,10 @@ class OrdersFunction{
         if(empty($customFields)) {
             throw new PedidoInexistenteException('Erro ao montar pedido pra enviar ao omie: Não foram encontrados campos personalizados do Ploomes', 500);
         }
-        
+      
         //pega os campos customizáveis da entidade venda e os campos customizados da venda atual compara pra pegar as opções de base de faturamento e seu nome
         $bf = self::setBaseFaturamento($entity, $customFields);
-
+   
         //Seta a base de faturamento ***Obrigatório
         ($bf) ? $order->baseFaturamento = $bf : throw new PedidoInexistenteException('Erro ao montar pedido pra enviar ao omie: não foi encontrada a empresa de faturamento do pedido', 500);
                 
@@ -56,9 +56,9 @@ class OrdersFunction{
         $omie = self::createErpObjectSetDetailsOrder($bases, $bf);
 
         //busca o código do vendedor pelo email do ploomes, se não encotrar retorna nulo
-        $order->codVendedorErp = self::getIdVendedorErpFromMail($omie, $orderArray['Owner']['Email'], $formatter);  
+        $order->codVendedorErp = self::getIdVendedorErpFromMail($omie, $orderArray['Owner']['Email'], $formatter); 
         
-        //id dos itens no omie registrados no ploomes *** Obrigatório
+        //SendExternalKey do id dos itens no omie registrados no ploomes *** Obrigatório
         $idItemOmie = self::setIdItemOmie($omie);    
         
         //seta informações adicionais(pega as informações como modalidade de frete, projeto etc de other properties pela sendExternalKey)
@@ -66,7 +66,7 @@ class OrdersFunction{
         
         //tipo da venda (is service) ***Obrigatótio
         $isService = self::isService($order);
-       
+        
         //separa os produtos dos serviços
         $contentOrder = $formatter->distinctProductsServicesFromOmieOrders($orderArray, $isService, $idItemOmie, $order);
         
@@ -166,13 +166,13 @@ class OrdersFunction{
              foreach($bases as $base){
                  $baseName = strtolower($base['app_name']);
                  switch ($k) {
-                     case "bicorp_api_id_cliente_omie_{$baseName}_out":
+                     case "bicorp_api_id_cliente_erp_{$baseName}_out":
                          $ids[$baseName] = $v ?? null;
                          break;
-                     case "bicorp_api_id_cliente_omie_{$baseName}_out":
+                     case "bicorp_api_id_cliente_erp_{$baseName}_out":
                          $ids[$baseName] = $v ?? null;
                          break;
-                     case "bicorp_api_id_cliente_omie_{$baseName}_out":
+                     case "bicorp_api_id_cliente_erp_{$baseName}_out":
                          $ids[$baseName] = $v ?? null;
                          break;          
                  }

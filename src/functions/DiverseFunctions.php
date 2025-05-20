@@ -19,15 +19,16 @@ class DiverseFunctions{
                     'Update' => 'update',
                     'Delete' => 'delete'
                 };
-
-                $type = match($decoded['New']['TypeId']){
-                    1 => 'empresa',
-                    2 => 'pessoa'
-                };
+                if($decoded['Entity'] === 'Contacts'){
+                    $type = match($decoded['New']['TypeId']){
+                        1 => 'empresa',
+                        2 => 'pessoa'
+                    };
+                }
 
                 $array = [
                     'action' =>$action,
-                    'type' => $type,
+                    'type' => $type ?? null,
                     'origem' => 'CRMToERP'
                 ];
 
