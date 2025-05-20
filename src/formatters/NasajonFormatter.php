@@ -243,4 +243,9 @@ Class NasajonFormatter implements ErpFormattersInterface{
 
     }
 
+    public function createPersonArrays(object $contact)
+    {
+        
+    }
+
 }

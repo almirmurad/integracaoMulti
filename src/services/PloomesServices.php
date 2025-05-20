@@ -271,9 +271,6 @@ class PloomesServices implements PloomesManagerInterface{
 
         $response = curl_exec($curl);
         $response =json_decode($response, true);
-print'aqui';
-        print_r($response);
-        exit;
         
         curl_close($curl);
 
