@@ -13,7 +13,7 @@ interface ErpFormattersInterface
     public function createContactCRMToERP(object $contact, PloomesServices $ploomesServices, object $tenant):array;
     public function createContactERP(string $json, PloomesServices $ploomesServices):array;
     public function updateContactERP(string $json, object $contact, PloomesServices $ploomesServices):array;
-    public function createOrderErp(string $jsonPedido):array;
+    public function createOrderErp(string $jsonPedido, array $arrayIsServices):array;
     public function getIdVendedorERP(object $erp, string $mailVendedor):string|null;
     public function createPersonArrays(object $contact);
 }
