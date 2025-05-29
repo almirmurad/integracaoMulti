@@ -9,7 +9,7 @@ interface ErpManagerInterface{
     //BUSCA ID DO PRODUTO NO ERP
     public function buscaIdProductErp(object $erp, string $idItem);
     //CRIA O PEDIDO NO ERP 
-    public function criaPedidoErp(string $json);
+    public function criaPedidoErp(string $json, string $url);
     //CRIA O SERVIÇO NO ERP 
     public function criaOSErp(object $erp, object $os, array $structureOS);
     //ENCONTRA O CNPJ DO CLIENTE NO ERP

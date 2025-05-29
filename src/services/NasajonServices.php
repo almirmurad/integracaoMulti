@@ -2,7 +2,6 @@
 
 namespace src\services;
 
-use phpseclib3\Math\BigInteger\Engines\PHP;
 use src\contracts\ErpManagerInterface;
 use src\exceptions\WebhookReadErrorException;
 
@@ -260,9 +259,9 @@ class NasajonServices implements ErpManagerInterface
         
     }
 
-    public function criaPedidoErp(string $json)
+    public function criaPedidoErp(string $json):array
     {
-        
+        return [];   
     }
 
     public function criaOSErp(object $omie, object $os, array $structureOS)

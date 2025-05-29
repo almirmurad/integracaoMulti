@@ -34,8 +34,8 @@ Class OmieFormatter implements ErpFormattersInterface{
     }
 
     //order
-    public function distinctProductsServicesFromOmieOrders(array $orderArray, bool $isService, string $idItemOmie, object $order):array
-    {
+    public function distinctProductsServicesFromOmieOrders(array $orderArray, array $arrayIsServices, string $idItemOmie, object $order):array
+    { 
         $productsOrder = [];
         $contentServices = [];
           //separa e monta os arrays de produtos e serviços
@@ -53,13 +53,13 @@ Class OmieFormatter implements ErpFormattersInterface{
             }
 
             //verifica se é venda de serviço 
-            if($isService){
+            if($arrayIsServices['isService']){
+                
                //retorna o modelo de serviço para o erp de destino 
-               $contentServices[] = $this->getOrdersServicesItens($prdItem, $opItem[$idItemOmie], $order);
-                
+               $contentServices[] = $this->getOrdersServicesItens($prdItem, $opItem[$idItemOmie], $order, $arrayIsServices['isRecurrence']);
+            
             }else{
-                
-
+             
                 $productsOrder[] = $this->getOrdersProductsItens($prdItem, $opItem[$idItemOmie], $order);
                
             }
@@ -114,7 +114,7 @@ Class OmieFormatter implements ErpFormattersInterface{
         )
         {
             $array = [
-                'app_key' =>   $omie->appKey,
+                'app_key' => $omie->appKey,
                 'app_secret' => $omie->appSecret,
                 'call' => 'IncluirPedido',
                 'param'=> [$newPedido],
@@ -123,19 +123,234 @@ Class OmieFormatter implements ErpFormattersInterface{
             return json_encode($array, JSON_UNESCAPED_UNICODE);       
 
         }else{
-            throw new WebhookReadErrorException('Erro ao montar o pedido para enviar ao Omie: Estrutura de pedido com problema',500);
+            throw new WebhookReadErrorException('Erro ao montar o pedido para enviar ao Omie: Faltaram dados para montar a estrutura do pedido',500);
         }
     
     }
 
-    public function createOrderErp(string $jsonPedido): array{
+    public function createContract(object $order, object $omie):string
+    {        
+        // cabecalho
+        $cabecalho = [];//cabeçalho do pedido (array)
+        $cabecalho['cCodIntCtr'] = 'VEN_CONT/'.$order->id;//string
+        $cabecalho['nCodCli'] = $order->idClienteOmie;//int
+        $cabecalho['cNumCtr'] = $order->numContrato;//string
+        $cabecalho['cCodSit'] = $order->sitContrato;//string'qtde_parcela'=>2
+        $cabecalho['dVigInicial'] = $order->inicioVigencia;//string
+        $cabecalho['dVigFinal'] = $order->fimVigencia;//string
+        $cabecalho['nDiaFat'] = $order->diaFaturamento;//string
+        $cabecalho['cTipoFat'] = $order->tipoFaturamento;//string
+    
+        //departamentos
+        $departamentos = [];//array com infos do frete, por exemplo, modailidade;
 
-        return $this->omieServices->criaPedidoErp($jsonPedido);
+        $emailCliente = [];
+        $emailCliente['cEnviarBoleto'] = '';
+        $emailCliente['cEnviarLinkNfse'] = '';
+        $emailCliente['cEnviarRecibo'] = '';
+        $emailCliente['cUtilizarEmails'] = '';
+       
+        //informações adicionais
+        $infAdic = []; //informações adicionais por exemplo codigo_categoria = 1.01.02, codigo_conta_corrente = 123456789
+        $infAdic['cCidPrestServ'] = $order->cidadeServico;//int
+        $infAdic['cCodART'] = '';//string
+        $infAdic['cCodCateg'] = '1.01.02';//string
+        $infAdic['cCodObra'] = '';
+        $infAdic['cContato'] = '';
+        $infAdic['cDadosAdicNF']= '';
+        $infAdic['nCodCC']= $omie->ncc;
+        $infAdic['nCodProj'] = $order->codProjeto;
+        $infAdic['nCodVend']= $order->codVendedorErp;
+
+        //itens do contrato
+        $itensContrato = [];
+        $prodUti = [];
+        
+        foreach($order->contentOrder as $service){
+
+            foreach($service['pu'] as $prdUtl){
+                $prodUti[] = $prdUtl;
+            }
+            
+            $descricaoServico = $service['desc'];
+            unset($service['pu'],$service['desc']);
+                   
+            // $itemCabecalho['codIntItem'] = 1;
+            // $itemCabecalho['cCodCategItem'] = 1;
+            // $itemCabecalho['cNaoGerarFinanceiro'] = 1;
+            // $itemCabecalho['codLC116'] = 1;
+            // $itemCabecalho['codNBS'] = 1;
+            // $itemCabecalho['codServMunic'] = 1;
+            //$itemCabecalho['codServico'] = 1;
+            // $itemCabecalho['natOperacao'] = 1;
+            // $itemCabecalho['quant'] = 1;
+            // $itemCabecalho['seq'] = 1;
+            // $itemCabecalho['valorDed'] = 1;
+            // $itemCabecalho['valorTotal'] = 1;
+            // $itemCabecalho['valorUnit'] = 1;
+    
+            $it['itemCabecalho'] = $service;
+            //descricao do item
+            $itemDescrServ= [
+                'descrCompleta' => $descricaoServico
+            ];
+            
+            $it['itemDescrServ'] = $itemDescrServ;
+            $itensContrato[] = $it;
+        }
+
+        $pu = [];
+        $pu['cAcaoProdUtilizados'] = 'EST';
+        $pu['produtoUtilizado'] = $prodUti;
+
+        //observbacoes
+        $observacoes =[];
+        $observacoes['cObsContrato'] = $order->notes;
+
+        $vencTextos = [
+            'cAdContrato'=>'S',//perguntar 
+            'cAdPeriodo'=>'N',//perguntar
+            'cAdVenc'=>'',//perguntar
+            'cAntecipar'=>'N',
+            'cCodPerRef'=>'001',//perguntar
+            'cDiaFim'=>0,
+            'cDiaIni'=>0,
+            'cPostergar'=>'',
+            'cProxMes'=>'',
+            'cTpVenc'=>'001',
+            'nDiaFixo'=>0,
+            'nDias'=>5,
+        ];
+    
+        $newContract = [];//array que engloba tudo
+        $newContract['cabecalho'] = $cabecalho;
+        $newContract['departamentos'] = $departamentos;
+        $newContract['emailCliente'] = $emailCliente;
+        $newContract['infAdic'] = $infAdic;
+        $newContract['itensContrato'] = $itensContrato;
+        $newContract['observacoes'] = $observacoes;
+        $newContract['vencTextos'] = $vencTextos;
+        $newContract['produtosUtilizados'] = $pu;
+        //$newContract['lista_parcelas'] = $lista_parcelas;
+        //$newContract['observacoes'] = $observacoes;
+    
+        if(
+            !empty($newContract['cabecalho']) || !empty($newContract['infAdic']) ||
+            !empty($newContract['itensContrato']) || !empty($newContract['observacoes']) ||
+            !empty($newContract['vencTextos'])
+        )
+        {
+            $array = [
+                'app_key' => $omie->appKey,
+                'app_secret' => $omie->appSecret,
+                'call' => 'UpsertContrato',
+                'param'=> [$newContract],
+            ];
+    
+            return json_encode($array, JSON_UNESCAPED_UNICODE);       
+
+        }else{
+            throw new WebhookReadErrorException('Erro ao montar o pedido para enviar ao Omie: Faltaram dados para montar a estrutura do pedido',500);
+        }
+    
+    }
+
+    public function createOs(object $os, object $omie):string
+    {
+        $cabecalho = [];//cabeçalho do pedido (array)
+        $cabecalho['nCodCli'] = $os->idClienteOmie;//int
+        $cabecalho['cCodIntOS'] = 'VEN_SRV/'.$os->id;//string
+        $cabecalho['dDtPrevisao'] = DiverseFunctions::convertDate($os->previsaoFaturamento);//string
+        $cabecalho['cEtapa'] = '10';//string
+        $cabecalho['cCodParc'] =  $os->idParcelamento ?? '000';//string'qtde_parcela'=>2
+        $cabecalho['nQtdeParc'] = 3;//string'qtde_parcela'=>2
+        $cabecalho['nCodVend'] = $os->codVendedorErp;//string'qtde_parcela'=>2
+
+        $InformacoesAdicionais = []; //informações adicionais por exemplo codigo_categoria = 1.01.02 p/ serviços
+        $InformacoesAdicionais['cCodCateg'] = '1.01.02';//string
+        $InformacoesAdicionais['nCodCC'] = $omie->ncc;//int
+        $InformacoesAdicionais['cDadosAdicNF'] = $os->notes;//string
+        $InformacoesAdicionais['cNumPedido']=$os->numPedidoCliente ?? "0";
+        $InformacoesAdicionais['nCodProj']= $os->codProjeto ?? null;
+        $InformacoesAdicionais['cCidPrestServ']= $os->cidadeServico ?? null;
+        $prodUti = [];
+        $services = [];
+         
+        foreach($os->contentOrder as $service){
+            foreach($service['pu'] as $prdUtl){
+                $prodUti[] = $prdUtl;
+            }
+            unset($service['pu']);
+            $services[] = $service;           
+        }
+     
+        $pu = [];
+
+        $pu['cAcaoProdUtilizados'] = 'EST';
+        $pu['produtoUtilizado'] = $prodUti;
+    
+        $newOS = [];//array que engloba tudo
+        $newOS['cabecalho'] = $cabecalho;
+        $newOS['InformacoesAdicionais'] = $InformacoesAdicionais;
+        $newOS['servicosPrestados'] = $services;
+        $newOS['produtosUtilizados'] = $pu;
+
+        if( !empty($newOS['cabecalho']) || !empty($newOS['InformacoesAdicionais']) ||
+            !empty($newOS['servicosPrestados']))
+        {
+
+            $array = [
+                'app_key' => $omie->appKey,
+                'app_secret' => $omie->appSecret,
+                'call' => 'IncluirOS',
+                'param'=> [$newOS],
+            ];
+
+            return json_encode($array, JSON_UNESCAPED_UNICODE);  
+
+        }
+        else
+        {
+            throw new WebhookReadErrorException('Erro ao montar a OS para enviar ao Omie: Faltaram dados para montar a estrutura da OS',500);
+        }
 
     }
 
-    public function getOrdersServicesItens(array $prdItem, int $idItemOmie, object $order):array
+    public function createOrderErp(string $jsonPedido, array $arrayIsServices): array
+    {   
+        // print_r($jsonPedido);
+        // print_r($arrayIsServices);
+        // exit;
+        if(($arrayIsServices['isService']) && ($arrayIsServices['isRecurrence'])){
+            $url = 'https://app.omie.com.br/api/v1/servicos/contrato/';
+        }elseif($arrayIsServices['isService'] && !$arrayIsServices['isRecurrence'] ){
+            $url ='https://app.omie.com.br/api/v1/servicos/os/';
+        }else{
+            $url = 'https://app.omie.com.br/api/v1/produtos/pedido/';
+        }
+     
+        $createOrder = $this->omieServices->criaPedidoErp($jsonPedido, $url);
+
+        if(isset($createOrder['codigo_status']) && $createOrder['codigo_status'] == "0")
+        {
+            $createOrder['create'] = true;
+            $createOrder['num_pedido'] = $createOrder['numero_pedido'];            
+        }elseif(isset($createOrder['cCodStatus']) && $createOrder['cCodStatus'] == "0"){
+            $createOrder['create'] = true;
+            $createOrder['num_pedido'] = $createOrder['cNumOS'] ?? $createOrder['nCodCtr'];
+        }
+        else{
+            $createOrder['create'] = false;
+        }
+
+        return $createOrder;
+
+    }
+
+    public function getOrdersServicesItens(array $prdItem, int $idItemOmie, object $order, bool $isRecurrence):array
     {
+        // print_r($prdItem);
+        // exit;
         $serviceOrder = [];
         $pu = [];
         $service = [];
@@ -151,20 +366,32 @@ Class OmieFormatter implements ErpFormattersInterface{
             $produtosUtilizados[] = $pu;
             
         }else{
+
+            if($isRecurrence){
+                
+                $service['codServico'] = $idItemOmie;
+                $service['codIntItem'] = $prdItem['Id'];
+                $service['quant'] = $prdItem['Quantity'];
+                $service['valorUnit'] = $prdItem['UnitPrice'];
+                $service['seq'] = $prdItem['Ordination']+1;
+                $service['pu'] = $produtosUtilizados;
+                $service['desc'] = $order->descricaoServico;
+
+            }else{
+                //monta o serviço
+                
+                $service['nCodServico'] = $idItemOmie;
+                $service['nQtde'] = $prdItem['Quantity'];
+                $service['nValUnit'] = $prdItem['UnitPrice'];
+                $service['cDescServ'] = $order->descricaoServico;
+                $service['pu'] = $produtosUtilizados;
+            }
             
-            //monta o serviço
-            $service['nCodServico'] = $idItemOmie;
-            $service['nQtde'] = $prdItem['Quantity'];
-            $service['nValUnit'] = $prdItem['UnitPrice'];
-            $service['cDescServ'] = $order->descricaoServico;
             
-            $serviceOrder[] = $service;
+            $serviceOrder = $service;
         }
 
-        $contentServices['servicos'] = $serviceOrder;
-        $contentServices['produtosServicos'] = $produtosUtilizados;
-
-        return $contentServices;
+        return $serviceOrder;
 
     }
 
@@ -184,6 +411,36 @@ Class OmieFormatter implements ErpFormattersInterface{
         $det['inf_adic']['item_pedido_compra'] =$prdItem['Ordination']+1;
 
         return $productsOrder[] = $det;
+
+    }
+
+    public function deleteProject($omie, $order)
+    {
+        if(!isset($order->codProjeto)){
+           return $delProject['faultstring'] = 'Não existia um projeto cadastrado no pedido para ser excluído';
+        }
+        
+        $array = [
+            'app_key' =>   $omie->appKey,
+            'app_secret' => $omie->appSecret,
+            'call' => 'ExcluirProjeto',
+            'param'=>[
+                [
+                    'codigo'=> $order->codProjeto
+                ]
+            ],
+        ];
+
+        $json = json_encode($array);
+
+        $delProject = $this->omieServices->deleteProject($json);
+
+        if($delProject['codigo'] === "0"){
+           return $delProject['descricao'];
+ 
+         }else{
+            return $delProject['faultstring'];
+         }
 
     }
 

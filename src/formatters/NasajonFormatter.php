@@ -23,7 +23,7 @@ Class NasajonFormatter implements ErpFormattersInterface{
 
     public function createOrder(object $orderData, object $credentials): string
     {
-        return '';
+        return 'aqui criamos a estrutura Json do pedido nasajon';
     }
 
     public function createObjectCrmContactFromErpData(array $clientData): object
@@ -45,7 +45,6 @@ Class NasajonFormatter implements ErpFormattersInterface{
         ($decoded['New']['TypeId'] === 2 )? $dataContact = $ploomesServices->getClientById($decoded['New']['CompanyId']):$dataContact = $ploomesServices->getClientById($decoded['New']['Id']);
     
         $custom = CustomFieldsFunction::compareCustomFieldsFromOtherProperties($dataContact['OtherProperties'],'Cliente',$contactData['Tenancy']['tenancies']['id']);
-
   
         $contact = new stdClass();
         $bases =[];
@@ -222,12 +221,24 @@ Class NasajonFormatter implements ErpFormattersInterface{
 
     public function createOrderErp(string $jsonPedido): array
     {
-        return [];
+        $createOrder = $this->nasajonServices->criaPedidoErp($jsonPedido);
+
+        if(isset($createOrder['codigo_status']) && $createOrder['codigo_status'] == "0")
+        {
+            $createOrder['create'] = true;
+            $createOrder['num_pedido'] = $createOrder['numero_pedido'];           
+        }else{
+            $createOrder['create'] = false;
+        }
+
+        return $createOrder;
+        
     }
 
-    public function getIdVendedorERP(object $omie, string $mailVendedor): ?string
+    public function getIdVendedorERP(object $erp, string $mailVendedor):string
     {
-        return '';
+       
+        return 'idVendedor';
     }
 
     public function createJsonClienteCRMToERP(object $contact, object $tenant):string
@@ -246,6 +257,94 @@ Class NasajonFormatter implements ErpFormattersInterface{
     public function createPersonArrays(object $contact)
     {
         
+    }
+
+
+    //order
+    public function distinctProductsServicesFromOmieOrders(array $orderArray, bool $isService, string $idItemNasajon, object $order):array
+    {
+        $productsOrder = [];
+        $contentServices = [];
+          //separa e monta os arrays de produtos e serviços
+        $opItem = [];       
+        
+        foreach($orderArray['Products'] as $prdItem)
+        {   
+            foreach($prdItem['Product']['OtherProperties'] as $otherp){
+                $opItem[$otherp['FieldKey']] = $otherp['ObjectValueName'] ?? 
+                $otherp['BigStringValue'] ?? $otherp['StringValue'] ??  $otherp['IntegerValue'] ?? $otherp['DateTimeValue'];
+            } 
+ 
+            if(!array_key_exists($idItemNasajon, $opItem )){
+                throw new WebhookReadErrorException('Erro ao montar pedido para enviar ao Omie: Não foi encontrado o id do produto  Omie para o aplicativo de faturamento escolhido no pedido.', 500);
+            }
+
+            //verifica se é venda de serviço 
+            if($isService){
+               //retorna o modelo de serviço para o erp de destino 
+               $contentServices[] = $this->getOrdersServicesItens($prdItem, $opItem[$idItemNasajon], $order);
+                
+            }else{
+                               
+                $productsOrder[] = $this->getOrdersProductsItens($prdItem, $opItem[$idItemNasajon], $order);
+               
+            }
+        }
+
+        return ['products'=>$productsOrder, 'services'=>$contentServices];
+    }
+
+    public function getOrdersServicesItens(array $prdItem, int $idItemNasajon, object $order):array
+    {
+        $serviceOrder = [];
+        $pu = [];
+        $service = [];
+        $produtosUtilizados = [];
+
+        //verifica se tem serviço com produto junto
+        if($prdItem['Product']['Group']['Name'] !== 'Serviços'){
+                     
+            //monts o produtos utilizados (pu)
+            $pu['nCodProdutoPU'] = $idItemNasajon;
+            $pu['nQtdePU'] = $prdItem['Quantity'];
+            
+            $produtosUtilizados[] = $pu;
+            
+        }else{
+            
+            //monta o serviço
+            $service['nCodServico'] = $idItemNasajon;
+            $service['nQtde'] = $prdItem['Quantity'];
+            $service['nValUnit'] = $prdItem['UnitPrice'];
+            $service['cDescServ'] = $order->descricaoServico;
+            
+            $serviceOrder[] = $service;
+        }
+
+        $contentServices['servicos'] = $serviceOrder;
+        $contentServices['produtosServicos'] = $produtosUtilizados;
+
+        return $contentServices;
+
+    }
+
+    public function getOrdersProductsItens(array $prdItem, int $idItemNasajon, object $order):array
+    {
+        $det = [];  
+        $det['ide'] = [];
+        $det['produto'] = [];
+
+        $det['ide']['codigo_item_integracao'] = $prdItem['Id'];
+        $det['produto']['quantidade'] = $prdItem['Quantity'];
+        $det['produto']['valor_unitario'] = $prdItem['UnitPrice'];
+        $det['produto']['codigo_produto'] = $idItemNasajon;
+
+        $det['inf_adic'] = [];
+        $det['inf_adic']['numero_pedido_compra'] = $order->numPedidoCompra;
+        $det['inf_adic']['item_pedido_compra'] =$prdItem['Ordination']+1;
+
+        return $productsOrder[] = $det;
+
     }
 
 }
