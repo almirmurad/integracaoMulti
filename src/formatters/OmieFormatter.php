@@ -2,6 +2,7 @@
 
 namespace src\formatters;
 
+use DateTime;
 use GrahamCampbell\ResultType\Success;
 use src\contracts\ErpFormattersInterface;
 use src\exceptions\PedidoInexistenteException;
@@ -454,6 +455,8 @@ Class OmieFormatter implements ErpFormattersInterface{
     //cadastra obj cliente com dados vindos do erp para enviar ao crm
     public function createObjectCrmContactFromErpData(array $args):object
     {
+        // print_r($args['body']);
+        // exit;
         $cliente = new stdClass();
         $decoded=$args['body'];
         $cliente->codigoClienteOmie= $decoded['event']['codigo_cliente_omie'];
@@ -471,7 +474,7 @@ Class OmieFormatter implements ErpFormattersInterface{
         // $cliente->topic = $array['topic'];
         $cliente->bairro = $array['bairro'] ?? null;
         $cliente->bloqueado = $array['bloqueado']  ?? null;
-        $cliente->bloquearFaturamento = $array['bloquear_faturamento']  ?? null;
+        $cliente->bloquearFaturamento = ($array['bloquear_faturamento'] === 'S') ? true : false;
         $cep = (int)str_replace('-','',$array['cep'])  ?? null;
         $cliente->cep = $cep  ?? null;
         $cliente->cidade = $array['cidade']  ?? null;
@@ -531,7 +534,7 @@ Class OmieFormatter implements ErpFormattersInterface{
         $cliente->telefoneDdd2 = $array['telefone2_ddd'];
         $cliente->telefoneNumero2 = $array['telefone2_numero'];
         $cliente->tipoAtividade = $array['tipo_atividade'];
-        $cliente->limiteCredito = $array['valor_limite_credito'];
+        $cliente->limite_credito = $array['valor_limite_credito'];
         // $cliente->authorEmail = $array['author_email'];
         // $cliente->authorName = $array['author_name'];
         // $cliente->authorUserId = $array['author_userId'];
@@ -544,10 +547,9 @@ Class OmieFormatter implements ErpFormattersInterface{
     // createPloomesContactFromErpObject - cria o json no formato do ploomes para enviar pela API do Ploomes
     public function createPloomesContactFromErpObject(object $contact, PloomesServices $ploomesServices):string
     {
+        
         $omie = new stdClass();
         $omieApp = $this->omieServices->getOmieApp();
-
-
         
         $omie->appName = $omieApp['app_name'];
         $omie->appSecret = $omieApp['app_secret'];
@@ -555,7 +557,12 @@ Class OmieFormatter implements ErpFormattersInterface{
         $omie->ncc = $omieApp['ncc'];
         $omie->tenancyId = $omieApp['tenancy_id'];
         $custom = $_SESSION['contact_custom_fields'][$omie->tenancyId];
-        
+        $chaveTable = "tabela_financeiro_{$omie->appName}";
+        $chaveStatus = "status_financeiro_{$omie->appName}";
+        $contact->$chaveTable = $contact->tabela_financeiro;
+        $contact->$chaveStatus = $contact->status_financeiro;
+        // print_r($contact);
+        // exit;
         $data = [];
         $data['TypeId'] = 1;
         $data['Name'] = $contact->nomeFantasia;
@@ -662,6 +669,9 @@ Class OmieFormatter implements ErpFormattersInterface{
         }     
          
         $op = CustomFieldsFunction::createOtherPropertiesByEntity($custom['Cliente'], $contact);
+
+        // print_r($op);
+        // exit;
         
         $data['OtherProperties'] = $op;
         
@@ -719,21 +729,18 @@ Class OmieFormatter implements ErpFormattersInterface{
                 
                 $options = $ac['Options'];
                 
-                foreach($options as $opt){
-                    
+                foreach($options as $opt)
+                {
                     if(isset($custom['bicorp_api_tipo_atividade_out']) && $opt['Id'] === $custom['bicorp_api_tipo_atividade_out']){
-                     
                         $atividade = $this->omieServices->getTipoATividade($omie, $id = null, $opt['Name']);
                         $contact->tipoAtividade = $atividade['cCodigo'];
-                    }else{
-                        $contact->tipoAtividade = null;
                     }
                 }
             }
         }
 
              
-
+        $contact->bloquearFaturamento = $custom['bicorp_api_bloquearFaturamento_out'];
         //contact_FA99392B-CED8-4668-B003-DFC1111DACB0 = Porte
         //$contact->porte = $prop['contact_FA99392B-CED8-4668-B003-DFC1111DACB0'] ?? null;
         //contact_20B72360-82CF-4806-BB05-21E89D5C61FD = importância
@@ -897,7 +904,6 @@ Class OmieFormatter implements ErpFormattersInterface{
         }
         
         $contact->tags = $tags;
-
         return $contact;
     }
 
@@ -1067,6 +1073,7 @@ Class OmieFormatter implements ErpFormattersInterface{
         $clienteJson['razao_social'] = htmlspecialchars_decode($contact->legalName) ?? null; 
         $clienteJson['nome_fantasia'] = htmlspecialchars_decode($contact->name) ?? null;
         $clienteJson['cnpj_cpf'] = $contact->cnpj ?? $contact->cpf ?? null;
+        $clienteJson['bloquear_faturamento'] = ($contact->bloquearFaturamento) ? 'S' : 'N';
         $clienteJson['email'] = $contact->email ?? null;
         $clienteJson['homepage'] = $contact->website ?? null;
         $clienteJson['telefone1_ddd'] = $contact->ddd1 ?? null;
@@ -1628,5 +1635,149 @@ Class OmieFormatter implements ErpFormattersInterface{
         $array[] = json_encode($jsonPerson);
 
         return $array;
+    }
+
+    public function getFinHistory($contact){
+     
+        $tableFin = '';
+        $omieApp = $this->omieServices->getOmieApp();
+        $url = 'https://app.omie.com.br/api/v1/financas/pesquisartitulos/';
+        $array = [
+            'app_key' =>   $omieApp['app_key'],
+            'app_secret' => $omieApp['app_secret'] ,
+            'call' => 'PesquisarLancamentos',
+            'param'=>[
+                [
+                    'cCPFCNPJCliente'=> $contact->cnpjCpf,
+                ]
+            ],
+        ];
+
+        $json = json_encode($array, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+        $financeiro = $this->omieServices->getFinaceiro($json, $url) ?? null;
+        if(count($financeiro) > 0 ){
+            
+            $tableFin = $this->createTableFin($financeiro);
+            
+            $status = $this->getStatusFinanceito($financeiro);
+            
+        }else{
+            $tableFin = false;
+            $status = false;
+        }
+
+        return ['table'=>$tableFin, 'status'=>$status];
+
+        
+    }
+
+    public function createTableFin($financeiro)
+    {
+
+        $origem = [];
+        $origem['APBP'] = 'Integração de Pagamento de Conta';
+        $origem['APBR'] = 'Integração de Recebimento de Conta';
+        $origem['APEP'] = 'Integração de Lançamento de Despesa';
+        $origem['APER'] = 'Integração de Lançamento de Receita';
+        $origem['APIP'] = 'Integração de Conta a Pagar';
+        $origem['APIR'] = 'Integração de Conta a Receber';
+        $origem['BARP'] = 'Conta a Pagar Importada por Código de Barras';
+        $origem['BARR'] = 'Conta a Receber Importada por Código de Barras';
+        $origem['BAXP'] = 'Pagamento de Conta a Pagar';
+        $origem['BAXR'] = 'Recebimento de Conta a Receber';
+        $origem['COMP'] = 'Parcela a Pagar de Compras';
+        $origem['DEVP'] = 'Conta a Pagar da Devolução de Venda';
+        $origem['DEVR'] = 'Conta a Receber da Devolução ao Fornecedor';
+        $origem['EXTP'] = 'Lançamento Manual de Despesa';
+        $origem['EXTR'] = 'Lançamento Manual de Receita';
+        $origem['IMPP'] = 'Parcela a Pagar de uma Nota de Importação';
+        $origem['MANP'] = 'Lançamento Manual de Conta a Pagar';
+        $origem['MANR'] = 'Lançamento Manual de Conta a Receber';
+        $origem['NFEP'] = 'Conta a Pagar Importada de uma NF-e';
+        $origem['NFER'] = 'Conta a Receber Importada de uma NF-e';
+        $origem['OFXP'] = 'Pagamento Importado de um arquivo OFX';
+        $origem['OFXR'] = 'Recebimento Importado de um arquivo OFX';
+        $origem['RPTP'] = 'Repetição de Contas a Pagar';
+        $origem['RPTR'] = 'Repetição de Contas a Receber';
+        $origem['TRAP'] = 'Débito de Transf. entre Contas Correntes';
+        $origem['TRAR'] = 'Crédito de Transf. entre Contas Correntes';
+        $origem['VENR'] = 'Parcela a Receber de Vendas';
+        $origem['XMLP'] = 'Conta a Pagar Importada de um arquivo XML';
+        $origem['XMLR'] = 'Conta a Receber Importada de um arquivo XML';
+
+        $tr ='';   
+        $html = file_get_contents('http://localhost/integracao/src/views/pages/gerenciador.pages.finTable.php');
+        // $html = file_get_contents('https://integracao.dev-webmurad.com.br/src/views/pages/gerenciador.pages.finTable.php');
+        foreach($financeiro as $fin){
+
+            $o = $origem[$fin['cabecTitulo']['cOrigem']];
+            $status = $fin['cabecTitulo']['cStatus'];
+            $statusClass = ( $status === 'A VENCER')?'titulo-a-vencer' : 'titulo-vencido';
+
+            $tr .= "<tr>";
+                    $tr .= "<td class='localDeEstoque'>{$fin['cabecTitulo']['cNumParcela']}</td>
+                    <td class='{$statusClass}'>{$status}</td>
+                    <td>{$o}</td>
+                    <td>{$fin['cabecTitulo']['dDtRegistro']}</td>
+                    <td>{$fin['cabecTitulo']['dDtEmissao']}</td>
+                    <td>{$fin['cabecTitulo']['dDtPrevisao']}</td>
+                    <td class='previsaoDeSaida'>{$fin['cabecTitulo']['dDtVenc']}</td>
+                    <td class='tipoDeLocalDeEstoque'>". number_format($fin['cabecTitulo']['nValorTitulo'],2,',','.') ."</td>
+                    <td class='tipoDeLocalDeEstoque'>{$fin['cabecTitulo']['observacao']}</td>";
+               
+            
+            // $html = str_replace('{parcelas}', $fin['cabecTitulo']['cNumParcela'], $html);
+            // $html = str_replace('{status}', $fin['cabecTitulo']['cStatus'], $html);
+            // $html = str_replace('{origem}', $fin['cabecTitulo']['cOrigem'], $html);
+            // $html = str_replace('{registro}', $fin['cabecTitulo']['dDtRegistro'], $html);
+            // $html = str_replace('{emissao}', $fin['cabecTitulo']['dDtEmissao'], $html);
+            // $html = str_replace('{previsao}', $fin['cabecTitulo']['dDtPrevisao'], $html);
+            // $html = str_replace('{vencimento}', $fin['cabecTitulo']['dDtVenc'], $html);
+            // $html = str_replace('{valor}', $fin['cabecTitulo']['nValorTitulo'], $html);
+            // $html = str_replace('{observacao}', $fin['cabecTitulo']['observacao'], $html);
+            $tr .= "</tr>";
+        }
+        $html = str_replace('{tr}', $tr, $html);
+        $html = str_replace('{data}', date('d/m/Y H:i:s'), $html);
+
+        return $html;
+    }
+
+    public function getStatusFinanceito($financeiro){
+        
+        $origem = [];
+        $origem []='APEP';// 'Integração de Lançamento de Despesa';
+        $origem []='APIP';// 'Integração de Conta a Pagar';
+        $origem []='BARP';// 'Conta a Pagar Importada por Código de Barras';
+        $origem []='BAXP';// 'Pagamento de Conta a Pagar';
+        $origem []='COMP';// 'Parcela a Pagar de Compras';
+        $origem []='DEVP';// 'Conta a Pagar da Devolução de Venda';
+        $origem []='IMPP';// 'Parcela a Pagar de uma Nota de Importação';
+        $origem []='MANP';// 'Lançamento Manual de Conta a Pagar';
+        $origem []='NFEP';// 'Conta a Pagar Importada de uma NF-e';
+        $origem []='RPTP';// 'Repetição de Contas a Pagar';
+        $origem []='XMLP';// 'Conta a Pagar Importada de um arquivo XML';
+        $total = ['adimplente'=>0,'inadimplente'=>0];
+
+        foreach($financeiro as $fin){
+            //print_r($fin['resumo']['cLiquidado']);
+            $today = new DateTime();
+            $today->format('d/m/Y');
+            $vencimento = DateTime::createFromFormat('d/m/Y', $fin['cabecTitulo']['dDtVenc']);
+            // Adiciona, por exemplo, 5 dias
+            //$vencimento->modify('+5 days');
+            if(in_array($fin['cabecTitulo']['cOrigem'],$origem) && $fin['resumo']['cLiquidado'] === 'N' && $today > $vencimento){
+                ++$total['inadimplente'];
+            }else{
+                ++$total['adimplente'];
+            }
+        }
+        
+        if($total['inadimplente'] > 0){
+            return 'inadimplente';
+        }else{
+            return 'adimplente';
+        }
     }
 }

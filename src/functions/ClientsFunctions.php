@@ -12,8 +12,6 @@ class ClientsFunctions{
     //processa o contato do CRM para o ERP
     public static function processContactCrmToErp($args, PloomesServices $ploomesServices, ErpFormattersInterface $formatter, $action):array
     {
-        
-       
         $contact = $formatter->createObjectErpClientFromCrmData($args, $ploomesServices);
 
         $total = 0;
@@ -86,8 +84,12 @@ class ClientsFunctions{
         $message = [];
         $current = date('d/m/Y H:i:s');
         $contact = $formatter->createObjectCrmContactFromErpData($args, $ploomesServices);
+        $dFinanceiro = $formatter->getFinHistory($contact);
+        $contact->tabela_financeiro = $dFinanceiro['table'];
+        $contact->status_financeiro = $dFinanceiro['status'];
+
         $json = $formatter->createPloomesContactFromErpObject($contact, $ploomesServices);      
-    
+
         $idContact = $ploomesServices->consultaClientePloomesCnpj(DiverseFunctions::limpa_cpf_cnpj($contact->cnpjCpf));
 
         if($idContact !== null || $action['action'] !== 'create')

@@ -1196,7 +1196,42 @@ class OmieServices implements ErpManagerInterface{
 
         $tipoAtiv = json_decode($response, true);
     
+        // print_r($tipoAtiv['lista_tipos_atividade'][0]);
+        // exit;
         return $tipoAtiv['lista_tipos_atividade'][0];
+
+    }
+
+    public function getFinaceiro($json, $url){
+
+        
+        $curl = curl_init();
+
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => $url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => 'POST',
+            CURLOPT_POSTFIELDS => $json,
+            CURLOPT_HTTPHEADER => array(
+                'Content-Type: application/json'
+            ),
+        ));
+
+        $response = curl_exec($curl);
+
+        curl_close($curl);
+        $res = json_decode($response, true);
+
+        // print_r($res);
+        // exit;
+
+        return $res['titulosEncontrados'];
+
 
     }
 

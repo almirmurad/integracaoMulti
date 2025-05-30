@@ -146,7 +146,6 @@ class ContactController extends Controller
     //recebe webhook de cliente criado, alterado e excluído do OMIE ERP
     public function omieClients($args)
     {
-
         $idUser = $args['Tenancy']['tenancies']['user_id'];
         $json = json_encode($args['body']);
 
