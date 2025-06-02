@@ -1663,8 +1663,8 @@ Class OmieFormatter implements ErpFormattersInterface{
             $status = $this->getStatusFinanceito($financeiro);
             
         }else{
-            $tableFin = false;
-            $status = false;
+            $tableFin = 'Sem contas a pagar/receber no ERP';
+            $status = 'adimplente';
         }
 
         return ['table'=>$tableFin, 'status'=>$status];
