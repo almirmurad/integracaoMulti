@@ -4,29 +4,6 @@ use src\middlewares\AuthenticateMiddleware;
 use src\middlewares\LoadCustomFieldsMiddleware;
 use src\middlewares\RequestMiddleware;
 
-// $router = new Router();
-// $router->get('/', 'HomeController@index');
-// $router->get('/dashboard', 'DashboardController@index');
-// $router->get('/login', 'LoginController@signin');
-// $router->get('/logout', 'LoginController@signout'); 
-
-// //permissões
-// $router->get('/permissions', 'PermissionController@index');
-// $router->get('/addPermissionGroup', 'PermissionController@addPermissionGroup');
-// $router->get('/delGroupPermission/{id}', 'PermissionController@delGroupPermission');
-// $router->post('/addPermissionGroupAction', 'PermissionController@addPermissionGroupAction');
-// $router->get('/editPermissionGroup/{id}', 'PermissionController@editPermissionGroup');
-// $router->post('/editPermissionGroupAction/{id}', 'PermissionController@editPermissionGroupAction');
-
-// //Users
-// $router->get('/users', 'UserController@listUsers');
-// $router->get('/addUser','UserController@addUser');
-// $router->post('/addUser','UserController@addUserAction');
-// $router->get('/delUser/{id}', 'UserController@delUser');
-// $router->get('/user/{id}/editUser', 'UserController@editUser');
-// $router->post('/user/{id}/editUser','UserController@editUserAction');
-
-
 return [
     'get' => [
         //api/users
@@ -85,8 +62,8 @@ return [
             'middlewares' => [RequestMiddleware::class]
         ],
         //https://gamatermic.bicorp.online/public/omieClients
-        '/omieClients'=>[
-            'callback' => 'ContactController@omieClients', //Novo cliente no omie
+        '/erpClients'=>[
+            'callback' => 'ContactController@erpClients', //Novo cliente no omie
             'middlewares' => [RequestMiddleware::class]
         ],
         '/processNewContact'=>[
@@ -94,10 +71,8 @@ return [
             'middlewares' => [RequestMiddleware::class, LoadCustomFieldsMiddleware::class]
         ],
         //products
-        //https://gamatermic.bicorp.online/public/ploomesProducts
-        //https://gamatermic.bicorp.online/public/omieProducts
-        '/omieProducts'=>[
-            'callback' => 'ProductController@omieProducts', //Novo produto no Omie
+        '/erpProducts'=>[
+            'callback' => 'ProductController@erpProducts', //Novo produto no Omie
             'middlewares' => [RequestMiddleware::class,]
         ],
         '/ploomesProducts'=>[
@@ -109,8 +84,8 @@ return [
             'middlewares' => [RequestMiddleware::class, LoadCustomFieldsMiddleware::class]
         ],
         //services
-        '/omieServices'=>[
-            'callback' => 'ServiceController@omieServices', //Novo serviço no omie
+        '/erpServices'=>[
+            'callback' => 'ServiceController@erpServices', //Novo serviço no omie
             'middlewares' => [RequestMiddleware::class,]
         ],
         '/processNewService'=>[
@@ -135,25 +110,19 @@ return [
             'callback' => 'InvoicingController@processNewInvoice', //inicia processo
             'middlewares' => []
         ],
+        //financeiro ERP X Ploomes
+        '/erpFinancial'=>[
+            'callback' => 'FinancialController@financialIssued', //inicia processo
+            'middlewares' => [RequestMiddleware::class]
+        ],
+        '/processNewFinancial'=>[
+            'callback' => 'FinancialController@processNewFinancial', //inicia processo
+            'middlewares' => [RequestMiddleware::class, LoadCustomFieldsMiddleware::class]
+        ],
         // //Interactions
         '/newInteraction'=>[
             'callback' => 'InteractionController@createInteraction', //nova interação
             'middlewares' => []
-        ],
-        //Nasajon
-        '/erpClients'=>[
-            'callback' => 'ContactController@nasajonClients', //Novo cliente no nasajon
-            'middlewares' => []
-        ],
-        '/erpProducts'=>[
-            'callback' => 'ProductController@nasajonProducts', //Novo produto no nasajon
-            'middlewares' => []
-        ],
-        // //Interactions
-        '/erpServices'=>[
-            'callback' => 'ServiceController@nasajonService', //Novo serviço no nasajon
-            'middlewares' => []
-        ],
-            
+        ]            
     ]
 ];

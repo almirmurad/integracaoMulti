@@ -6,7 +6,7 @@ use Exception;
 use PDOException;
 use src\contracts\ErpFormattersInterface;
 use src\exceptions\WebhookReadErrorException;
-use src\functions\ClientsFunctions;
+use src\functions\FinancialFunctions;
 use src\functions\DiverseFunctions;
 use src\models\User;
 use src\models\Webhook;
@@ -14,7 +14,7 @@ use src\services\DatabaseServices;
 use src\services\PloomesServices;
 
 
-class ClientHandler
+class FinancialHandler
 {
     private ErpFormattersInterface $formatter;
     private PloomesServices $ploomesServices;
@@ -31,18 +31,18 @@ class ClientHandler
     }
 
     //SALVA O WEBHOOK NO BANCO DE DADOS
-    public function saveClientHook($json, $idUser)
+    public function saveFinancialHook($json, $idUser)
     { 
         $decoded = json_decode($json, true);
       
-        $origem = (!isset($decoded['Entity']))?'Omie':'Ploomes';
+        $origem = (!isset($decoded['Entity']))?'Erp':'Ploomes';
         //infos do webhook
         $webhook = new Webhook();
         $webhook->json = $json; //webhook 
         $webhook->status = 1; // recebido
         $webhook->user_id = $idUser; 
         $webhook->result = 'Rececibo';
-        $webhook->entity = $decoded['Entity'] ?? 'Contacts';
+        $webhook->entity = $decoded['Entity'] ?? 'Financial';
         $webhook->origem = $origem;
         //salva o hook no banco
         return ($id = $this->databaseServices->saveWebhook($webhook)) ? ['id'=>$id, 'msg' =>'Webhook Salvo com sucesso id = '.$id .'às '.$this->current] : 0;
@@ -54,17 +54,12 @@ class ClientHandler
     {   
         $action = DiverseFunctions::findAction($args);
         
-        if(isset($action['origem']) && $action['origem'] === 'CRMToERP'){
+        // if(isset($action['origem']) && $action['origem'] === 'CRMToERP'){
             
-            return ClientsFunctions::processContactCrmToErp($args, $this->ploomesServices, $this->formatter, $action);                                                   
-        }
+        //     return FinancialFunctions::processFinancialCrmToErp($args, $this->ploomesServices, $this->formatter, $action);                                                   
+        // }
         
-        return ClientsFunctions::processContactErpToCrm($args, $this->ploomesServices, $this->formatter, $action);
-    }
-
-    public function detectLoop($args)
-    {
-       return $this->formatter->detectLoop($args);
+        return FinancialFunctions::processFinancialErpToCrm($args, $this->ploomesServices, $this->formatter, $action);
     }
     
     public static function getClientBySubdomain($subdomain){

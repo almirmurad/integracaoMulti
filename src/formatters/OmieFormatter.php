@@ -25,7 +25,8 @@ Class OmieFormatter implements ErpFormattersInterface{
         $this->current = date('d/m/Y H:i:s');
     }
 
-    public function detectLoop(array $args){
+    public function detectLoop(array $args):bool
+    {
         
         if($args['body']['author']['name'] === 'Integração' || $args['body']['author']['email'] === 'no-reply@omie.com.br' ){
             throw new WebhookReadErrorException('Dados de retorno da última integração', 500);
@@ -460,11 +461,11 @@ Class OmieFormatter implements ErpFormattersInterface{
         $cliente = new stdClass();
         $decoded=$args['body'];
         $cliente->codigoClienteOmie= $decoded['event']['codigo_cliente_omie'];
-
+      
         $omieApp = $this->omieServices->getOmieApp();
 
         $c =  $this->omieServices->getClientById($cliente);
-        
+  
         $array = DiverseFunctions::achatarArray($c);
 
         $chave = 'idClienteOmie' . $omieApp['app_name'];
@@ -523,10 +524,11 @@ Class OmieFormatter implements ErpFormattersInterface{
         $transp = $this->omieServices->getClientByid($transp );
         $cliente->idTranspPadraoPloomes = $transp['codigo_cliente_integracao'] ?? null;
         $tags=[];
-     
-        foreach($decoded['event']['tags'] as $t=>$v){
-            $tags[$t]=$v;
-           
+        if(isset($decoded['event']['tags'])){
+            foreach($decoded['event']['tags'] as $t=>$v){
+                $tags[$t]=$v;
+               
+            }
         }
         $cliente->tags = $tags;
         $cliente->telefoneDdd1 = $array['telefone1_ddd'];
@@ -1674,7 +1676,6 @@ Class OmieFormatter implements ErpFormattersInterface{
 
     public function createTableFin($financeiro)
     {
-
         $origem = [];
         $origem['APBP'] = 'Integração de Pagamento de Conta';
         $origem['APBR'] = 'Integração de Recebimento de Conta';
@@ -1713,29 +1714,40 @@ Class OmieFormatter implements ErpFormattersInterface{
 
             $o = $origem[$fin['cabecTitulo']['cOrigem']];
             $status = $fin['cabecTitulo']['cStatus'];
-            $statusClass = ( $status === 'A VENCER')?'titulo-a-vencer' : 'titulo-vencido';
-
-            $tr .= "<tr>";
-                    $tr .= "<td class='localDeEstoque'>{$fin['cabecTitulo']['cNumParcela']}</td>
-                    <td class='{$statusClass}'>{$status}</td>
-                    <td>{$o}</td>
-                    <td>{$fin['cabecTitulo']['dDtRegistro']}</td>
-                    <td>{$fin['cabecTitulo']['dDtEmissao']}</td>
-                    <td>{$fin['cabecTitulo']['dDtPrevisao']}</td>
-                    <td class='previsaoDeSaida'>{$fin['cabecTitulo']['dDtVenc']}</td>
-                    <td class='tipoDeLocalDeEstoque'>". number_format($fin['cabecTitulo']['nValorTitulo'],2,',','.') ."</td>
-                    <td class='tipoDeLocalDeEstoque'>{$fin['cabecTitulo']['observacao']}</td>";
-               
             
-            // $html = str_replace('{parcelas}', $fin['cabecTitulo']['cNumParcela'], $html);
-            // $html = str_replace('{status}', $fin['cabecTitulo']['cStatus'], $html);
-            // $html = str_replace('{origem}', $fin['cabecTitulo']['cOrigem'], $html);
-            // $html = str_replace('{registro}', $fin['cabecTitulo']['dDtRegistro'], $html);
-            // $html = str_replace('{emissao}', $fin['cabecTitulo']['dDtEmissao'], $html);
-            // $html = str_replace('{previsao}', $fin['cabecTitulo']['dDtPrevisao'], $html);
-            // $html = str_replace('{vencimento}', $fin['cabecTitulo']['dDtVenc'], $html);
-            // $html = str_replace('{valor}', $fin['cabecTitulo']['nValorTitulo'], $html);
-            // $html = str_replace('{observacao}', $fin['cabecTitulo']['observacao'], $html);
+            if($status == 'RECEBIDO' && !empty($fin['lancamentos']))
+            {
+                $totalLancado = 0;
+
+                foreach($fin['lancamentos'] as $lancamento){
+                    $totalLancado += $lancamento['nValLanc'];
+                }
+
+                $porcentagem = ($totalLancado / $fin['cabecTitulo']['nValorTitulo'])*100;
+
+                $statusRecebido = ($porcentagem === 100) ? 'LIQUIDADO' : $porcentagem . '% Recebido';
+
+            }else{
+                $statusRecebido = $status;
+            }
+            $statusClass = match($statusRecebido)
+            {    
+                'A VENCER' => 'titulo-a-vencer',
+                'LIQUIDADO' => 'titulo-pago',
+                'PAGO' => 'titulo-pago',
+                'ATRASADO' => 'titulo-vencido'               
+            };
+               
+            $tr .= "<tr>";
+            $tr .= "<td >{$fin['cabecTitulo']['cNumParcela']}</td>
+            <td class='{$statusClass}' style='min-width: 150px;'>{$statusRecebido}</td>
+            <td style='min-width: 150px;'>{$o}</td>
+            <td style='min-width: 150px;'>{$fin['cabecTitulo']['dDtRegistro']}</td>
+            <td style='min-width: 150px;'>{$fin['cabecTitulo']['dDtEmissao']}</td>
+            <td style='min-width: 150px;'>{$fin['cabecTitulo']['dDtPrevisao']}</td>
+            <td style='min-width: 150px;' class='{$statusClass}'>{$fin['cabecTitulo']['dDtVenc']}</td>
+            <td style='min-width: 150px;'>". number_format($fin['cabecTitulo']['nValorTitulo'],2,',','.') ."</td>
+            <td style='min-width: 150px;'>{$fin['cabecTitulo']['observacao']}</td>";
             $tr .= "</tr>";
         }
         $html = str_replace('{tr}', $tr, $html);
@@ -1744,20 +1756,25 @@ Class OmieFormatter implements ErpFormattersInterface{
         return $html;
     }
 
-    public function getStatusFinanceito($financeiro){
-        
+    public function getStatusFinanceito($financeiro)
+    {
         $origem = [];
-        $origem []='APEP';// 'Integração de Lançamento de Despesa';
-        $origem []='APIP';// 'Integração de Conta a Pagar';
-        $origem []='BARP';// 'Conta a Pagar Importada por Código de Barras';
-        $origem []='BAXP';// 'Pagamento de Conta a Pagar';
-        $origem []='COMP';// 'Parcela a Pagar de Compras';
-        $origem []='DEVP';// 'Conta a Pagar da Devolução de Venda';
-        $origem []='IMPP';// 'Parcela a Pagar de uma Nota de Importação';
-        $origem []='MANP';// 'Lançamento Manual de Conta a Pagar';
-        $origem []='NFEP';// 'Conta a Pagar Importada de uma NF-e';
-        $origem []='RPTP';// 'Repetição de Contas a Pagar';
-        $origem []='XMLP';// 'Conta a Pagar Importada de um arquivo XML';
+
+        $origem[] ='APBR';//'Integração de Recebimento de Conta';
+        $origem[] ='APER';//'Integração de Lançamento de Receita';
+        $origem[] ='APIR';//'Integração de Conta a Receber';
+        $origem[] ='BARR';//'Conta a Receber Importada por Código de Barras';
+        $origem[] ='BAXR';//'Recebimento de Conta a Receber';
+        $origem[] ='DEVR';//'Conta a Receber da Devolução ao Fornecedor';
+        $origem[] ='EXTR';//'Lançamento Manual de Receita';
+        $origem[] ='MANR';//'Lançamento Manual de Conta a Receber';
+        $origem[] ='NFER';//'Conta a Receber Importada de uma NF-e';
+        $origem[] ='OFXR';//'Recebimento Importado de um arquivo OFX';
+        $origem[] ='RPTR';//'Repetição de Contas a Receber';
+        $origem[] ='TRAR';//'Crédito de Transf. entre Contas Correntes';
+        $origem[] ='VENR';//'Parcela a Receber de Vendas';
+        $origem[] ='XMLR';//'Conta a Receber Importada de um arquivo XML';
+
         $total = ['adimplente'=>0,'inadimplente'=>0];
 
         foreach($financeiro as $fin){
@@ -1767,6 +1784,7 @@ Class OmieFormatter implements ErpFormattersInterface{
             $vencimento = DateTime::createFromFormat('d/m/Y', $fin['cabecTitulo']['dDtVenc']);
             // Adiciona, por exemplo, 5 dias
             //$vencimento->modify('+5 days');
+
             if(in_array($fin['cabecTitulo']['cOrigem'],$origem) && $fin['resumo']['cLiquidado'] === 'N' && $today > $vencimento){
                 ++$total['inadimplente'];
             }else{
@@ -1779,5 +1797,64 @@ Class OmieFormatter implements ErpFormattersInterface{
         }else{
             return 'adimplente';
         }
+    }
+
+    public function createObjectCrmContactFinancialFromErpData($args, $ploomesServices)
+    {
+
+        $cliente = new stdClass();
+        $decoded=$args['body'];
+        // print_r($decoded);
+        // exit;
+        $cliente->codigoClienteOmie = $decoded['event']['codigo_cliente_fornecedor'] ?? $decoded['event'][0]['codigo_cliente_fornecedor'];
+        
+        $omieApp = $this->omieServices->getOmieApp();
+        
+        $c =  $this->omieServices->getClientById($cliente);
+        
+        $array = DiverseFunctions::achatarArray($c);
+        
+        $chave = 'idClienteOmie' . $omieApp['app_name'];
+        $cliente->$chave = $array['codigo_cliente_omie'];
+        $contact = new stdClass();
+        $contact->cnpjCpf =  $c['cnpj_cpf'];
+        $contact->nomeFantasia = htmlspecialchars_decode($array['nome_fantasia'])  ?? null;
+
+        $dataFinancial = $this->getFinHistory($contact);
+
+        $contact->tabela_financeiro = $dataFinancial['table'];
+        $contact->status_financeiro = $dataFinancial['status'];
+
+        return $contact;
+       
+    }
+
+        // createPloomesContactFromErpObject - cria o json no formato do ploomes para enviar pela API do Ploomes
+    public function createPloomesContactFinancialFromErpObject(object $contact, PloomesServices $ploomesServices):string
+    {
+        $omie = new stdClass();
+        $omieApp = $this->omieServices->getOmieApp();
+        
+        $omie->appName = $omieApp['app_name'];
+        $omie->appSecret = $omieApp['app_secret'];
+        $omie->appKey = $omieApp['app_key'];
+        $omie->ncc = $omieApp['ncc'];
+        $omie->tenancyId = $omieApp['tenancy_id'];
+        $custom = $_SESSION['contact_custom_fields'][$omie->tenancyId];
+        $chaveTable = "tabela_financeiro_{$omie->appName}";
+        $chaveStatus = "status_financeiro_{$omie->appName}";
+        $contact->$chaveTable = $contact->tabela_financeiro;
+        $contact->$chaveStatus = $contact->status_financeiro;
+
+        $data = [];
+         
+        $op = CustomFieldsFunction::createOtherPropertiesByEntity($custom['Cliente'], $contact);
+        
+        $data['OtherProperties'] = $op;
+        
+        $json = json_encode($data,JSON_UNESCAPED_UNICODE);
+     
+        return $json;
+
     }
 }
