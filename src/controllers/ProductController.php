@@ -41,8 +41,8 @@ class ProductController extends Controller {
         return $productHandler;
     }
     
-    //recebe webhook do omie
-    public function omieProducts($args)
+    //recebe webhook do erp
+    public function erpProducts($args)
     {
         $idUser = $args['Tenancy']['tenancies']['user_id'];
         
@@ -56,8 +56,8 @@ class ProductController extends Controller {
             $response = $productHandler->saveProductHook($json, $idUser);
          
              // $rk = origem.entidade.ação
-             $rk = array('Omie','Products');
-            //  $this->rabbitMQServices->publicarMensagem('products_exc', $rk, 'omie_products',  $json);
+             $rk = array('Erp','Products');
+            //  $this->rabbitMQServices->publicarMensagem('products_exc', $rk, 'erp_products',  $json);
             
             if ($response > 0) {
                 

@@ -16,4 +16,5 @@ interface ErpFormattersInterface
     public function createOrderErp(string $jsonPedido, array $arrayIsServices):array;
     public function getIdVendedorERP(object $erp, string $mailVendedor):string|null;
     public function createPersonArrays(object $contact);
+    public function detectLoop(array $args):bool;
 }

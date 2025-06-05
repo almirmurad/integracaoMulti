@@ -6,13 +6,13 @@ use core\Controller;
 use src\exceptions\WebhookReadErrorException;
 use src\factories\ErpFormatterFactory;
 use src\functions\DiverseFunctions;
-use src\handlers\ClientHandler;
+use src\handlers\FinancialHandler;
 use src\handlers\LoginHandler;
 use src\services\DatabaseServices;
 use src\services\PloomesServices;
 use src\services\RabbitMQServices;
 
-class ContactController extends Controller
+class FinancialController extends Controller
 {
 
     private $loggedUser;
@@ -32,17 +32,17 @@ class ContactController extends Controller
         //$this->rabbitMQServices = new RabbitMQServices($vhost);
     }
 
-    private function getClientHandler($args): ClientHandler
+    private function getFinancialHandler($args): FinancialHandler
     {   
         $formatter = ErpFormatterFactory::create($args);
-        $clienteHandler = new ClientHandler($this->ploomesServices, $this->databaseServices, $formatter);
+        $financialHandler = new FinancialHandler($this->ploomesServices, $this->databaseServices, $formatter);
 
-        return $clienteHandler;
+        return $financialHandler;
     }
 
     //Ploomes
     //recebe webhook de cliente criado, alterado e excluído do PLOOMES CRM
-    public function ploomesContacts($args)
+    public function ploomesFinancial($args)
     {
         $message = [];
         $idUser = $args['Tenancy']['tenancies']['user_id'];
@@ -66,12 +66,12 @@ class ContactController extends Controller
                 }
             }
             
-            $clienteHandler = $this->getClientHandler($args);
-            $response = $clienteHandler->saveClientHook($json, $idUser);
+            $financialHandler = $this->getFinancialHandler($args);
+            $response = $financialHandler->saveFinancialHook($json, $idUser);
 
             // $rk = origem.entidade.ação
-            $rk = array('Ploomes', 'Contacts');
-            //$this->rabbitMQServices->publicarMensagem('contacts_exc', $rk, 'ploomes_contacts',  $json);
+            $rk = array('Ploomes', 'Financial');
+            //$this->rabbitMQServices->publicarMensagem('financial_exc', $rk, 'ploomes_financial',  $json);
 
             if ($response > 0) {
                 $message = [
@@ -103,14 +103,14 @@ class ContactController extends Controller
         }
     }
 
-    //processa contatos e clientes do ploomes ou do Erp
-    public function processNewContact($args)
+    //processa contatos e clientes do ploomes ou do ERP
+    public function processNewFinancial($args)
     {
         $message = [];
         // processa o webhook 
         try {
-            $clienteHandler = $this->getClientHandler($args);
-            $response = $clienteHandler->startProcess($args);
+            $financialHandler = $this->getFinancialHandler($args);
+            $response = $financialHandler->startProcess($args);
 
             $message = [
                 'status_code' => 200,
@@ -142,9 +142,9 @@ class ContactController extends Controller
         }
     }
 
-    //Erp
-    //recebe webhook de cliente criado, alterado e excluído do ERP
-    public function erpClients($args)
+    //ERP
+    //recebe webhook de cliente criado, alterado e excluído do ERP ERP
+    public function financialIssued($args)
     {
         $idUser = $args['Tenancy']['tenancies']['user_id'];
         $json = json_encode($args['body']);
@@ -153,13 +153,12 @@ class ContactController extends Controller
 
         try {
 
-            $clienteHandler = $this->getClientHandler($args);
-            $clienteHandler->detectLoop($args);
-            $response = $clienteHandler->saveClientHook($json, $idUser);
+            $financialHandler = $this->getFinancialHandler($args);
+            $response = $financialHandler->saveFinancialHook($json, $idUser);
 
             // $rk = origem.entidade.ação
-            $rk = array('Erp', 'Clientes');
-            $this->rabbitMQServices->publicarMensagem('contacts_exc', $rk, 'erp_clientes',  $json);
+            $rk = array('Erp', 'Financial');
+            //$this->rabbitMQServices->publicarMensagem('financial_exc', $rk, 'erp_financial',  $json);
 
             if ($response > 0) {
 

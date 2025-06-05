@@ -31,7 +31,7 @@ class ServiceController extends Controller {
         $vhost = $args['Tenancy']['vhost'][0];
         $this->ploomesServices = new PloomesServices($ploomesBase);
         $this->databaseServices = new DatabaseServices();
-        $this->rabbitMQServices = new RabbitMQServices($vhost);
+        // $this->rabbitMQServices = new RabbitMQServices($vhost);
     }
 
     private function getServiceHandler($args): ServiceHandler
@@ -42,8 +42,8 @@ class ServiceController extends Controller {
         return $serviceHandler;
     }
 
-    //recebe webhook do omie
-    public function omieServices($args)
+    //recebe webhook do erp
+    public function erpServices($args)
     {
         $idUser = $args['Tenancy']['tenancies']['user_id'];
         
@@ -54,8 +54,8 @@ class ServiceController extends Controller {
 
             $serviceHandler = $this->getServiceHandler($args);
             $response = $serviceHandler->saveServiceHook($json, $idUser);
-            $rk = array('Omie','Services');
-            $this->rabbitMQServices->publicarMensagem('services_exc', $rk, 'omie_services',  $json);
+            $rk = array('Erp','Services');
+            // $this->rabbitMQServices->publicarMensagem('services_exc', $rk, 'erp_services',  $json);
             
             if ($response > 0) {
                 

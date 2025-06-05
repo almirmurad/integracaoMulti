@@ -49,6 +49,16 @@ class DiverseFunctions{
                     'Servico.Incluido' => 'create',
                     'Servico.Alterado' => 'update',
                     'Servico.Excluido' => 'delete',
+                    'Financas.ContaPagar.Incluido' => 'pCreate',
+                    'Financas.ContaPagar.Alterado' => 'pUpdate',
+                    'Financas.ContaPagar.Excluido' => 'pDelete',
+                    'Financas.ContaPagar.BaixaCancelada' => 'pBaixa-cancelada',
+                    'Financas.ContaPagar.BaixaRealizada' => 'pBaixa-realizada',
+                    'Financas.ContaReceber.Incluido' => 'rCreate',
+                    'Financas.ContaReceber.Alterado' => 'rUpdate',
+                    'Financas.ContaReceber.Excluido' => 'rDelete',
+                    'Financas.ContaReceber.BaixaCancelada' => 'rBaixa-cancelada',
+                    'Financas.ContaReceber.BaixaRealizada' => 'rBaixa-realizada',
                 };
 
                 $array = [

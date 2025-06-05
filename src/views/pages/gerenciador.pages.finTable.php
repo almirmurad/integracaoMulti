@@ -5,32 +5,38 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Document</title>
   <style type="text/css">
+    *{
+      margin: 0;
+      padding: 0;
+    }
 td, th, tr
 {
 font-family: Trebuchet MS, Helvetica, sans-serif;
 font-size:11px;
-padding:10px;
+padding:10px !important;
 text-align:center;
 vertical-align:middle;
 }
 th
 {
-background-color: rgb(238, 238, 238);
-border-bottom: 2px #ccc solid !important;
+background-color: #33A0FF;
 }
 .table-wrapper
 {
 overflow-x:auto;
 max-width:100%;
 }
-.previsaoDeSaida{
-  background-color:#F08080;
-}
 .titulo-a-vencer{
-  background-color:#90EE90;
+  /* background-color: #A4FACF; */
+  color: #2FD180;
 }
-.titulo-vencido{
-  background-color:#F08080;
+.titulo-pago{
+  /* background-color: #BDE0FF; */
+  color: #409AE9;
+}
+.titulo-vencido, .previsaoDeSaida{
+  /* background-color: #FBC1C1; */
+  color: #F66F6F;
 }
 </style>
 </head>
@@ -38,30 +44,18 @@ max-width:100%;
 <table cellpadding="3">
 <tbody>
   <tr>
-    <!-- <th style="min-width: 60px; background-color: rgb(238, 238, 238);"><span style="color:#2c3e50">Status do Estoque</span></th> -->
-    <th style="min-width: 150px; background-color: rgb(238, 238, 238);"><span style="color:#2c3e50">Parcelas</span></th>
-    <th style="min-width: 75px; background-color: rgb(238, 238, 238);"><span style="color:#2c3e50">Status</span></th>
-    <th style="min-width: 75px; background-color: rgb(238, 238, 238);"><span style="color:#2c3e50">Origem</span></th>
-    <th style="min-width: 75px; background-color: rgb(238, 238, 238);"><span style="color:#2c3e50">Data Registro</span></th>
-    <th style="min-width: 75px; background-color: rgb(238, 238, 238);"><span style="color:#2c3e50">Data Emissão</span></th>
-    <th style="min-width: 75px; background-color: rgb(238, 238, 238);"><span style="color:#2c3e50">Data Previsão</span></th>
-    <th style="min-width: 75px; background-color: rgb(238, 238, 238);"><span style="color:#2c3e50">Data Vencimento</span></th>
-    <th style="min-width: 150px; background-color: rgb(238, 238, 238);"><span style="color:#2c3e50">Valor</span></th>
-    <th style="min-width: 150px; background-color: rgb(238, 238, 238);"><span style="color:#2c3e50">Observação</span></th>
+    <th style="min-width: 150px;"><span style="color:#fff">Parcelas</span></th>
+    <th style="min-width: 150px;"><span style="color:#fff">Status</span></th>
+    <th style="min-width: 150px;"><span style="color:#fff">Origem</span></th>
+    <th style="min-width: 150px;"><span style="color:#fff">Data Registro</span></th>
+    <th style="min-width: 150px;"><span style="color:#fff">Data Emissão</span></th>
+    <th style="min-width: 150px;"><span style="color:#fff">Data Previsão</span></th>
+    <th style="min-width: 150px;"><span style="color:#fff">Data Vencimento</span></th>
+    <th style="min-width: 150px;"><span style="color:#fff">Valor</span></th>
+    <th style="min-width: 150px;"><span style="color:#fff">Observação</span></th>
   </tr>
   {tr}
-  <!-- <tr id="4162600097"> -->
-    <!-- <td class="statusDeEstoque">🟢 :U+1F7E2 Ativo</td> -->
-    <!-- <td class="localDeEstoque">{parcelas}</td>
-    <td>{status}</td>
-    <td>{origem}</td>
-    <td>{registro}</td>
-    <td>{emissao}</td>
-    <td>{previsao}</td>
-    <td class="previsaoDeSaida">{vencimento}</td>
-    <td class="tipoDeLocalDeEstoque">{valor}</td>
-    <td class="tipoDeLocalDeEstoque">{observacao}</td> -->
-  <!-- </tr> -->
+
 </tbody>
 </table>
 
