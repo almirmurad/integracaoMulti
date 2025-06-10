@@ -224,8 +224,31 @@ class PloomesServices implements PloomesManagerInterface{
 
     }
 
+    public function getOrderStages(){
+        $curl = curl_init();
+
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => $this->baseApi . 'Orders@Stages',
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => strtoupper($this->method[0]),
+            CURLOPT_HTTPHEADER => $this->headers
+        ));
+
+        $response = curl_exec($curl);
+        $stage =json_decode($response, true);
+       
+        curl_close($curl);
+
+       return ($stage['value']);
+    }
+
     //ALTERA O ESTÁGIO DA VENDA NO PLOOMES
-    public function alterStageOrder($stage, $orderId)
+    public function alterStageOrder($json, $orderId)
     {
 
         $curl = curl_init();
@@ -239,13 +262,16 @@ class PloomesServices implements PloomesManagerInterface{
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
             CURLOPT_CUSTOMREQUEST => strtoupper($this->method[2]),
-            CURLOPT_POSTFIELDS =>$stage,
+            CURLOPT_POSTFIELDS =>$json,
             CURLOPT_HTTPHEADER => $this->headers
         ));
 
         $response = curl_exec($curl);
         $response =json_decode($response, true);
-        $stage = json_decode($stage,true);
+        
+        $stage = json_decode($json,true);
+
+       
         curl_close($curl);
 
        return ($response['value'][0]['StageId'] === $stage['StageId']) ? true :  false;

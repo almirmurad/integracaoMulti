@@ -1658,6 +1658,7 @@ Class OmieFormatter implements ErpFormattersInterface{
         $json = json_encode($array, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
         $financeiro = $this->omieServices->getFinaceiro($json, $url) ?? null;
+        
         if(count($financeiro) > 0 ){
             
             $tableFin = $this->createTableFin($financeiro);
@@ -1717,6 +1718,7 @@ Class OmieFormatter implements ErpFormattersInterface{
             
             if($status == 'RECEBIDO' && !empty($fin['lancamentos']))
             {
+                
                 $totalLancado = 0;
 
                 foreach($fin['lancamentos'] as $lancamento){
@@ -1725,7 +1727,7 @@ Class OmieFormatter implements ErpFormattersInterface{
 
                 $porcentagem = ($totalLancado / $fin['cabecTitulo']['nValorTitulo'])*100;
 
-                $statusRecebido = ($porcentagem === 100) ? 'LIQUIDADO' : $porcentagem . '% Recebido';
+                $statusRecebido = ($porcentagem === 100) ? 'LIQUIDADO' : round($porcentagem,2) . '% Recebido';
 
             }else{
                 $statusRecebido = $status;
@@ -1735,9 +1737,10 @@ Class OmieFormatter implements ErpFormattersInterface{
                 'A VENCER' => 'titulo-a-vencer',
                 'LIQUIDADO' => 'titulo-pago',
                 'PAGO' => 'titulo-pago',
-                'ATRASADO' => 'titulo-vencido'               
+                'ATRASADO' => 'titulo-vencido',
+                default=>'titulo-a-vencer'              
             };
-               
+            $obs = $fin['cabecTitulo']['observacao'] ?? null;
             $tr .= "<tr>";
             $tr .= "<td >{$fin['cabecTitulo']['cNumParcela']}</td>
             <td class='{$statusClass}' style='min-width: 150px;'>{$statusRecebido}</td>
@@ -1747,7 +1750,7 @@ Class OmieFormatter implements ErpFormattersInterface{
             <td style='min-width: 150px;'>{$fin['cabecTitulo']['dDtPrevisao']}</td>
             <td style='min-width: 150px;' class='{$statusClass}'>{$fin['cabecTitulo']['dDtVenc']}</td>
             <td style='min-width: 150px;'>". number_format($fin['cabecTitulo']['nValorTitulo'],2,',','.') ."</td>
-            <td style='min-width: 150px;'>{$fin['cabecTitulo']['observacao']}</td>";
+            <td style='min-width: 150px;'>{$obs}</td>";
             $tr .= "</tr>";
         }
         $html = str_replace('{tr}', $tr, $html);
@@ -1804,14 +1807,13 @@ Class OmieFormatter implements ErpFormattersInterface{
 
         $cliente = new stdClass();
         $decoded=$args['body'];
-        // print_r($decoded);
-        // exit;
         $cliente->codigoClienteOmie = $decoded['event']['codigo_cliente_fornecedor'] ?? $decoded['event'][0]['codigo_cliente_fornecedor'];
+       
         
         $omieApp = $this->omieServices->getOmieApp();
         
         $c =  $this->omieServices->getClientById($cliente);
-        
+         
         $array = DiverseFunctions::achatarArray($c);
         
         $chave = 'idClienteOmie' . $omieApp['app_name'];
@@ -1821,6 +1823,9 @@ Class OmieFormatter implements ErpFormattersInterface{
         $contact->nomeFantasia = htmlspecialchars_decode($array['nome_fantasia'])  ?? null;
 
         $dataFinancial = $this->getFinHistory($contact);
+
+        // print_r($contact);
+        // exit;
 
         $contact->tabela_financeiro = $dataFinancial['table'];
         $contact->status_financeiro = $dataFinancial['status'];
@@ -1855,6 +1860,56 @@ Class OmieFormatter implements ErpFormattersInterface{
         $json = json_encode($data,JSON_UNESCAPED_UNICODE);
      
         return $json;
+
+    }
+
+    public function createInvoiceObject($args):object
+    {
+
+        $decoded = $args['body'];//decodifica o json em array
+        $invoicing = new stdClass();//monta objeto da nota fiscal
+        $invoicing->authorId = $decoded['author']['userId'];//Id de quem faturou
+        $invoicing->authorName = $decoded['author']['name'];//nome de quem faturou
+        $invoicing->authorEmail = $decoded['author']['email'];//email de quem faturou
+        $invoicing->appKey = $decoded['appKey'];//id do app que faturou (base de faturamento)
+        $invoicing->acao = $decoded['event']['acao']; // etapa do processo 60 = faturado
+        $invoicing->ambiente = $decoded['event']['ambiente'] ?? null; // descrição da etapa 
+        $invoicing->cidade = $decoded['event']['cidade'] ?? null; // cidade da prestação de serviço NFSe 
+        $invoicing->codVerificacao = $decoded['event']['cod_verif'] ?? null; // cidade da prestação de serviço NFSe 
+        $invoicing->danfe = $decoded['event']['danfe'] ?? null; // descrição da etapa 
+        $invoicing->dataEmissao = $decoded['event']['data_emis'] ?? null; // data do faturamento
+        $invoicing->empresaCnpj = $decoded['event']['empresa_cnpj'] ?? null; // hora do faturamento
+        $invoicing->empresaIe = $decoded['event']['empresa_ie'] ?? null; // Id do Cliente Omie
+        $invoicing->empresaIm = $decoded['event']['empresa_im'] ?? null; // Inscrição Municipal da empresa NFSe
+        $invoicing->empresaUf = $decoded['event']['empresa_uf'] ?? null; // Valor Faturado
+        $invoicing->horaEmissao = $decoded['event']['hora_emis'] ?? null; // Valor Faturado
+        $invoicing->idNf = $decoded['event']['id_nf']; // Valor Faturado
+        $invoicing->idPedido = $decoded['event']['id_pedido'] ?? null; // Id do Pedido Omie
+        $invoicing->idOs = $decoded['event']['id_os'] ?? null; // Id do Pedido Omie
+        $invoicing->chaveNfe = $decoded['event']['nfe_chave'] ?? null; // chave nfe
+        $invoicing->nfeDanfe = $decoded['event']['nfe_danfe'] ?? null; // danfe
+        $invoicing->nfeXml = $decoded['event']['nfe_xml'] ?? null; //xml nfe
+        $invoicing->nfseXml = $decoded['event']['nfse_xml'] ?? null; // xml nfse
+        $invoicing->numNfe = $decoded['event']['numero_nf'] ?? null; // numero nfe
+        $invoicing->numNfse = $decoded['event']['numero_nfs'] ?? null; // numero nfse
+        $invoicing->numOs = $decoded['event']['numero_os'] ?? null; // numero OS
+        $invoicing->numRps = $decoded['event']['numero_rps'] ?? null; // numero RPS
+        $invoicing->serie = $decoded['event']['serie'] ?? $decoded['event']['serie_nfs']; // Valor Faturado
+        
+        $omieApp = $this->omieServices->getOmieApp();
+        $omie = new stdClass();
+        $omie->appKey = $omieApp['app_key'];
+        $omie->appSecret = $omieApp['app_secret'];
+        if($invoicing->idPedido !== null){
+            //consulta pedido de venda para pegar o id de integração 
+            $pedido = $this->omieServices->consultaPedidoErp($omie, $invoicing->idPedido);
+        }else{
+            $pedido = $this->omieServices->consultaOSErp($omie, $invoicing->idOs);
+        }
+        $invoicing->idPedidoInt = $pedido['pedido_venda_produto']['cabecalho']['codigo_pedido_integracao'] ?? $pedido['Cabecalho']['cCodIntOS'];
+        $invoicing->baseFaturamento = $omieApp['app_name'];
+        
+        return $invoicing;
 
     }
 }

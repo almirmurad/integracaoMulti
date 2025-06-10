@@ -495,9 +495,53 @@ class OmieServices implements ErpManagerInterface{
 
     } 
 
+        // busca o pedido através do Id do OMIE
+    public function consultaOSErp(object $omie, int $idPedido)
+    {
+        $array = [
+                    'app_key'=>$omie->appKey,
+                    'app_secret'=>$omie->appSecret,
+                    'call'=>'ConsultarOS',
+                    'param'=>[
+                            [
+                                'nCodOS'=>$idPedido,
+                            ]
+                        ]
+                ];
+
+        $json = json_encode($array);
+        
+        $curl = curl_init();
+
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => 'https://app.omie.com.br/api/v1/servicos/os/',
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => 'POST',
+            CURLOPT_POSTFIELDS => $json,
+            CURLOPT_HTTPHEADER => array(
+                'Content-Type: application/json'
+            ),
+        ));
+
+        $response = curl_exec($curl);
+
+        curl_close($curl);
+        
+        return json_decode($response, true);
+
+    } 
+
     //consulta nota fiscal no omie
     public function consultaNotaErp(object $omie, int $idPedido)
     {
+        // var_dump($idPedido);
+        // print_r($omie);
+        // exit;
         $array = [
             'app_key'=>$omie->appKey,
             'app_secret'=>$omie->appSecret,
@@ -532,8 +576,13 @@ class OmieServices implements ErpManagerInterface{
 
         curl_close($curl);
         
-        $nfe = json_decode($response, true);
-        return (!empty($nfe['compl']['cChaveNFe'])) ? $nfe['ide']['nNF'] : false;
+        $data = json_decode($response, true);
+        $nf = [];
+        $nf['chave'] = $data['compl']['cChaveNFe'] ?? null;
+        $nf['nNF'] = $data['ide']['nNF'];
+        $nf['cnpjCpf'] = $data['nfDestInt']['cnpj_cpf'];
+  
+        return $nf;
     }
 
     //consulta nota fiscal no omie

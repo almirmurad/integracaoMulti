@@ -35,7 +35,7 @@ class ClientHandler
     { 
         $decoded = json_decode($json, true);
       
-        $origem = (!isset($decoded['Entity']))?'Omie':'Ploomes';
+        $origem = (!isset($decoded['Entity']))?'Erp':'Ploomes';
         //infos do webhook
         $webhook = new Webhook();
         $webhook->json = $json; //webhook 
