@@ -104,12 +104,13 @@ return [
         //Invoices NFE
         '/invoiceIssue'=>[
             'callback' => 'InvoicingController@invoiceIssue', //nota fiscal emitida
-            'middlewares' => []
+            'middlewares' => [RequestMiddleware::class]
         ],
         '/processNewInvoice'=>[
             'callback' => 'InvoicingController@processNewInvoice', //inicia processo
-            'middlewares' => []
+            'middlewares' => [RequestMiddleware::class]
         ],
+        
         //financeiro ERP X Ploomes
         '/erpFinancial'=>[
             'callback' => 'FinancialController@financialIssued', //inicia processo

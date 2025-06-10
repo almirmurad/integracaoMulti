@@ -59,6 +59,11 @@ class DiverseFunctions{
                     'Financas.ContaReceber.Excluido' => 'rDelete',
                     'Financas.ContaReceber.BaixaCancelada' => 'rBaixa-cancelada',
                     'Financas.ContaReceber.BaixaRealizada' => 'rBaixa-realizada',
+                    'NFe.NotaAutorizada' => 'nfeAutorizada',
+                    'NFSe.NotaAutorizada' => 'nfseAutorizada',
+                    'ContratoServico.Faturado' => 'csFaturado',
+                    'OrdemServico.Faturada' => 'osFaturada',
+                    'VendaProduto.Faturada' => 'venFaturada',
                 };
 
                 $array = [

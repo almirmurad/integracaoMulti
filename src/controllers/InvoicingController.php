@@ -2,23 +2,13 @@
 namespace src\controllers;
 
 use \core\Controller;
-use PDOException;
 use src\exceptions\WebhookReadErrorException;
-use src\exceptions\DealNaoEncontradoBDException;
-use src\exceptions\EstagiodavendaNaoAlteradoException;
-use src\exceptions\FaturamentoNaoCadastradoException;
-use src\exceptions\InteracaoNaoAdicionadaException;
-use src\exceptions\NotaFiscalNaoCadastradaException;
-use src\exceptions\NotaFiscalNaoCanceladaException;
-use src\exceptions\NotaFiscalNaoEncontradaException;
-use src\exceptions\PedidoNaoEncontradoOmieException;
-use src\handlers\LoginHandler;
 use src\handlers\InvoiceHandler;
-use src\models\Deal;
 use src\services\DatabaseServices;
-use src\services\OmieServices;
 use src\services\PloomesServices;
 use src\services\RabbitMQServices;
+use src\factories\ErpFormatterFactory;
+
 
 class InvoicingController extends Controller {
     
@@ -28,43 +18,40 @@ class InvoicingController extends Controller {
     private $databaseServices;
     private $rabbitMQServices;
 
-    public function __construct()
+    public function __construct($args)
     {
-        if($_SERVER['REQUEST_METHOD'] !== "POST"){
-            $this->loggedUser = LoginHandler::checkLogin();
-            if ($this->loggedUser === false) {
-                $this->redirect('/login');
-            }
-        }
+        $ploomesBase = $args['Tenancy']['ploomes_bases'][0];
 
-        $this->ploomesServices = new PloomesServices();
-        $this->omieServices = new OmieServices();
+        $args['Tenancy']['vhost'][0]['key'] = $args['Tenancy']['tenancies']['cpf_cnpj'];
+        $vhost = $args['Tenancy']['vhost'][0];
+        $this->ploomesServices = new PloomesServices($ploomesBase);
         $this->databaseServices = new DatabaseServices();
-        $this->rabbitMQServices = new RabbitMQServices();
+        // $this->rabbitMQServices = new RabbitMQServices($vhost);
     }
 
-    public function index() {
-        $total = Deal::select('id')->count();        
-        $data = [
-            'pagina' => 'Deals',
-            'loggedUser'=>$this->loggedUser,
-            'total'=>$total
-        ];
-        $this->render('gerenciador.pages.index', $data);
+    private function getInvoiceHandler($args): InvoiceHandler
+    {   
+        $formatter = ErpFormatterFactory::create($args);
+        $invoiceHandler = new InvoiceHandler($this->ploomesServices, $this->databaseServices, $formatter);
+
+        return $invoiceHandler;
     }
 
-    public function invoiceIssue()
+    public function invoiceIssue($args)
     {
-        $json = file_get_contents('php://input');
+        $idUser = $args['Tenancy']['tenancies']['user_id'];
+        $json = json_encode($args['body']);
+
+        $message = [];
         
         try{
-            $invoiceHandler = new InvoiceHandler($this->ploomesServices, $this->omieServices, $this->databaseServices);
-
-            $response = $invoiceHandler->saveInvoiceHook($json);
+            
+            $invoiceHandler = $this->getInvoiceHandler($args);
+            $response = $invoiceHandler->saveInvoiceHook($json, $idUser);
 
             // $rk = origem.entidade.ação
-            $rk = array('Omie','Invoices');
-            $this->rabbitMQServices->publicarMensagem('invoices_exc', $rk, 'omie_invoices',  $json);
+            $rk = array('Erp','Invoices');
+            // $this->rabbitMQServices->publicarMensagem('invoices_exc', $rk, 'erp_invoices',  $json);
 
             if ($response > 0) {
                 
@@ -99,17 +86,16 @@ class InvoicingController extends Controller {
     }
 
         //processa contatos e clientes do ploomes ou do Omie
-        public function processNewInvoice()
+        public function processNewInvoice($args)
         {
-            $json = file_get_contents('php://input');
-    
+                
             $message = [];
             // processa o webhook 
             try{
                 
-                $invoiceHandler = new InvoiceHandler($this->ploomesServices, $this->omieServices, $this->databaseServices);
+                $invoiceHandler = $this->getInvoiceHandler($args);
                 
-                $response = $invoiceHandler->startProcess($json);
+                $response = $invoiceHandler->startProcess($args);
     
                 $message =[
                     'status_code' => 200,

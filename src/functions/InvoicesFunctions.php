@@ -7,78 +7,78 @@ use src\services\PloomesServices;
 use stdClass;
 
 
-class FinancialFunctions{
+class InvoicesFunctions{
 
     //processa o contato do CRM para o ERP
-    public static function processContactCrmToErp($args, PloomesServices $ploomesServices, ErpFormattersInterface $formatter, $action):array
-    {
-        $contact = $formatter->createObjectErpClientFromCrmData($args, $ploomesServices);
+    // public static function processContactCrmToErp($args, PloomesServices $ploomesServices, ErpFormattersInterface $formatter, $action):array
+    // {
+    //     $contact = $formatter->createObjectErpClientFromCrmData($args, $ploomesServices);
 
-        $total = 0;
-        foreach($contact->basesFaturamento as $k => $tnt)
-        {
-            $tenant[$k] = new stdClass();
+    //     $total = 0;
+    //     foreach($contact->basesFaturamento as $k => $tnt)
+    //     {
+    //         $tenant[$k] = new stdClass();
   
-            if(isset($tnt['integrar']) && $tnt['integrar'] > 0){
+    //         if(isset($tnt['integrar']) && $tnt['integrar'] > 0){
                 
-                switch (strtolower($args['user']['erp_name'])){
-                    case 'omie':
-                        $tenant[$k]->tenant = $tnt['app_name'];
-                        $tenant[$k]->appSecret = $tnt['app_secret'];
-                        $tenant[$k]->appKey = $tnt['app_key'];
-                        $tenant[$k]->ncc = $tnt['ncc'];
-                        $tenant[$k]->integrar = $tnt['integrar'];
-                        $tenant[$k]->sendExternalKeyIdErp = $tnt['sendExternalKeyIdErp'];
-                        $contact->tenant = $tenant[$k];
-                        break;
-                    case 'nasajon':
-                        $tenant[$k]->tenant = $tnt['app_name'];
-                        $tenant[$k]->client_id = $tnt['client_id'];
-                        $tenant[$k]->client_secret = $tnt['client_secret'];
-                        $tenant[$k]->access_token = $tnt['access_token'];
-                        $tenant[$k]->refresh_token = $tnt['refresh_token'];
-                        $tenant[$k]->email = $tnt['email'];
-                        $tenant[$k]->password = $tnt['password'];
-                        $tenant[$k]->integrar = $tnt['integrar'];
-                        $tenant[$k]->sendExternalKeyIdErp = $tnt['sendExternalKeyIdErp'];
-                        $contact->tenant = $tenant[$k]->tenant;
-                        break;
-                    default:
-                        $tenant[$k]->tenant = $tnt['app_name'];
-                        $tenant[$k]->appSecret = $tnt['app_secret'];
-                        $tenant[$k]->appKey = $tnt['app_key'];
-                        $tenant[$k]->ncc = $tnt['ncc'];
-                        $tenant[$k]->integrar = $tnt['integrar'];
-                        $tenant[$k]->sendExternalKeyIdErp = $tnt['sendExternalKeyIdErp'];
-                        $contact->tenant = $tenant[$k];
-                        break;
-                }
+    //             switch (strtolower($args['user']['erp_name'])){
+    //                 case 'omie':
+    //                     $tenant[$k]->tenant = $tnt['app_name'];
+    //                     $tenant[$k]->appSecret = $tnt['app_secret'];
+    //                     $tenant[$k]->appKey = $tnt['app_key'];
+    //                     $tenant[$k]->ncc = $tnt['ncc'];
+    //                     $tenant[$k]->integrar = $tnt['integrar'];
+    //                     $tenant[$k]->sendExternalKeyIdErp = $tnt['sendExternalKeyIdErp'];
+    //                     $contact->tenant = $tenant[$k];
+    //                     break;
+    //                 case 'nasajon':
+    //                     $tenant[$k]->tenant = $tnt['app_name'];
+    //                     $tenant[$k]->client_id = $tnt['client_id'];
+    //                     $tenant[$k]->client_secret = $tnt['client_secret'];
+    //                     $tenant[$k]->access_token = $tnt['access_token'];
+    //                     $tenant[$k]->refresh_token = $tnt['refresh_token'];
+    //                     $tenant[$k]->email = $tnt['email'];
+    //                     $tenant[$k]->password = $tnt['password'];
+    //                     $tenant[$k]->integrar = $tnt['integrar'];
+    //                     $tenant[$k]->sendExternalKeyIdErp = $tnt['sendExternalKeyIdErp'];
+    //                     $contact->tenant = $tenant[$k]->tenant;
+    //                     break;
+    //                 default:
+    //                     $tenant[$k]->tenant = $tnt['app_name'];
+    //                     $tenant[$k]->appSecret = $tnt['app_secret'];
+    //                     $tenant[$k]->appKey = $tnt['app_key'];
+    //                     $tenant[$k]->ncc = $tnt['ncc'];
+    //                     $tenant[$k]->integrar = $tnt['integrar'];
+    //                     $tenant[$k]->sendExternalKeyIdErp = $tnt['sendExternalKeyIdErp'];
+    //                     $contact->tenant = $tenant[$k];
+    //                     break;
+    //             }
                 
-                $contact->totalTenanties = ++$total;
+    //             $contact->totalTenanties = ++$total;
                 
-                if($action['action'] === 'create' && $action['type'] === 'empresa'){
-                    //aqui manda pro formatter para criar o cliente no ERP e Retorna mensagem de sucesso ou erro
-                    $responseMessages = $formatter->createContactCRMToERP($contact, $ploomesServices, $tenant[$k]); 
-                }
-                else{
-                    //aqui manda pro formatter que altera o cliente nbo ERP e retorna mensagem de erro ou sucesso   
-                    $responseMessages = $formatter->updateContactCRMToERP($contact, $ploomesServices, $tenant[$k]);
-                }  
-                // Agrupa mensagens no array principal
-                if (!empty($responseMessages['success'])) {
-                    $messages['success'][] = $responseMessages['success'];
-                }
-                if (!empty($responseMessages['error'])) {
-                    $messages['error'][] = $responseMessages['error'];
-                }
-            }
-        } 
+    //             if($action['action'] === 'create' && $action['type'] === 'empresa'){
+    //                 //aqui manda pro formatter para criar o cliente no ERP e Retorna mensagem de sucesso ou erro
+    //                 $responseMessages = $formatter->createContactCRMToERP($contact, $ploomesServices, $tenant[$k]); 
+    //             }
+    //             else{
+    //                 //aqui manda pro formatter que altera o cliente nbo ERP e retorna mensagem de erro ou sucesso   
+    //                 $responseMessages = $formatter->updateContactCRMToERP($contact, $ploomesServices, $tenant[$k]);
+    //             }  
+    //             // Agrupa mensagens no array principal
+    //             if (!empty($responseMessages['success'])) {
+    //                 $messages['success'][] = $responseMessages['success'];
+    //             }
+    //             if (!empty($responseMessages['error'])) {
+    //                 $messages['error'][] = $responseMessages['error'];
+    //             }
+    //         }
+    //     } 
 
-        return self::response($action, $contact, $messages); 
-    }
+    //     return self::response($action, $contact, $messages); 
+    // }
 
     //processa o contato do ERP para o CRM
-    public static function processFinancialErpToCrm($args, $ploomesServices, $formatter, $action):array
+    public static function processInvoiceErpToCrm($args, $ploomesServices, $formatter, $action):array
     {    
         
         // print_r($action);
@@ -88,7 +88,6 @@ class FinancialFunctions{
         $current = date('d/m/Y H:i:s');
         //pega o cnpj do contat
         $contactFinancial = $formatter->createObjectCrmContactFinancialFromErpData($args, $ploomesServices);
-        
         $dFinanceiro = $formatter->getFinHistory($contactFinancial);
         $contactFinancial->tabela_financeiro = $dFinanceiro['table'];
         $contactFinancial->status_financeiro = ucfirst($dFinanceiro['status']);
@@ -188,6 +187,35 @@ class FinancialFunctions{
             
             throw new WebhookReadErrorException('Nem todos os clientes foram cadastrados, houveram falhas as gravar clientes: '.$m, 500);
         }
+    }
+
+    //muda etapa da venda após nota ser emitida
+    public static function alterStageInvoiceIssue($invoicing, $ploomesServices)
+    {
+
+        //muda a etapa da venda específica para NF-Emitida stage Id 40042597
+        $allStages = $ploomesServices->getOrderStages();
+
+        foreach($allStages as $stage){
+            if($stage['Name'] == 'NF Emitida'){
+                $dataStage = [
+                    'Id'=> $stage['Id'],
+                    'Name' => $stage['Name']
+                ];
+            }
+        }
+
+        $array = [
+            'StageId'=>$dataStage['Id']
+        ];
+
+        $json = json_encode($array);
+
+        $id = explode('/',$invoicing->idPedidoInt);
+        $idPedidoPloomes = $id[1];
+        
+        return $ploomesServices->alterStageOrder($json, $idPedidoPloomes);
+
     }
 
     
