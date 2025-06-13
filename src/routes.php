@@ -20,6 +20,10 @@ return [
         '/api/tenancy/getTenancyById/{id}' => [
             'callback' => 'TenancyController@allInfoUserApi',
             'middlewares' => [AuthenticateMiddleware::class] // Middleware de autenticação
+        ],
+        '/teste-carga'=>[
+            'callback' => 'TesteController@teste',
+            'middlweares' => []
         ]
     ],
     'post' => [
