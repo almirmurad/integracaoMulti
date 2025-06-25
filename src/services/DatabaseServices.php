@@ -19,6 +19,8 @@ use src\models\Manossc_invoicing;
 use src\models\Manossc_order;
 use src\models\Nasajon_base;
 use src\models\Omie_base;
+use src\models\Omnichannel_webhook;
+use src\models\Omnismart_base;
 use src\models\Ploomes_base;
 use src\models\Tenancie;
 use src\models\Tenancy;
@@ -33,6 +35,30 @@ class DatabaseServices implements DatabaseManagerInterface{
         try{
 
             $id=Webhook::insert(
+                [
+                    'entity'=>$webhook->entity,
+                    'json'=>$webhook->json,
+                    'status'=>$webhook->status,
+                    'user_id'=>$webhook->user_id,
+                    'result'=>$webhook->result,
+                    'origem'=>$webhook->origem,
+                    'created_at'=>date("Y-m-d H:i:s"),
+                    ]
+            )->execute();
+            
+            return $id;
+
+        }catch(PDOException $e){
+            throw new WebhookReadErrorException('Erro ao gravar o webhook na base de dados: '.$e->getMessage(). 'Data: '.date('d/m/Y H:i:s'), 552);
+        }
+        
+    }
+    //SALVA NO BANCO DE DADOS AS INFORMAÇÕES DO WEBHOOK OMNICHANNEL
+    public function saveOmnichannelWebhook(object $webhook):string
+    {   
+        try{
+
+            $id=Omnichannel_webhook::insert(
                 [
                     'entity'=>$webhook->entity,
                     'json'=>$webhook->json,
@@ -462,12 +488,21 @@ class DatabaseServices implements DatabaseManagerInterface{
             ->where('tenancy_id', $tenancy['id'])
             ->get();
 
+            // Buscar o Omnismart cadastrado para esse tenancy
+            // print_r($tenancy['id']);
+            // exit;
+            $omni = Omnismart_base::select('*')
+            ->where('tenancy_id', $tenancy['id'])
+            ->get();
+
+
             // Montar o array no formato desejado
             $resultado = [
                 'tenancies' => $tenancy,
                 'erp_bases' => $bases ?? null,
                 'ploomes_bases' => $ploomesBases ?? null,
-                'vhost' => $vhost ?? null
+                'vhost' => $vhost ?? null,
+                'omnichannel' => $omni ?? null
             ];
 
         
@@ -531,6 +566,25 @@ class DatabaseServices implements DatabaseManagerInterface{
         
         try{
             $id=Ploomes_base::insert(
+                [
+                    'api_key'=>$data['api_key'],
+                    'base_api'=>$data['base_api'],
+                    'tenancy_id'=>$data['tenancy_id'],
+                    'created_at'=> date('Y-m-d H:i:s'),
+                ]
+            )->execute();
+            
+            return $id;
+
+        }catch(PDOException $e){
+            return  $e->getMessage();
+        }
+    }
+
+    public function createNewAppOmni($data){
+        
+        try{
+            $id=Omnismart_base::insert(
                 [
                     'api_key'=>$data['api_key'],
                     'base_api'=>$data['base_api'],

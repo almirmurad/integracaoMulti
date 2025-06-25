@@ -90,6 +90,32 @@ class AppsHandler {
         }
     }
 
+        public static function createNewAppOmni($data): array
+    {       
+        $response=[];
+        try{
+       
+            $t = TenancyHandler::getTenancyByUserId($data['user_api_id']);
+            $data['tenancy_id'] = $t['id'];
+            
+            $dataBaseServices = new DatabaseServices();
+            $id = $dataBaseServices->createNewAppOmni($data);
+            $response['status'] = 200;
+            $response['content'] = $id;
+            
+            return $response;
+           
+        }catch(Exception $e)
+        {
+            $response['status'] = 500;
+            $response['content'] = $e->getMessage();
+
+            return $response;
+        }
+        
+
+    }
+
     
 
 }
