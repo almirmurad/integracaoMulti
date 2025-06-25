@@ -134,3 +134,156 @@ max-width:100%;
 
 
 🔴 Propostas perdidas -->
+
+
+
+
+{
+    "type": "transfer-to-agent",
+    "data": {
+        "steps": [
+            {
+                "type": "startChat",
+                "createdAt": "2025-06-13T14:59:52.320Z"
+            },
+            {
+                "type": "transferAgent",
+                "createdAt": "2025-06-13T15:01:18.150Z",
+                "toAgent": {
+                    "_id": "684990068e491c5b06457460",
+                    "teams": [
+                        "67179c73e619ee42bac0dc4e",
+                        "684b0d818efd21b5bf3017c4"
+                    ],
+                    "horary": "67179c73e619ee42bac0dc45",
+                    "name": "Almir",
+                    "email": "tecnologia@bicorp.com.br",
+                    "ramalKey": "",
+                    "ramalPort": "",
+                    "ramalURI": "",
+                    "profiles": [
+                        "67179c732b324bf42ee4005c"
+                    ],
+                    "auditMonitoring": false,
+                    "passwordChanged": true,
+                    "hasFullAdminAccess": false,
+                    "hasFullVisualizationAccess": false,
+                    "createByUserData": {
+                        "userId": "67179c742b324bf42ee40061",
+                        "customer": "67179c730d2a6777a2e47c5d",
+                        "userLoginData": {
+                            "browser": "Chrome",
+                            "device": "desktop",
+                            "plataformName": "Other",
+                            "ip": "187.54.23.75",
+                            "browserId": "a0b5a0a1895e6ccd2b7662c32b8fc9df",
+                            "module": "OMNISMART"
+                        },
+                        "name": "ANDERSON LUIZ BISCAIA",
+                        "updatedAt": "2025-06-11T14:17:42.820Z"
+                    },
+                    "isDeleted": false,
+                    "createdAt": "2025-06-11T14:17:42.839Z",
+                    "updatedAt": "2025-06-12T18:32:56.373Z",
+                    "devices": [
+                        {
+                            "browser": "Chrome",
+                            "device": "desktop",
+                            "plataformName": "Windows OS",
+                            "ip": "45.186.72.138",
+                            "browserId": "612bc970704e385f0f99869dfa16978f",
+                            "module": "OMNISMART",
+                            "createdAt": "2025-06-11T14:45:59.739Z"
+                        }
+                    ],
+                    "updateByUserData": {
+                        "userId": "684990068e491c5b06457460",
+                        "customer": "67179c730d2a6777a2e47c5d",
+                        "userLoginData": {
+                            "browser": "Chrome",
+                            "device": "desktop",
+                            "plataformName": "Windows OS",
+                            "ip": "45.186.72.138",
+                            "browserId": "612bc970704e385f0f99869dfa16978f",
+                            "module": "OMNISMART"
+                        },
+                        "name": "Almir",
+                        "updatedAt": "2025-06-12T16:40:31.041Z"
+                    },
+                    "photo": "https:\/\/omni-chats-uploads.s3.amazonaws.com\/prod\/customer\/67179c730d2a6777a2e47c5d\/user-profile\/684990068e491c5b06457460.jpg"
+                },
+                "agent": null,
+                "agentSupervisor": false
+            },
+            {
+                "type": "assignment",
+                "createdAt": "2025-06-13T15:07:18.812Z",
+                "agent": {
+                    "_id": "684990068e491c5b06457460",
+                    "teams": [
+                        "67179c73e619ee42bac0dc4e",
+                        "684b0d818efd21b5bf3017c4"
+                    ],
+                    "horary": "67179c73e619ee42bac0dc45",
+                    "name": "Almir",
+                    "email": "tecnologia@bicorp.com.br",
+                    "ramalKey": "",
+                    "ramalPort": "",
+                    "ramalURI": "",
+                    "profiles": [
+                        "67179c732b324bf42ee4005c"
+                    ],
+                    "auditMonitoring": false,
+                    "passwordChanged": true,
+                    "hasFullAdminAccess": false,
+                    "hasFullVisualizationAccess": false,
+                    "createByUserData": {
+                        "userId": "67179c742b324bf42ee40061",
+                        "customer": "67179c730d2a6777a2e47c5d",
+                        "userLoginData": {
+                            "browser": "Chrome",
+                            "device": "desktop",
+                            "plataformName": "Other",
+                            "ip": "187.54.23.75",
+                            "browserId": "a0b5a0a1895e6ccd2b7662c32b8fc9df",
+                            "module": "OMNISMART"
+                        },
+                        "name": "ANDERSON LUIZ BISCAIA",
+                        "updatedAt": "2025-06-11T14:17:42.820Z"
+                    },
+                    "isDeleted": false,
+                    "createdAt": "2025-06-11T14:17:42.839Z",
+                    "updatedAt": "2025-06-12T18:32:56.373Z",
+                    "devices": [
+                        {
+                            "browser": "Chrome",
+                            "device": "desktop",
+                            "plataformName": "Windows OS",
+                            "ip": "45.186.72.138",
+                            "browserId": "612bc970704e385f0f99869dfa16978f",
+                            "module": "OMNISMART",
+                            "createdAt": "2025-06-11T14:45:59.739Z"
+                        }
+                    ],
+                    "updateByUserData": {
+                        "userId": "684990068e491c5b06457460",
+                        "customer": "67179c730d2a6777a2e47c5d",
+                        "userLoginData": {
+                            "browser": "Chrome",
+                            "device": "desktop",
+                            "plataformName": "Windows OS",
+                            "ip": "45.186.72.138",
+                            "browserId": "612bc970704e385f0f99869dfa16978f",
+                            "module": "OMNISMART"
+                        },
+                        "name": "Almir",
+                        "updatedAt": "2025-06-12T16:40:31.041Z"
+                    },
+                    "photo": "https:\/\/omni-chats-uploads.s3.amazonaws.com\/prod\/customer\/67179c730d2a6777a2e47c5d\/user-profile\/684990068e491c5b06457460.jpg"
+                }
+            }
+        ]
+    }
+}
+
+{"type":"transfer-to-agent","data":{"steps":[{"type":"startChat","createdAt":"2025-06-13T14:59:52.320Z"},{"type":"transferAgent","createdAt":"2025-06-13T15:01:18.150Z","toAgent":{"_id":"684990068e491c5b06457460","teams":["67179c73e619ee42bac0dc4e","684b0d818efd21b5bf3017c4"],"horary":"67179c73e619ee42bac0dc45","name":"Almir","email":"tecnologia@bicorp.com.br","ramalKey":"","ramalPort":"","ramalURI":"","profiles":["67179c732b324bf42ee4005c"],"auditMonitoring":false,"passwordChanged":true,"hasFullAdminAccess":false,"hasFullVisualizationAccess":false,"createByUserData":{"userId":"67179c742b324bf42ee40061","customer":"67179c730d2a6777a2e47c5d","userLoginData":{"browser":"Chrome","device":"desktop","plataformName":"Other","ip":"187.54.23.75","browserId":"a0b5a0a1895e6ccd2b7662c32b8fc9df","module":"OMNISMART"},"name":"ANDERSON LUIZ BISCAIA","updatedAt":"2025-06-11T14:17:42.820Z"},"isDeleted":false,"createdAt":"2025-06-11T14:17:42.839Z","updatedAt":"2025-06-12T18:32:56.373Z","devices":[{"browser":"Chrome","device":"desktop","plataformName":"Windows OS","ip":"45.186.72.138","browserId":"612bc970704e385f0f99869dfa16978f","module":"OMNISMART","createdAt":"2025-06-11T14:45:59.739Z"}],"updateByUserData":{"userId":"684990068e491c5b06457460","customer":"67179c730d2a6777a2e47c5d","userLoginData":{"browser":"Chrome","device":"desktop","plataformName":"Windows OS","ip":"45.186.72.138","browserId":"612bc970704e385f0f99869dfa16978f","module":"OMNISMART"},"name":"Almir","updatedAt":"2025-06-12T16:40:31.041Z"},"photo":"https:\/\/omni-chats-uploads.s3.amazonaws.com\/prod\/customer\/67179c730d2a6777a2e47c5d\/user-profile\/684990068e491c5b06457460.jpg"},"agent":null,"agentSupervisor":false},{"type":"assignment","createdAt":"2025-06-13T15:07:18.812Z","agent":{"_id":"684990068e491c5b06457460","teams":["67179c73e619ee42bac0dc4e","684b0d818efd21b5bf3017c4"],"horary":"67179c73e619ee42bac0dc45","name":"Almir","email":"tecnologia@bicorp.com.br","ramalKey":"","ramalPort":"","ramalURI":"","profiles":["67179c732b324bf42ee4005c"],"auditMonitoring":false,"passwordChanged":true,"hasFullAdminAccess":false,"hasFullVisualizationAccess":false,"createByUserData":{"userId":"67179c742b324bf42ee40061","customer":"67179c730d2a6777a2e47c5d","userLoginData":{"browser":"Chrome","device":"desktop","plataformName":"Other","ip":"187.54.23.75","browserId":"a0b5a0a1895e6ccd2b7662c32b8fc9df","module":"OMNISMART"},"name":"ANDERSON LUIZ BISCAIA","updatedAt":"2025-06-11T14:17:42.820Z"},"isDeleted":false,"createdAt":"2025-06-11T14:17:42.839Z","updatedAt":"2025-06-12T18:32:56.373Z","devices":[{"browser":"Chrome","device":"desktop","plataformName":"Windows OS","ip":"45.186.72.138","browserId":"612bc970704e385f0f99869dfa16978f","module":"OMNISMART","createdAt":"2025-06-11T14:45:59.739Z"}],"updateByUserData":{"userId":"684990068e491c5b06457460","customer":"67179c730d2a6777a2e47c5d","userLoginData":{"browser":"Chrome","device":"desktop","plataformName":"Windows OS","ip":"45.186.72.138","browserId":"612bc970704e385f0f99869dfa16978f","module":"OMNISMART"},"name":"Almir","updatedAt":"2025-06-12T16:40:31.041Z"},"photo":"https:\/\/omni-chats-uploads.s3.amazonaws.com\/prod\/customer\/67179c730d2a6777a2e47c5d\/user-profile\/684990068e491c5b06457460.jpg"}},{"type":"transferAgent","createdAt":"2025-06-13T15:18:12.173Z","toAgent":{"_id":"684990068e491c5b06457460","teams":["67179c73e619ee42bac0dc4e","684b0d818efd21b5bf3017c4"],"horary":"67179c73e619ee42bac0dc45","name":"Almir","email":"tecnologia@bicorp.com.br","ramalKey":"","ramalPort":"","ramalURI":"","profiles":["67179c732b324bf42ee4005c"],"auditMonitoring":false,"passwordChanged":true,"hasFullAdminAccess":false,"hasFullVisualizationAccess":false,"createByUserData":{"userId":"67179c742b324bf42ee40061","customer":"67179c730d2a6777a2e47c5d","userLoginData":{"browser":"Chrome","device":"desktop","plataformName":"Other","ip":"187.54.23.75","browserId":"a0b5a0a1895e6ccd2b7662c32b8fc9df","module":"OMNISMART"},"name":"ANDERSON LUIZ BISCAIA","updatedAt":"2025-06-11T14:17:42.820Z"},"isDeleted":false,"createdAt":"2025-06-11T14:17:42.839Z","updatedAt":"2025-06-12T18:32:56.373Z","devices":[{"browser":"Chrome","device":"desktop","plataformName":"Windows OS","ip":"45.186.72.138","browserId":"612bc970704e385f0f99869dfa16978f","module":"OMNISMART","createdAt":"2025-06-11T14:45:59.739Z"}],"updateByUserData":{"userId":"684990068e491c5b06457460","customer":"67179c730d2a6777a2e47c5d","userLoginData":{"browser":"Chrome","device":"desktop","plataformName":"Windows OS","ip":"45.186.72.138","browserId":"612bc970704e385f0f99869dfa16978f","module":"OMNISMART"},"name":"Almir","updatedAt":"2025-06-12T16:40:31.041Z"},"photo":"https:\/\/omni-chats-uploads.s3.amazonaws.com\/prod\/customer\/67179c730d2a6777a2e47c5d\/user-profile\/684990068e491c5b06457460.jpg"},"agent":{"_id":"684990068e491c5b06457460","teams":["67179c73e619ee42bac0dc4e","684b0d818efd21b5bf3017c4"],"horary":"67179c73e619ee42bac0dc45","name":"Almir","email":"tecnologia@bicorp.com.br","ramalKey":"","ramalPort":"","ramalURI":"","profiles":["67179c732b324bf42ee4005c"],"auditMonitoring":false,"passwordChanged":true,"hasFullAdminAccess":false,"hasFullVisualizationAccess":false,"createByUserData":{"userId":"67179c742b324bf42ee40061","customer":"67179c730d2a6777a2e47c5d","userLoginData":{"browser":"Chrome","device":"desktop","plataformName":"Other","ip":"187.54.23.75","browserId":"a0b5a0a1895e6ccd2b7662c32b8fc9df","module":"OMNISMART"},"name":"ANDERSON LUIZ BISCAIA","updatedAt":"2025-06-11T14:17:42.820Z"},"isDeleted":false,"createdAt":"2025-06-11T14:17:42.839Z","updatedAt":"2025-06-12T18:32:56.373Z","devices":[{"browser":"Chrome","device":"desktop","plataformName":"Windows OS","ip":"45.186.72.138","browserId":"612bc970704e385f0f99869dfa16978f","module":"OMNISMART","createdAt":"2025-06-11T14:45:59.739Z"}],"updateByUserData":{"userId":"684990068e491c5b06457460","customer":"67179c730d2a6777a2e47c5d","userLoginData":{"browser":"Chrome","device":"desktop","plataformName":"Windows OS","ip":"45.186.72.138","browserId":"612bc970704e385f0f99869dfa16978f","module":"OMNISMART"},"name":"Almir","updatedAt":"2025-06-12T16:40:31.041Z"},"photo":"https:\/\/omni-chats-uploads.s3.amazonaws.com\/prod\/customer\/67179c730d2a6777a2e47c5d\/user-profile\/684990068e491c5b06457460.jpg"},"agentSupervisor":true}],"_id":"684c3ce83720c2217cffa11d"}}

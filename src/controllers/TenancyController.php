@@ -152,6 +152,27 @@ class TenancyController extends Controller
         }
     }
 
+        //na evolução do sitema teremos um create new CRM
+    public function createNewAppOmni()
+    {
+        $this->loggedUser  = LoginHandler::checkLogin();
+
+        $json = file_get_contents('php://input');
+        
+        $data = json_decode($json, true);
+        
+        if($this->loggedUser)
+        {                
+            $response = AppsHandler::createNewAppOmni($data);
+
+            return print_r(json_encode($response));
+        }else{
+            $response['status'] = 200;
+            $response['content'] = 'Não foi possível logar encontrar o usuário logado na API';
+            return print_r(json_encode($response));     
+        }
+    }
+
     public function createVhostRabbitMQ(){
         $this->loggedUser  = LoginHandler::checkLogin();
 

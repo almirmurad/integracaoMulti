@@ -47,6 +47,11 @@ return [
             'callback' => 'TenancyController@createNewAppPloomes',
             'middlewares' => [AuthenticateMiddleware::class]
         ],
+        // /api/omnismart/add
+        '/api/omni/add' => [
+            'callback' => 'TenancyController@createNewAppOmni',
+            'middlewares' => [AuthenticateMiddleware::class]
+        ],
         // /api/users/add
         '/api/users/add' => [
             'callback' => 'UserController@addUserAction',
@@ -124,10 +129,19 @@ return [
             'callback' => 'FinancialController@processNewFinancial', //inicia processo
             'middlewares' => [RequestMiddleware::class, LoadCustomFieldsMiddleware::class]
         ],
-        // //Interactions
+        //Interactions
         '/newInteraction'=>[
             'callback' => 'InteractionController@createInteraction', //nova interação
             'middlewares' => []
-        ]            
+        ],
+        //Omnismart
+        '/transferChat'=>[
+            'callback' => 'OmnismartController@transferChat', //nova interação
+            'middlewares' => [RequestMiddleware::class]
+        ],   
+        '/processNewTransferChat'=>[
+            'callback' => 'OmnismartController@processNewTransferChat', //nova interação
+            'middlewares' => [RequestMiddleware::class, LoadCustomFieldsMiddleware::class]
+        ],               
     ]
 ];

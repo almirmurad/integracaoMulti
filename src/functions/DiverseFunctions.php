@@ -6,7 +6,7 @@ use src\exceptions\WebhookReadErrorException;
 
 class DiverseFunctions{
 
-           //identifica qual action do webhook
+    //identifica qual action do webhook
     public static function findAction(array $args): array
     {
         $current = date('d/m/Y H:i:s');
@@ -74,6 +74,75 @@ class DiverseFunctions{
             }catch(\UnhandledMatchError $e){
                 throw new WebhookReadErrorException('Não foi encontrada nenhuma ação no webhook ['.$e->getMessage().']'.$current, 500);
             }
+        }elseif(isset($decoded['type'])){
+            try{
+
+                $action = match($decoded['type']){
+                    'transfer-to-agent' => 'toAgent',
+                    'transfer-to-team' => 'toTeam',
+                    default => 'inaction'
+                };
+
+                if(!empty($decoded['data']['steps'])){
+                    foreach($decoded['data']['steps'] as $step)
+                    {
+                        if(
+                            $step['type'] === 'transferTeam' && 
+                            $step['toTeam']['name'] !== 'Comercial'
+                        )
+                        {
+                            //transbordo não é para equipe comercial
+                            throw new WebhookReadErrorException('Transbordo não é para equipe comercial', 500);
+                        }
+                        elseif
+                        (
+                            $step['type'] === 'assignment'
+                        )
+                        {
+                            //agente clica em iniciar a conversa
+                            $type = 'ASSIGN';
+                        }elseif
+                        (
+                            $step['type'] === 'transferAgent' &&  
+                            $step['agentSupervisor'] === true 
+                        )
+                        {
+                            if($step['agent']['_id'] === '_idGIOM')
+                            {
+                                //transbordo do supervisor para ele mesmo
+                                throw new WebhookReadErrorException('Transbordo do supervisor para o supervisor', 500); 
+                            }
+                            //supervisor transborda para o agente
+                            $type = 'SUPToAGENT';
+                            
+                        }elseif
+                        (
+                            $step['type'] === 'transferAgent' &&  
+                            $step['agentSupervisor'] === false 
+                        )
+                        {
+                            if($step['agent']['_id'] !== '_idGIOM')
+                            {
+                                //transbordo de agente para agente
+                                throw new WebhookReadErrorException('Transbordo do agente para o agente', 500); 
+                            }else{
+                                //transbordo de agente para supervisor
+                                throw new WebhookReadErrorException('Transbordo do agente para o supervisor', 500);
+                            }
+                            
+                        }
+                    }
+                }
+                $array = [
+                    'action' =>$action,
+                    'type' => $type ?? null,
+                    'origem' => 'OMNIToCRM'
+                ];
+
+            }catch(\UnhandledMatchError $e){
+                throw new WebhookReadErrorException('Não foi encontrada nenhuma ação no webhook ['.$e->getMessage().']'.$current, 500);
+            }
+
         }else{
             throw new WebhookReadErrorException('Não foi encontrada nenhuma ação no webhook '.$current, 500);
         }
@@ -300,6 +369,25 @@ public static function compareArrays($old, $new, $ignorar = [])
 
     //     return $diferencas;
     // }
+    public static function formatarTelefone($numero) {
+        // Remove tudo que não for número
+        $numero = preg_replace('/\D/', '', $numero);
+
+        // Remove o código do país (55), se estiver presente
+        if (substr($numero, 0, 2) === '55') {
+            $numero = substr($numero, 2);
+        }
+
+        // Formata (XX) XXXXX-XXXX
+        if (preg_match('/^(\d{2})(\d{5})(\d{4})$/', $numero, $matches)) {
+            return "({$matches[1]}) {$matches[2]}-{$matches[3]}";
+        }
+
+        // Caso não consiga formatar
+        return $numero;
+    }
+
+
 
 
 }

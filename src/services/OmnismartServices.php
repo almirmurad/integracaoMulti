@@ -3,25 +3,23 @@
 namespace src\services;
 
 use GuzzleHttp\Psr7\Response;
-use src\contracts\PloomesManagerInterface;
-
 use Dotenv\Dotenv;
+use src\contracts\OmnichannelManagerInterface;
 
-class PloomesServices implements PloomesManagerInterface{
+class OmnismartServices implements OmnichannelManagerInterface{
 
     private $baseApi;
     private $apiKey;
     private $method;
     private $headers;
 
-    public function __construct(array $ploomesBase ){       
-        $this->apiKey = $ploomesBase['api_key'];
-        $this->baseApi = $ploomesBase['base_api'];
+    public function __construct($omnismart){ 
+         
+        $this->apiKey = "Bearer {$omnismart['api_key']}";
+        $this->baseApi = $omnismart['base_api'];
         $this->method = array('get','post','patch','update','delete');
-        $this->headers = [
-            'User-Key:' . $this->apiKey,
-            'Content-Type: application/json',
-        ];
+        $this->headers = array('Accept: application/json',
+                                'Authorization: ' .$this->apiKey);
     }
 
     //ENCONTRA A PROPOSTA NO PLOOMES
@@ -266,8 +264,7 @@ class PloomesServices implements PloomesManagerInterface{
             CURLOPT_HTTPHEADER => $this->headers
         ));
 
-        $response = curl_exec($curl);
-        $response =json_decode($response, true);
+        $response = json_decode(curl_exec($curl), true);
         
         $stage = json_decode($json,true);
 
@@ -278,12 +275,12 @@ class PloomesServices implements PloomesManagerInterface{
     }
 
     //encontra cliente no ploomes pelo Id
-    public function getClientById(string $id):array|null
+    public function userGetOne(string $id):array|null
     {
         $curl = curl_init();
 
         curl_setopt_array($curl, array(
-            CURLOPT_URL => $this->baseApi .'Contacts?$filter=Id+eq+'.$id.'&$expand=OtherProperties,City,State,Country,Owner($select=Id,Name,Email,Phone),Tags($expand=Tag),Phones($expand=Type),LineOfBusiness,Contacts($expand=Phones($expand=Type))',
+            CURLOPT_URL => $this->baseApi . 'user/' . trim($id),
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_ENCODING => '',
             CURLOPT_MAXREDIRS => 10,
@@ -292,33 +289,24 @@ class PloomesServices implements PloomesManagerInterface{
             CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
             CURLOPT_CUSTOMREQUEST => strtoupper($this->method[0]),
             CURLOPT_HTTPHEADER => $this->headers
-
         ));
 
         $response = curl_exec($curl);
         $response =json_decode($response, true);
         
         curl_close($curl);
-
+print_r($response);
+exit;
         return $response['value'][0];
 
     }
-
-        //encontra cliente no ploomes pelo Id
-    public function getClientByPhone(string $phone):array|null
+    public function chatGetOne(string $id):array|null
     {
-        
-        //$phone = "(41) 98902-1385";
-        // $encodedPhone = rawurlencode($phone);
-        $filter = rawurlencode("Phones/any(c1: (c1/PhoneNumber eq '$phone'))");
 
-        $url = $this->baseApi.'Contacts?$filter='.$filter.'&$select=Id';
-        // print_r($url);
-        // exit;
         $curl = curl_init();
 
         curl_setopt_array($curl, array(
-            CURLOPT_URL => $url,
+            CURLOPT_URL => $this->baseApi . '/v1/chat/' . trim($id),
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_ENCODING => '',
             CURLOPT_MAXREDIRS => 10,
@@ -327,13 +315,13 @@ class PloomesServices implements PloomesManagerInterface{
             CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
             CURLOPT_CUSTOMREQUEST => strtoupper($this->method[0]),
             CURLOPT_HTTPHEADER => $this->headers
-
         ));
 
-        $response = json_decode(curl_exec($curl), true);
+        $response =json_decode(curl_exec($curl), true);
+        
         curl_close($curl);
 
-        return (!empty($response['value'])) ? $response['value'][0] : null;
+        return $response;
 
     }
 
@@ -567,91 +555,12 @@ class PloomesServices implements PloomesManagerInterface{
        
     }
 
-    //CRIA CARD NO PLOOMES
-    public function createPloomesDeal(string $json):array|null
-    {
-    
-        //CHAMADA CURL PRA CRIAR WEBHOOK NO PLOOMES
-        $curl = curl_init();
-
-        curl_setopt_array($curl, array(
-            CURLOPT_URL => $this->baseApi . 'Deals?$expand=OtherProperties,Contact,Stage,Status,Pipeline',//ENDPOINT PLOOMES
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_ENCODING => '',
-            CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 0,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_CUSTOMREQUEST =>strtoupper($this->method[1]),
-            CURLOPT_POSTFIELDS => $json,
-            CURLOPT_HTTPHEADER => $this->headers
-        ));
-
-        $response = json_decode(curl_exec($curl),true);
-        curl_close($curl);
-
-        return (!empty($response['value'][0])) ? $response['value'][0] : null;
-       
-    }
-
-    //Busca um  CARD NO PLOOMES pelo id do chat
-    public function getCardByIdChat(string $idChat, $key):int|null
-    {
-        //CHAMADA CURL PRA CRIAR WEBHOOK NO PLOOMES
-        $curl = curl_init();
-        $filter ="((((OtherProperties/any(o:+o/FieldKey+eq+'{$key}'+and+(o/StringValue+eq+'{$idChat}'))))))";
-
-        curl_setopt_array($curl, array(
-            CURLOPT_URL => $this->baseApi . 'Deals?$filter='.$filter,//ENDPOINT PLOOMES
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_ENCODING => '',
-            CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 0,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_CUSTOMREQUEST => strtoupper($this->method[0]),
-            CURLOPT_HTTPHEADER => $this->headers
-        ));
-
-        $response = json_decode(curl_exec($curl),true);
-        curl_close($curl);
-
-        return (!empty($response['value'][0])) ? $response['value'][0]['Id'] : null;
-       
-    }
-
-    //ATUALIZA CARD NO PLOOMES
-    public function updatePloomesDeal(string $json, int $idDeal):array
-    {
-            
-        //CHAMADA CURL PRA CRIAR WEBHOOK NO PLOOMES
-        $curl = curl_init();
-
-        curl_setopt_array($curl, array(
-            CURLOPT_URL => $this->baseApi . 'Deals('.$idDeal.')?$expand=OtherProperties',//ENDPOINT PLOOMES
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_ENCODING => '',
-            CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 0,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_CUSTOMREQUEST =>strtoupper($this->method[2]),
-            CURLOPT_POSTFIELDS => $json,
-            CURLOPT_HTTPHEADER => $this->headers
-        ));
-
-        $response = json_decode(curl_exec($curl),true);
-
-        curl_close($curl);
-        
-        return $response['value'][0] ?? null;
-    
-    }
-
-
-    //CRIA CONTACT NO PLOOMES
+        //CRIA CONTACT NO PLOOMES
     public function createPloomesPerson(string $json):int
-    {    
+    {
+        // print_r($json);
+        // exit;
+    
         //CHAMADA CURL PRA CRIAR WEBHOOK NO PLOOMES
         $curl = curl_init();
 
@@ -671,12 +580,17 @@ class PloomesServices implements PloomesManagerInterface{
         $response = json_decode(curl_exec($curl),true);
 
         curl_close($curl);
-
+// print_r($response);
+// exit;
         $idIntegration = $response['value'][0]['Id'] ?? 0;
 
         return $idIntegration;
        
     }
+
+
+
+    
 
     //CRIA Produto NO PLOOMES
     public function createPloomesProduct(string $json):bool|string|int
