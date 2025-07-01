@@ -114,7 +114,7 @@ class PloomesServices implements PloomesManagerInterface{
         return $response;
     }
     //ENCONTRA O ID DO VENDEDOR NO PLOOMES
-    public function ownerId(object $deal):string
+    public function ownerId(object $deal):string | null
     {
         $curl = curl_init();
 
@@ -130,15 +130,11 @@ class PloomesServices implements PloomesManagerInterface{
             CURLOPT_HTTPHEADER => $this->headers
         ));
 
-        $responseMail = curl_exec($curl);
+        $response = json_decode(curl_exec($curl), true);
 
-        curl_close($curl);
-
-        $responseMail = json_decode($responseMail, true);
-
-        $response = $responseMail['value'][0]['Id'] ?? false;
-
-        return $response;
+        curl_close($curl);   
+  
+        return $response['value'][0]['Id'] ?? null;
     }
 
     //encontra a venda no ploomes
@@ -594,15 +590,73 @@ class PloomesServices implements PloomesManagerInterface{
        
     }
 
-    //Busca um  CARD NO PLOOMES pelo id do chat
-    public function getCardByIdChat(string $idChat, $key):int|null
+    //BUSCA UM FUNIL NO PLOOMES PELO NOME
+    public function getPipelineByName(string $pipelineName):int|null
     {
         //CHAMADA CURL PRA CRIAR WEBHOOK NO PLOOMES
         $curl = curl_init();
-        $filter ="((((OtherProperties/any(o:+o/FieldKey+eq+'{$key}'+and+(o/StringValue+eq+'{$idChat}'))))))";
+        $filter =rawurlencode("Name eq '".strtoupper($pipelineName)."'");
 
         curl_setopt_array($curl, array(
-            CURLOPT_URL => $this->baseApi . 'Deals?$filter='.$filter,//ENDPOINT PLOOMES
+            CURLOPT_URL => $this->baseApi . 'Deals@Pipelines?$filter='.$filter,//ENDPOINT PLOOMES
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => strtoupper($this->method[0]),
+            CURLOPT_HTTPHEADER => $this->headers
+        ));
+
+        $response = json_decode(curl_exec($curl),true);
+        curl_close($curl);
+        
+        return (!empty($response['value'][0])) ? $response['value'][0]['Id'] : null;
+       
+    }
+
+    //BUSCA O ESTÀGIO DO FUNIL NO PLOOMES PELO ID DO FUNIL
+    public function getPipelineStagesByPipelineId(int $pipelineId):int|null
+    {
+        //CHAMADA CURL PRA CRIAR WEBHOOK NO PLOOMES
+        $curl = curl_init();
+        // /Deals@Stages?$filter=(PipelineId eq 40053133 and Ordination eq 0)&$expand=Pipeline
+        $filter =rawurlencode("(PipelineId eq {$pipelineId} and Ordination eq 0)");
+        
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => $this->baseApi . 'Deals@Stages?$filter='.$filter,//ENDPOINT PLOOMES
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => strtoupper($this->method[0]),
+            CURLOPT_HTTPHEADER => $this->headers
+        ));
+
+        $response = json_decode(curl_exec($curl),true);
+        curl_close($curl);
+        
+        return (!empty($response['value'][0])) ? $response['value'][0]['Id'] : null;
+       
+    }
+
+    //Busca um  CARD NO PLOOMES pelo id do chat
+    public function getCardByIdChat(string $idChat, array $keys, $pipeline = null):array|null
+    {
+        if(isset($pipeline['pipelineId'])){
+            $filter ="((((OtherProperties/any(o:+o/FieldKey+eq+'{$keys['id_chat']}'+and+(o/StringValue+eq+'{$idChat}'))))))+and+PipelineId+eq+{$pipeline['pipelineId']}";
+        }else{
+            $filter ="((((OtherProperties/any(o:+o/FieldKey+eq+'{$keys['id_chat']}'+and+(o/StringValue+eq+'{$idChat}'))))))";
+        }
+        //CHAMADA CURL PRA CRIAR WEBHOOK NO PLOOMES
+        $curl = curl_init();
+        
+        $expand = "&\$expand=Pipeline,Stage";
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => "{$this->baseApi}Deals?\$filter={$filter}{$expand}",//ENDPOINT PLOOMES
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_ENCODING => '',
             CURLOPT_MAXREDIRS => 10,
@@ -616,14 +670,13 @@ class PloomesServices implements PloomesManagerInterface{
         $response = json_decode(curl_exec($curl),true);
         curl_close($curl);
 
-        return (!empty($response['value'][0])) ? $response['value'][0]['Id'] : null;
+        return (!empty($response['value'][0])) ? $response['value'][0] : null;
        
     }
 
     //ATUALIZA CARD NO PLOOMES
     public function updatePloomesDeal(string $json, int $idDeal):array
-    {
-            
+    {          
         //CHAMADA CURL PRA CRIAR WEBHOOK NO PLOOMES
         $curl = curl_init();
 
@@ -643,7 +696,7 @@ class PloomesServices implements PloomesManagerInterface{
         $response = json_decode(curl_exec($curl),true);
 
         curl_close($curl);
-        
+
         return $response['value'][0] ?? null;
     
     }
@@ -708,7 +761,7 @@ class PloomesServices implements PloomesManagerInterface{
     }
 
     //ATUALIZA CONTACT NO PLOOMES
-    public function updatePloomesContact(string $json, int $idContact):array
+    public function updatePloomesContact(string $json, int $idContact):array|null
     {
             
         //CHAMADA CURL PRA CRIAR WEBHOOK NO PLOOMES

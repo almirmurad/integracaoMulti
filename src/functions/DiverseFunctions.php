@@ -86,15 +86,15 @@ class DiverseFunctions{
                 if(!empty($decoded['data']['steps'])){
                     foreach($decoded['data']['steps'] as $step)
                     {
-                        if(
-                            $step['type'] === 'transferTeam' && 
-                            $step['toTeam']['name'] !== 'Comercial'
-                        )
-                        {
-                            //transbordo não é para equipe comercial
-                            throw new WebhookReadErrorException('Transbordo não é para equipe comercial', 500);
-                        }
-                        elseif
+                        // if(
+                        //     $step['type'] === 'transferTeam' && 
+                        //     $step['toTeam']['name'] !== 'Comercial'
+                        // )
+                        // {
+                        //     //transbordo não é para equipe comercial
+                        //     throw new WebhookReadErrorException('Transbordo não é para equipe comercial', 500);
+                        // }
+                        if
                         (
                             $step['type'] === 'assignment'
                         )
@@ -107,13 +107,25 @@ class DiverseFunctions{
                             $step['agentSupervisor'] === true 
                         )
                         {
-                            if($step['agent']['_id'] === '_idGIOM')
+                            if($step['toAgent']['agentSupervisor'] === false)
                             {
-                                //transbordo do supervisor para ele mesmo
-                                throw new WebhookReadErrorException('Transbordo do supervisor para o supervisor', 500); 
+                                //transbordo do supervisor para ele agente
+                                $type = 'SUPToAGENT'; 
+                            }else{
+                                $type = 'SUPToSUP'; 
                             }
-                            //supervisor transborda para o agente
-                            $type = 'SUPToAGENT';
+                            
+                        }elseif
+                        (
+                            $step['type'] === 'transferAgent' &&  
+                            $step['agentSupervisor'] === false &&
+                            $step['agent'] === null
+                        )
+                        {
+                           
+                                //transbordo de agente para agente
+                                $type = 'BOTToAGENT';
+                           
                             
                         }elseif
                         (
@@ -121,14 +133,13 @@ class DiverseFunctions{
                             $step['agentSupervisor'] === false 
                         )
                         {
-                            if($step['agent']['_id'] !== '_idGIOM')
-                            {
+                            
                                 //transbordo de agente para agente
-                                throw new WebhookReadErrorException('Transbordo do agente para o agente', 500); 
-                            }else{
-                                //transbordo de agente para supervisor
-                                throw new WebhookReadErrorException('Transbordo do agente para o supervisor', 500);
-                            }
+                                $type = 'AGENTToAGENT';
+                            
+                                // //transbordo de agente para supervisor
+                                // $type = 'AGENTToSUP';
+                            
                             
                         }
                     }

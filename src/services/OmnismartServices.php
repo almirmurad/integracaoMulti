@@ -274,7 +274,7 @@ class OmnismartServices implements OmnichannelManagerInterface{
        return ($response['value'][0]['StageId'] === $stage['StageId']) ? true :  false;
     }
 
-    //encontra cliente no ploomes pelo Id
+    //encontra cliente no omnismart pelo Id
     public function userGetOne(string $id):array|null
     {
         $curl = curl_init();
@@ -295,11 +295,12 @@ class OmnismartServices implements OmnichannelManagerInterface{
         $response =json_decode($response, true);
         
         curl_close($curl);
-print_r($response);
-exit;
+        // print_r($response);
+        // exit;
         return $response['value'][0];
 
     }
+    //encontra o chat do omnismart pelo id
     public function chatGetOne(string $id):array|null
     {
 

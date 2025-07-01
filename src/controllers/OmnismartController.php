@@ -39,7 +39,6 @@ class OmnismartController extends Controller
     private function getOmnismartHandler(): OmnismartHandler
     {   
         // $formatter = ErpFormatterFactory::create($args);
-        
         $omnismartHandler = new OmnismartHandler($this->ploomesServices, $this->databaseServices, $this->omnismartServices);
         
         return $omnismartHandler;
@@ -56,22 +55,12 @@ class OmnismartController extends Controller
         try {
             
             $omnismartHandler = $this->getOmnismartHandler();            
-            $action = DiverseFunctions::findAction($args);
-                
-            if(
-                $action['origem'] === 'OMNIToCRM' && 
-                $action['action'] === 'toTeam' && 
-                ($action['type'] !== 'SUPToAGENT' && $action['type'] !== 'ASSIGN')
-            )
-            {
-                throw new WebhookReadErrorException('Transbordo de agente para agente', 500);
-            }
-            
+            // $action = DiverseFunctions::findAction($args);            
             $response = $omnismartHandler->saveClientHook($json, $idUser);
 
             // $rk = origem.entidade.ação
-            //$rk = array('Omnismart', 'Contacts');
-            //$this->rabbitMQServices->publicarMensagem('contacts_exc', $rk, 'omnismart_contacts',  $json);
+            // $rk = array('Omnismart', 'Contacts');
+            // $this->rabbitMQServices->publicarMensagem('contacts_exc', $rk, 'omnismart_contacts',  $json);
 
             if ($response > 0) {
                 $message = [
@@ -106,12 +95,15 @@ class OmnismartController extends Controller
     //processa contatos e clientes do ploomes ou do Erp
     public function processNewTransferChat($args)
     {
+       
         $message = [];
         // processa o webhook 
         try 
         {
             $omnismartHandler = $this->getOmnismartHandler();
             $response = $omnismartHandler->startProcess($args);
+
+            
 
             $message = [
                 'status_code' => 200,
