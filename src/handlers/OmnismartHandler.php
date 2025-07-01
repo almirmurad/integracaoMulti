@@ -44,7 +44,7 @@ class OmnismartHandler
         $webhook->status = 1; // recebido
         $webhook->user_id = $idUser; 
         $webhook->result = 'Rececibo';
-        $webhook->entity = $decoded['Entity'] ?? 'OmniSmart';
+        $webhook->entity = $decoded['Entity'] ?? $decoded['type'];
         $webhook->origem = $origem;
         //salva o hook no banco
         return ($id = $this->databaseServices->saveOmnichannelWebhook($webhook)) ? ['id'=>$id, 'msg' =>'Webhook Salvo com sucesso id = '.$id .'às '.$this->current] : 0;

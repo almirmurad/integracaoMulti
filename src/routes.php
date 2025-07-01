@@ -117,7 +117,7 @@ return [
         ],
         '/processNewInvoice'=>[
             'callback' => 'InvoicingController@processNewInvoice', //inicia processo
-            'middlewares' => [RequestMiddleware::class]
+            'middlewares' => [RequestMiddleware::class, LoadCustomFieldsMiddleware::class]
         ],
         
         //financeiro ERP X Ploomes
