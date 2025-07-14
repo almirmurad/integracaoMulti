@@ -33,7 +33,7 @@ class OmnismartController extends Controller
         $this->ploomesServices = new PloomesServices($ploomesBase);
         $this->databaseServices = new DatabaseServices();
         $this->omnismartServices = new OmnismartServices($omnismart);
-        //$this->rabbitMQServices = new RabbitMQServices($vhost);
+        $this->rabbitMQServices = new RabbitMQServices($vhost);
     }
 
     private function getOmnismartHandler(): OmnismartHandler
@@ -48,6 +48,8 @@ class OmnismartController extends Controller
     //recebe webhook de cliente criado, alterado e excluído do PLOOMES CRM
     public function transferChat($args)
     {
+        // print_r($args);
+        // exit;
         $message = [];
         $idUser = $args['Tenancy']['tenancies']['user_id'];
         $json = json_encode($args['body']);
@@ -59,8 +61,9 @@ class OmnismartController extends Controller
             $response = $omnismartHandler->saveClientHook($json, $idUser);
 
             // $rk = origem.entidade.ação
-            // $rk = array('Omnismart', 'Contacts');
-            // $this->rabbitMQServices->publicarMensagem('contacts_exc', $rk, 'omnismart_contacts',  $json);
+            $rk = array('Omnismart', 'Contacts');
+            $this->rabbitMQServices->publicarMensagem('contacts_exc', $rk, 'omnismart_contacts',  $json);
+            
 
             if ($response > 0) {
                 $message = [

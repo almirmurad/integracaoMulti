@@ -22,6 +22,8 @@ class PloomesServices implements PloomesManagerInterface{
             'User-Key:' . $this->apiKey,
             'Content-Type: application/json',
         ];
+
+        
     }
 
     //ENCONTRA A PROPOSTA NO PLOOMES
@@ -654,7 +656,7 @@ class PloomesServices implements PloomesManagerInterface{
         //CHAMADA CURL PRA CRIAR WEBHOOK NO PLOOMES
         $curl = curl_init();
         
-        $expand = "&\$expand=Pipeline,Stage";
+        $expand = "&\$expand=OtherProperties,Pipeline,Stage";
         curl_setopt_array($curl, array(
             CURLOPT_URL => "{$this->baseApi}Deals?\$filter={$filter}{$expand}",//ENDPOINT PLOOMES
             CURLOPT_RETURNTRANSFER => true,

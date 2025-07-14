@@ -11,8 +11,7 @@ class UserHandler {
     public static function listAllUsers(){
 
         $data = User::select()->get();
-        // print_r($data);
-        // exit;
+    
         if($data>0){
             $all = [];
             foreach($data as $dt){

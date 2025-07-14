@@ -26,16 +26,34 @@ class ApiController extends Controller
     // }
 
     public function listApiUsers($args){
-
+       
         $users = UserHandler::listAllUsers();
 
-        if($users > 0){
+        // print_r($users);
+        // exit;
 
+        if($users > 0){
+            
             $response = [];
             $response['status'] = 200;
             $response['content'] = $users;
             
-            return print_r(json_encode($response));
+            header('Content-Type: application/json'); 
+            $json = json_encode($response, JSON_UNESCAPED_UNICODE);
+            if ($json === false) {
+                echo "❌ Erro ao converter JSON: " . json_last_error_msg();
+                // Possíveis mensagens:
+                // - "Malformed UTF-8 characters, possibly incorrectly encoded"
+                // - "Recursion detected"
+                // - "Inf and NaN cannot be JSON encoded"
+                // - etc.
+                exit;
+            }else{
+                
+                return print($json);
+                exit;
+            }
+            // return print_r(json_encode($response));
         }else{
 
             $response = [];

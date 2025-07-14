@@ -1,0 +1,5 @@
+.git
+vendor
+src/workers
+.gitignore
+README.md
