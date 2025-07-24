@@ -38,7 +38,6 @@ class OmnismartController extends Controller
 
     private function getOmnismartHandler(): OmnismartHandler
     {   
-        // $formatter = ErpFormatterFactory::create($args);
         $omnismartHandler = new OmnismartHandler($this->ploomesServices, $this->databaseServices, $this->omnismartServices);
         return $omnismartHandler;
     }
@@ -52,7 +51,10 @@ class OmnismartController extends Controller
         try {
             
             $omnismartHandler = $this->getOmnismartHandler();            
-            // $action = DiverseFunctions::findAction($args);            
+            $action = DiverseFunctions::findAction($args);            
+             if ($action['type'] !== 'ASSIGN') {
+                throw new WebhookReadErrorException('Não havia uma atribuição do chat ao agente do omnismart', 500);       
+            }
             $response = $omnismartHandler->saveClientHook($json, $idUser);
 
             // $rk = origem.entidade.ação
@@ -79,13 +81,13 @@ class OmnismartController extends Controller
 
                 $input = ob_get_contents();
                 ob_end_clean();
-                file_put_contents('./assets/logClient', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
+                file_put_contents('./assets/logOmni', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
                 return print 'ERROR:' . $message['status_code'] . '. MESSAGE: ' . $message['status_message'];
             }
 
             $input = ob_get_contents();
             ob_end_clean();
-            file_put_contents('./assets/logClient', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
+            file_put_contents('./assets/logOmni', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
             return print $message['status_message'];
         }
     }
@@ -120,14 +122,14 @@ class OmnismartController extends Controller
                 var_dump($message);
                 $input = ob_get_contents();
                 ob_end_clean();
-                file_put_contents('./assets/logClient.log', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
+                file_put_contents('./assets/logOmni.log', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
                 $m = json_encode($message);
                 return print_r($m);
             }
             var_dump($message);
             $input = ob_get_contents();
             ob_end_clean();
-            file_put_contents('./assets/logClient.log', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
+            file_put_contents('./assets/logOmni.log', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
             $m = json_encode($message);
             return print_r($m);
         }
