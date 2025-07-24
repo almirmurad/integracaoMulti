@@ -40,16 +40,11 @@ class OmnismartController extends Controller
     {   
         // $formatter = ErpFormatterFactory::create($args);
         $omnismartHandler = new OmnismartHandler($this->ploomesServices, $this->databaseServices, $this->omnismartServices);
-        
         return $omnismartHandler;
     }
 
-    //Ploomes
-    //recebe webhook de cliente criado, alterado e excluído do PLOOMES CRM
     public function transferChat($args)
     {
-        // print_r($args);
-        // exit;
         $message = [];
         $idUser = $args['Tenancy']['tenancies']['user_id'];
         $json = json_encode($args['body']);
@@ -95,7 +90,6 @@ class OmnismartController extends Controller
         }
     }
 
-    //processa contatos e clientes do ploomes ou do Erp
     public function processNewTransferChat($args)
     {
        
@@ -105,8 +99,6 @@ class OmnismartController extends Controller
         {
             $omnismartHandler = $this->getOmnismartHandler();
             $response = $omnismartHandler->startProcess($args);
-
-            
 
             $message = [
                 'status_code' => 200,

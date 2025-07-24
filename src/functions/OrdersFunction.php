@@ -23,14 +23,12 @@ class OrdersFunction{
         $tenancyId = $args['Tenancy']['tenancies']['id'];
         $message = [];
         $decoded = $args['body'];
-        
+       
         //Cria o objeto de order e seta o id da Venda no plooomes
         $order = self::createNewOrder($decoded);
         
         //Array de detalhes do item da venda ***Obrigatório (Busca a venda original no Ploomes com campos expandidos)
         $orderArray = self::getDetailsOrderFromPloomes($order, $ploomesServices);
-
-       
 
         //busca o contact do ploomes **obrigatório (Cliente da venda) 
         $contact = $orderArray['Contact'];
@@ -53,7 +51,7 @@ class OrdersFunction{
   
         //Seta a base de faturamento ***Obrigatório
         ($bf) ? $order->baseFaturamento = $bf : throw new WebhookReadErrorException('Erro ao montar pedido pra enviar ao omie: não foi encontrada a empresa de faturamento do pedido', 500);
-                
+        
         //seta o id do cliente do omie para a base de faturamento de destino
         self::setIdClienteErp($order);
  
