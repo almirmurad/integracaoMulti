@@ -13,6 +13,7 @@ class OmnismartFunctions
     //processa o contato do OmniChannel para o CRM
     public static function processOminsmartPloomes($args, $ploomesServices, $omnismartServices, $action): array
     {
+        
         $title = '';
         $message = [];
         $current = date('d/m/Y H:i:s');
@@ -24,7 +25,7 @@ class OmnismartFunctions
         $owner = new stdClass();
         //owner SDR é o agent que o bot transborda  a primeira vez
         // $owner->owner_sdr = $decoded['data']['steps'][2]['agent']['name'] ?? $decoded['data']['steps'][2]['toAgent']['name'];
-        $originTeam = $decoded['data']['steps'][1]['toTeam'] ?? 'PROSPECÇÃO';
+        $originTeam = $decoded['data']['steps'][1]['toTeam']['name'] ?? 'SDR EnKaps';
 
         $idChat = $decoded['data']['_id'];
         //atendimento atribuido ao agente independente de quem enviou
@@ -41,7 +42,9 @@ class OmnismartFunctions
         $transfers = $chat['transfers'];
         $assignAgent = $chat['agent'];
         $assignTeam  = $chat['team'];
-      
+        
+        
+
         //  elseif ($action['type'] === 'SUPToAGENT') {
 
         //     foreach ($decoded['data']['steps'] as $step) {
@@ -97,34 +100,50 @@ class OmnismartFunctions
         //         }
         //     }
         // }
-        $owner->owner_sdr = $decoded['data']['steps'][2]['agent']['name'] ?? $decoded['data']['steps'][2]['toAgent']['name'];
-        $owner->mailVendedor = $assignAgent['email'] ?? null;
-        ($owner->mailVendedor) ? $owner->ploomesOwnerId = $ploomesServices->ownerId($owner) : $owner->ploomesOwnerId = null;
-        $contact['ownerId'] = $owner->ploomesOwnerId;
-        $contactJson = self::contactPloomesJson($contact);
+        
+        
+        // print_r($originTeam);
+        // exit;
+        // var_dump($originTeam);
+        //     exit;
 
-        if (!$contactJson) {
-            throw new WebhookReadErrorException('Não foi possível montar os dados do contato', 500);
-        }
+        
+        
+         
 
         //verifica se o cliente já existe no ploomes
-        $pContact = $ploomesServices->getClientByPhone(DiverseFunctions::formatarTelefone($contact['telephones'][0]));        
-
+        $pContact = $ploomesServices->getClientByPhone(DiverseFunctions::formatarTelefone($contact['telephones'][0]));
+        
         //primeiro contato time de PROSPECÇÃO
         if(!$pContact) 
         {
-            // print 'não existe a pessoa vai criar a pessoa e o card no funil de prospecção através do assignTeam (nome do time do agente que aceitouo chamado)';
+            $owner->owner_sdr = $decoded['data']['steps'][2]['agent']['name'] ?? $decoded['data']['steps'][2]['toAgent']['name'];
+            $owner->mailVendedor = $decoded['data']['steps'][2]['agent']['email'] ?? $assignAgent['email'];
+            ($owner->mailVendedor) ? $owner->ploomesOwnerId = $ploomesServices->ownerId($owner) : $owner->ploomesOwnerId = null;
+            $contact['ownerId'] = $owner->ploomesOwnerId;
+            $contactJson = self::contactPloomesJson($contact);
             
+            if (!$contactJson) {
+                throw new WebhookReadErrorException('Não foi possível montar os dados do contato', 500);
+            }
+            
+            // print 'não existe a pessoa vai criar a pessoa e o card no funil de prospecção através do assignTeam (nome do time do agente que aceitouo chamado)';
             $createContactPloomes = $ploomesServices->createPloomesPerson($contactJson);
 
             if ($createContactPloomes <= 0) {
                 throw new WebhookReadErrorException('Não foi possível cadastrar contato no Ploomes', 500);
             }
+            
             //busca o id do pipeline de prospecção
-            $pipeline['pipelineId'] = $ploomesServices->getPipelineByName($originTeam['name']);
+            $pipeline['pipelineId'] = $ploomesServices->getPipelineByName($originTeam);
             $pipeline['stageId'] = $ploomesServices->getPipelineStagesByPipelineId($pipeline['pipelineId']);
+            
+            // var_dump($pipeline);
+            // exit;
+            
+            
             //titulo do card
-            $title =  "Integração Omnismart - [Cliente {$contact['name']}] Atendimento atribuído ao Agente {$assignAgent['name']} do time {$originTeam['name']}";
+            $title =  "Integração Omnismart - [Cliente {$contact['name']}] Atendimento atribuído ao Agente {$assignAgent['name']} do time {$originTeam}";
 
             $cardJson = self::dealsPloomesJson($createContactPloomes, $owner, $title, $idChat, $pipeline);
 
@@ -142,6 +161,16 @@ class OmnismartFunctions
         } 
         else //recompra ou transferência ao time de vendas
         {
+            $owner->owner_sdr = $decoded['data']['steps'][2]['agent']['name'] ?? $decoded['data']['steps'][2]['toAgent']['name'];
+            $owner->mailVendedor = $assignAgent['email'] ?? null;
+            ($owner->mailVendedor) ? $owner->ploomesOwnerId = $ploomesServices->ownerId($owner) : $owner->ploomesOwnerId = null;
+            $contact['ownerId'] = $owner->ploomesOwnerId;
+            $contactJson = self::contactPloomesJson($contact);
+            
+            if (!$contactJson) {
+                throw new WebhookReadErrorException('Não foi possível montar os dados do contato', 500);
+            }
+            
             //se o contato já existe:
             //1)Atualiza os dados do contato caso seja alterado pelo operador do Omnismart;
             //2) verifica se o card existe no pipeline de destino;(Se for um transbordo para equipe de vendas)
@@ -159,6 +188,7 @@ class OmnismartFunctions
             //se for um transbordo de origem para venda
          
             $total = count($transfers) - 1;
+           
 
             for($x = 0; $x <= $total; $x++)
             {
@@ -196,6 +226,10 @@ class OmnismartFunctions
                 }
            
             }
+            
+            
+            
+            
 
             $pipeline['pipelineId'] = $ploomesServices->getPipelineByName($forwardTeam['name']);
             $pipeline['stageId'] = $ploomesServices->getPipelineStagesByPipelineId($pipeline['pipelineId']);

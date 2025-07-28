@@ -107,7 +107,7 @@ class DiverseFunctions{
                             $step['agentSupervisor'] === true 
                         )
                         {
-                            if($step['toAgent']['agentSupervisor'] === false)
+                            if(!isset($step['toAgent']['agentSupervisor']) || $step['toAgent']['agentSupervisor'] === false)
                             {
                                 //transbordo do supervisor para ele agente
                                 $type = 'SUPToAGENT'; 

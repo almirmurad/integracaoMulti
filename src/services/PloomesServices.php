@@ -595,6 +595,7 @@ class PloomesServices implements PloomesManagerInterface{
     //BUSCA UM FUNIL NO PLOOMES PELO NOME
     public function getPipelineByName(string $pipelineName):int|null
     {
+       
         //CHAMADA CURL PRA CRIAR WEBHOOK NO PLOOMES
         $curl = curl_init();
         $filter =rawurlencode("Name eq '".strtoupper($pipelineName)."'");
@@ -926,7 +927,7 @@ class PloomesServices implements PloomesManagerInterface{
         curl_close($curl);
         // var_dump($response);
         // exit;
-        return $response['value'][0];
+        return $response['value'][0] ?? [];
 
     }
 
