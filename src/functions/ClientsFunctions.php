@@ -12,8 +12,9 @@ class ClientsFunctions{
     //processa o contato do CRM para o ERP
     public static function processContactCrmToErp($args, PloomesServices $ploomesServices, ErpFormattersInterface $formatter, $action):array
     {
-        $contact = $formatter->createObjectErpClientFromCrmData($args, $ploomesServices);
 
+        $contact = $formatter->createObjectErpClientFromCrmData($args, $ploomesServices);
+        
         $total = 0;
         foreach($contact->basesFaturamento as $k => $tnt)
         {
@@ -65,11 +66,11 @@ class ClientsFunctions{
                     $responseMessages = $formatter->updateContactCRMToERP($contact, $ploomesServices, $tenant[$k]);
                 }  
                 // Agrupa mensagens no array principal
-                if (!empty($responseMessages['success'])) {
-                    $messages['success'][] = $responseMessages['success'];
+                if ($responseMessages['success']) {
+                    $messages['success'][] = $responseMessages['response'];
                 }
                 if (!empty($responseMessages['error'])) {
-                    $messages['error'][] = $responseMessages['error'];
+                    $messages['error'][] = $responseMessages['error'] ?? $responseMessages['response'];
                 }
             }
         } 
@@ -167,8 +168,8 @@ class ClientsFunctions{
     //Trata a respostas para devolver ao controller
     public static function response($action, $contact, $messages)
     {
-        $totalSuccess = (isset ($messages['success'])) ? count($messages['success']) : 0;// verifica a quantidade de sucesso 
-        $totalError = (isset ($messages['error'])) ? count($messages['error']) : 0;// verifica a quantidade de erro 
+        $totalSuccess = (isset($messages['success'])) ? count($messages['success']) : 0;// verifica a quantidade de sucesso 
+        $totalError = (isset($messages['error'])) ? count($messages['error']) : 0;// verifica a quantidade de erro 
        
         //Quando a origem é ERP x CRM então apenas uma base para uma base
         if($action['origem'] === 'ERPToCRM'){

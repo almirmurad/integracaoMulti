@@ -672,7 +672,6 @@ class DatabaseServices implements DatabaseManagerInterface{
 
     public function setNasajonInfo(array $nasajonInfos){
         try{
-
             Nasajon_base::update()
                 ->set('access_token', $nasajonInfos['access_token'])
                 ->set('refresh_token', $nasajonInfos['refresh_token'])

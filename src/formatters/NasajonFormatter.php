@@ -2,6 +2,8 @@
 
 namespace src\formatters;
 
+use DateTime;
+use DateTimeZone;
 use src\contracts\ErpFormattersInterface;
 use src\exceptions\WebhookReadErrorException;
 use src\functions\CustomFieldsFunction;
@@ -13,12 +15,18 @@ Class NasajonFormatter implements ErpFormattersInterface{
 
     private NasajonServices $nasajonServices;
     public mixed $current;    
+    public mixed $currentDateTime;
 
     public function __construct($erpBases)
     {
+        $date =  new DateTime('now', new DateTimeZone('America/Sao_Paulo'));
         $this->nasajonServices = new NasajonServices($erpBases);
 
         $this->current = date('d/m/Y H:i:s');
+
+        $this->currentDateTime = $date->format("Y-m-d\TH:i:s\Z");
+
+
     }
 
     public function createOrder(object $orderData, object $credentials): string
@@ -43,9 +51,9 @@ Class NasajonFormatter implements ErpFormattersInterface{
         $decoded = $contactData['body'];
         
         ($decoded['New']['TypeId'] === 2 )? $dataContact = $ploomesServices->getClientById($decoded['New']['CompanyId']):$dataContact = $ploomesServices->getClientById($decoded['New']['Id']);
-    
+
         $custom = CustomFieldsFunction::compareCustomFieldsFromOtherProperties($dataContact['OtherProperties'],'Cliente',$contactData['Tenancy']['tenancies']['id']);
-  
+
         $contact = new stdClass();
         $bases =[];
         $contact->codErp = [];
@@ -62,6 +70,7 @@ Class NasajonFormatter implements ErpFormattersInterface{
                 $base['sendExternalKey'] = $chave;
                 $base['sendExternalKeyIdErp'] = $chaveId;
                 $base['integrar'] = 1;
+                
             }
             
             $bases[] =$base; 
@@ -69,7 +78,7 @@ Class NasajonFormatter implements ErpFormattersInterface{
 
         $contact->basesFaturamento = $bases; 
 
-        $contact->id = 123;//required
+        $contact->id = $dataContact['Register'];//required
         $contact->codigo = 123456;//required
         $contact->qualificacao = ($dataContact['CPF'] === null)?"juridica":"fisica";//required
         $contact->nome = $dataContact['LegalName'];//required
@@ -81,8 +90,8 @@ Class NasajonFormatter implements ErpFormattersInterface{
         $contact->contribuinte_icms = true  ?? null;
         $contact->email = $dataContact['Email'] ?? null;
         $contact->observacao = $dataContact['Note'] ?? null;
-        $contact->grupo_empresarial = 'Gamatermic';//required
-        $contact->tenant = 123;//required
+        // $contact->grupo_empresarial = 'Gamatermic';//required
+        // $contact->tenant = 123;//required
         
 
         $contatos = [];
@@ -91,10 +100,9 @@ Class NasajonFormatter implements ErpFormattersInterface{
             foreach($dataContact['Contacts'] as $contato){
                 $emails = [];
                 $telefones = [];
-              
                 $cont['nome'] = $contato['Name'];
-                $cont['nascimento']= $contato['Birthday']??null;
-                $cont['cargo'] = $contato['Birthday']??null;
+                $cont['nascimento'] = (isset($contato['Birthday']) && $contato['Birthday'] != null) ? date('Y-m-d',strtotime($contato['Birthday'])) : null;
+                //$cont['cargo'] = $contato['Birthday']??null;
                 $cont['sexo'] = 'masculino';
                 $cont['observacao'] = $contato['Note']??null;
                 $completeName = $contato['Name'];
@@ -109,26 +117,27 @@ Class NasajonFormatter implements ErpFormattersInterface{
                 $cont['titulo'] = 'Contato';
                 $cont['decisor'] = true;
                 $cont['influenciador'] = true;
-                $cont['atualizado_em'] = "2019-08-24T14:15:22Z";
+              
 
                 $email['email'] = $contato['Email']??null;
                 $email['principal'] = false;
-                $email['atualizado_em'] = "2019-08-24T14:15:22Z";
+                
                 $emails[] = $email;
                 $cont['emails'] = $emails;
                 foreach($contato['Phones'] as $phone){
                     $phoneNumber = $phone['PhoneNumber'];
                     $xPhone = explode(' ', $phoneNumber);
+                    $ddd = str_replace(['(',')'],'',$xPhone[0]);
 
-                    $telefone['ddd'] = $xPhone[0];
+                    $telefone['ddd'] = $ddd;
+
                     $telefone['telefone'] = $xPhone[1];
                     $telefone['descricao'] = $firstName . ' (' .$phone['Type']['Name'] . ')' ?? null;
                     $telefone['ramal'] = 123;
                     $telefone['ddi'] = 123;
                     $telefone['tipo'] = strtolower($phone['Type']['Name']) ?? 'comercial';
                     $telefone['principal'] = false;
-                    $telefone['atualizado_em'] = "2019-08-24T14:15:22Z";
-
+                   
                     $telefones[] = $telefone;
                 }
                 
@@ -138,7 +147,7 @@ Class NasajonFormatter implements ErpFormattersInterface{
         }else{
 
             $contatos['nome'] = $custom['bicorp_api_contato_out'];
-            $contatos['nascimento']= null;
+            $contatos['nascimento']= (isset($contato['Birthday']) && $contato['Birthday'] != null) ? date('Y-m-d',strtotime($contato['Birthday'])) : null;
             $contatos['cargo'] = null;
             $contatos['sexo'] = 'masculino';
             $contatos['observacao'] = null;
@@ -154,25 +163,25 @@ Class NasajonFormatter implements ErpFormattersInterface{
             $contatos['titulo'] = 'Contato';
             $contatos['decisor'] = true;
             $contatos['influenciador'] = true;
-            $contatos['atualizado_em'] = "2019-08-24T14:15:22Z";
 
         }
         $contact->contatos = $contatos;
 
         $enderecos=[];
         $enderecos[0]['tipo_logradouro'] = "aer";
-        $enderecos[0]['logradouro'] = "rua xpto";
-        $enderecos[0]['complemento'] = "41b";
-        $enderecos[0]['cep'] = "41b";
-        $enderecos[0]['bairro'] = "41b";
-        $enderecos[0]['tipo'] = "41b";
-        $enderecos[0]['uf_exterior'] = "41b";
+        $enderecos[0]['logradouro'] = $dataContact['StreetAddress'];
+        $enderecos[0]['numero'] = $dataContact['StreetAddressNumber'];
+        $enderecos[0]['complemento'] = $dataContact['StreetAddressLine2'];
+        $enderecos[0]['cep'] = $dataContact['ZipCode'];
+        $enderecos[0]['bairro'] = $dataContact['Neighborhood'];
+        $enderecos[0]['tipo'] = "local";
+        $enderecos[0]['uf_exterior'] = null;
         $enderecos[0]['padrao'] = false;
-        $enderecos[0]['uf'] = "41b";
-        $enderecos[0]['pais'] = "41b";
-        $enderecos[0]['ibge'] = "41b";
-        $enderecos[0]['cidade'] = "41b";
-        $enderecos[0]['atualizado_em'] = "2019-08-24T14:15:22Z";
+        $enderecos[0]['uf'] = $dataContact['State']['Short'];
+        $enderecos[0]['pais'] = "1058";
+        $enderecos[0]['ibge'] = $dataContact['City']['IBGECode'];
+        $enderecos[0]['cidade'] = $dataContact['City']['Name'];
+
         $contact->enderecos = $enderecos;
 
         return $contact;
@@ -180,33 +189,18 @@ Class NasajonFormatter implements ErpFormattersInterface{
 
     public function updateContactCRMToERP(object $contact, PloomesServices $ploomesServices, object $tenant): array
     {
+        
         $json = $this->createJsonClienteCRMToERP($contact, $tenant);
 
-        $updateClienteERP = $this->nasajonServices->criaClienteERP($json);
+        return $this->nasajonServices->editaClienteERP($json, $contact->id);
 
-        if(isset($updateClienteERP['code']) && $updateClienteERP['code'] != 200)
-        {
-            throw new WebhookReadErrorException('Erro ao alterar o cliente no ERP: '.$updateClienteERP['message'], $updateClienteERP['code']);
-        }
-
-        print_r($updateClienteERP);
-        exit;
-        
-
-
-        print_r($contact);
-                exit;
-        return [];
     }
 
     public function createContactCRMToERP(object $contact, PloomesServices $ploomesServices, object $tenant): array
     {
         $json = $this->createJsonClienteCRMToERP($contact, $tenant);
 
-        print_r($json);
-        exit;
-        
-        return [];
+        return $this->nasajonServices->criaClienteERP($json);
     }
 
     public function createContactERP(string $json, PloomesServices $ploomesServices): array
@@ -219,7 +213,7 @@ Class NasajonFormatter implements ErpFormattersInterface{
         return [];
     }
 
-    public function createOrderErp(string $jsonPedido): array
+    public function createOrderErp(string $jsonPedido, array $arrayIsServices): array
     {
         $createOrder = $this->nasajonServices->criaPedidoErp($jsonPedido);
 
@@ -243,11 +237,12 @@ Class NasajonFormatter implements ErpFormattersInterface{
 
     public function createJsonClienteCRMToERP(object $contact, object $tenant):string
     {
-        $contact->id = $contact->codErp[strtolower($tenant->tenant)];
+        
         $contact->codigo = $contact->codErp[strtolower($tenant->tenant)];
+        $contact->grupo_empresarial = $tenant->client_secret;
+        $contact->tenant = 12556;
         unset($contact->basesFaturamento);
         unset($contact->codErp);
-        unset($contact->totalTenanties);
         $json = json_encode($contact, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
 
         return $json;       
@@ -345,6 +340,17 @@ Class NasajonFormatter implements ErpFormattersInterface{
 
         return $productsOrder[] = $det;
 
+    }
+
+    public function detectLoop(array $args): bool
+    {
+        return true;
+    }
+
+    public function createInvoiceObject(array $args): object
+    {
+        $object = new stdClass();
+        return $object;
     }
 
 }
