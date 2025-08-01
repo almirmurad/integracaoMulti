@@ -81,13 +81,13 @@ class OmnismartController extends Controller
 
                 $input = ob_get_contents();
                 ob_end_clean();
-                file_put_contents('./assets/logOmni', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
+                file_put_contents('./assets/logOmni.txt', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
                 return print 'ERROR:' . $message['status_code'] . '. MESSAGE: ' . $message['status_message'];
             }
 
             $input = ob_get_contents();
             ob_end_clean();
-            file_put_contents('./assets/logOmni', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
+            file_put_contents('./assets/logOmni.txt', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
             return print $message['status_message'];
         }
     }
