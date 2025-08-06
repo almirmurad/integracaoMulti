@@ -17,21 +17,25 @@ class ProductsFunctions{
         
         if($action['action'] !== 'stock')
         { 
+
+            
             $product = $formatter->createObjectCrmProductFromErpData($args, $ploomesServices);
+
             $json = $formatter->createPloomesProductFromErpObject($product, $ploomesServices);
             $pProduct = $ploomesServices->getProductByCode($product->codigo);
-
-            if($action['action'] === 'update' && isset($pProduct['Id']))
+           
+            if(isset($pProduct['Id']))
             {
                 if($ploomesServices->updatePloomesProduct($json, $pProduct['Id']))
                 {
-                    $message['success'] = 'Integração concluída com sucesso! Produto Ploomes id: '.$pProduct['Id'].' alterado no Ploomes CRM com sucesso em: '.$current;
-                    return $message;
+                    
+                    return $formatter->productStructure($args, $ploomesServices, $pProduct );     
                 }
 
                 throw new WebhookReadErrorException('Erro ao alterar o produto Ploomes id: '.$pProduct['Id'].' em: '.$current, 500);  
                 
-            }else{
+            }
+            else{
                 if($ploomesServices->createPloomesProduct($json))
                 {
                     $message['success'] = 'Produto '.$product->descricao.' Cadastrado no Ploomes CRM com sucesso! Data: '.$current;
@@ -53,6 +57,21 @@ class ProductsFunctions{
         }
 
         return $message;
+
+    }
+
+    //verifica se o produto tem uma estrutura cadastrada no ERP e traz para cadastrar no ploomes como vinculo de opcionais
+    public static function getProductStructure(array $args, object $formatter):array
+    {
+
+        $structure = $formatter->getProductStructureERP($args);
+
+        if(!isset($structure)){
+            //se não encontrar a estrutura retorna um array vazio
+            return [];
+        }
+
+        return $structure;
 
     }
     

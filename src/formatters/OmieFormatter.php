@@ -1912,4 +1912,180 @@ Class OmieFormatter implements ErpFormattersInterface{
         return $invoicing;
 
     }
+
+    public function getProductStructureERP($args):array|null
+    {
+
+        $decoded = $args['body'];
+        
+        $omieApp = $this->omieServices->getOmieApp();
+       
+        $url = 'https://app.omie.com.br/api/v1/geral/malha/';
+        $array = [
+            'app_key' =>   $omieApp['app_key'],
+            'app_secret' => $omieApp['app_secret'] ,
+            'call' => 'ConsultarEstrutura',
+            'param'=>[
+                [
+                    'idProduto'=> $decoded['event']['codigo_produto'],
+                ]
+            ],
+        ];
+
+        $json = json_encode($array, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+        return $this->omieServices->getProductStructure($json, $url);
+        
+    }
+
+    public function createProductPloomesPartsFromErpObject(array $structure, object $ploomesServices, array $pProduct): array
+    {
+        $parts = [];
+        $items = $structure['itens'];
+
+        if(isset($pProduct['Parts']) && !empty($pProduct['Parts'])){
+
+            $codigosOmie = array_column($items, 'codProdMalha');
+            $codigosPloomes = [];
+
+            foreach ($pProduct['Parts'] as $part) {
+                if (isset($part['ProductPart']['Code'])) {
+                    $codigosPloomes[] = $part['ProductPart']['Code'];
+                }
+            }
+            //códigos que não estão cadastrados no vinculo de produtos
+            $codigosNaoCadastrados = array_diff($codigosOmie, $codigosPloomes);
+
+            //$codigosComuns = array_intersect($codigosOmie, $codigosPloomes);
+            //itens na estrutura não foram cadastrados anteriormente
+            if(!empty($codigosNaoCadastrados)){
+                foreach($codigosNaoCadastrados as $code){
+                    $pItem = $ploomesServices->getProductByCode($code);
+                    if(isset($pItem) && $pItem !== null){
+
+                        foreach($items as $item){
+
+                            if($item['codProdMalha'] === $code){
+                                $array = [
+                                    "ProductId" => $pProduct['Id'],
+                                    "Name" => "{$pProduct['Name']} -  {$pItem['Name']}",
+                                    "ProductPartId" => $pItem['Id'],
+                                    "GroupPartId" => null,
+                                    "ContactProductId" => null,
+                                    "ListPartId" => null,
+                                    "Default" => true,
+                                    "MinimumQuantity" => null,
+                                    "MaximumQuantity" => $item['quantProdMalha'],
+                                    "DefaultQuantity" => $item['quantProdMalha'],
+                                    "CurrencyId" => 1,
+                                    "MinimumUnitPrice" => null,
+                                    "MaximumUnitPrice" => null,
+                                    "DefaultUnitPrice" => $pItem['UnitPrice'],
+                                    //"GroupId" => 40019945,
+                                    "Required" => true,
+                                    "Editable" => true,
+                    
+                                ];
+                                $json = json_encode($array, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                                $parts['success'][] = $ploomesServices->createPloomesParts($json);
+                            }
+
+                        }
+
+                    }else{
+                        $parts['erro'][] = "ERRO: Produto {$code} não cadastrado no ploomes";
+                    }
+
+                }
+            }
+
+
+        }else{
+            foreach ($items as $item){
+                $pItem = $ploomesServices->getProductByCode($item['codProdMalha']);
+                if(isset($pItem) && $pItem !== null){
+
+                    $array = [
+                        "ProductId" => $pProduct['Id'],
+                        "Name" => "{$pProduct['Name']} -  {$pItem['Name']}",
+                        "ProductPartId" => $pItem['Id'],
+                        "GroupPartId" => null,
+                        "ContactProductId" => null,
+                        "ListPartId" => null,
+                        "Default" => true,
+                        "MinimumQuantity" => null,
+                        "MaximumQuantity" => $item['quantProdMalha'],
+                        "DefaultQuantity" => $item['quantProdMalha'],
+                        "CurrencyId" => 1,
+                        "MinimumUnitPrice" => null,
+                        "MaximumUnitPrice" => null,
+                        "DefaultUnitPrice" => $pItem['UnitPrice'],
+                        //"GroupId" => 40019945,
+                        "Required" => true,
+                        "Editable" => true,
+        
+                    ];
+
+                    $json = json_encode($array, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+                    $parts['success'][] = $ploomesServices->createPloomesParts($json);
+                }else{
+                    $parts['erro'][] = "ERRO: Produto {$item['descrProdMalha']} não cadastrado no ploomes";
+                }
+
+            }
+        }
+
+        return $parts;
+
+ 
+        
+        
+    }
+
+    public function productStructure(array $args, object $ploomesServices, array $pProduct)
+    {
+        //03 - Produto em Processo / 04 - Produto Acabado
+        if($args['body']['event']['tipoItem'] === '03' ||  $args['body']['event']['tipoItem'] === '04')
+        {
+            $structure = self::getProductStructureERP($args);
+
+            if($structure){
+
+                $parts = $this->createProductPloomesPartsFromErpObject($structure, $ploomesServices, $pProduct);
+
+                if(!isset($parts['success'] ) || empty($parts['success'])){
+                    $frase = '';
+                    foreach($parts['erro'] as $erro){
+                        $frase .= $erro . '<br>';
+                    }
+                    throw new WebhookReadErrorException($frase, 500);
+                }elseif(!empty($parts['erro'] )){
+
+                    $message['success'] = 'Integração concluída com sucesso! Estrutura do produto Ploomes id: '.$pProduct['Id'].' vinculada parcialmente. Total de '. count($parts['success']) .' Produtos vinculados e '. count($parts['erro']) .'produtos com erro. '.PHP_EOL;
+
+                    $frase = '';
+                    foreach($parts['erro'] as $erro){
+                        $frase .= $erro . '<br>';
+                    }
+
+                    $message['success'] .= $frase;
+
+                }else{
+
+                     $message['success'] = 'Integração concluída com sucesso! Estrutura do produto Ploomes id: '.$pProduct['Id'].' vinculada. Total de '. count($parts['success']);
+
+                }                
+
+            }else{
+
+                $message['success'] = 'Integração concluída com sucesso! Produto Ploomes id: '.$pProduct['Id'].' alterado no Ploomes CRM com sucesso. Produto sem estrutura cadastrada no ERP em: ';
+            }
+
+        }else{
+            $message['success'] = 'Integração concluída com sucesso! Produto Ploomes id: '.$pProduct['Id'].' alterado no Ploomes CRM com sucesso. Produto do tipo '.$args['event']['tipoItem'].' não contém estrutura: ';
+        }
+
+        return $message;
+    }
 }
