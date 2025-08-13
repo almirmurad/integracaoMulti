@@ -19,7 +19,40 @@ class OmnismartServices implements OmnichannelManagerInterface{
         $this->baseApi = $omnismart['base_api'];
         $this->method = array('get','post','patch','update','delete');
         $this->headers = array('Accept: application/json',
+                                'Content-Type: application/json',
                                 'Authorization: ' .$this->apiKey);
+    }
+
+    public function closeChat($json):bool
+    {
+        // print_r($json);
+        // exit;
+
+        $curl = curl_init();
+
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => $this->baseApi . '/v1/chat/finish',
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST =>strtoupper($this->method[1]),
+            CURLOPT_POSTFIELDS => $json,
+            CURLOPT_HTTPHEADER => $this->headers
+        ));
+
+        $response = curl_exec($curl);
+        $response =json_decode($response, true);
+        curl_close($curl);
+
+        if(isset($response['error'])){
+            return false;
+        }else{
+            return true;
+        }
+
     }
 
     //ENCONTRA A PROPOSTA NO PLOOMES

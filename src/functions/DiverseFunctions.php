@@ -14,22 +14,44 @@ class DiverseFunctions{
         
         if(isset($decoded['Action'])){
             try{
-                $action = match($decoded['Action']){
-                    'Create' => 'create',
-                    'Update' => 'update',
-                    'Delete' => 'delete'
+                $action = match($decoded['Action'])
+                {
+                    'Create'    => 'create',
+                    'Update'    => 'update',
+                    'Delete'    => 'delete',
+                    'Lose'      => 'lose',
+                    'Win'       => 'win',
                 };
-                if($decoded['Entity'] === 'Contacts'){
-                    $type = match($decoded['New']['TypeId']){
-                        1 => 'empresa',
-                        2 => 'pessoa'
-                    };
+
+                switch($decoded['Entity'])
+                {
+                    case 'Contacts':
+                        $type = match($decoded['New']['TypeId']){
+                            1 => 'empresa',
+                            2 => 'pessoa'
+                        };
+                        break;
+                    case 'Deals':
+                         $type = 'deals';
+                         break;
+                    case 'Order':
+                         $type = 'order';
+                         break;
+                }
+
+                if($_REQUEST['request'] === 'processNewTransferChat' || $_REQUEST['request'] === 'transferChat' || $_REQUEST['request'] === 'finishDeal')
+                {
+                        $siglaOrigem = 'OMNI';
+                        $origem = "CRMTo{$siglaOrigem}";
+                }else{
+                    $siglaOrigem = 'ERP';
+                        $origem = "CRMTo{$siglaOrigem}";
                 }
 
                 $array = [
                     'action' =>$action,
                     'type' => $type ?? null,
-                    'origem' => 'CRMToERP'
+                    'origem' => $origem ?? null,
                 ];
 
             }catch(\UnhandledMatchError $e){

@@ -93,8 +93,7 @@ class OmnismartController extends Controller
     }
 
     public function processNewTransferChat($args)
-    {
-       
+    {       
         $message = [];
         // processa o webhook 
         try 
@@ -132,6 +131,57 @@ class OmnismartController extends Controller
             file_put_contents('./assets/logOmni.log', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
             $m = json_encode($message);
             return print_r($m);
+        }
+    }
+
+        public function finishDeal($args)
+    {
+        $message = [];
+        $idUser = $args['Tenancy']['tenancies']['user_id'];
+        $json = json_encode($args['body']);
+        
+        try {
+            
+            $omnismartHandler = $this->getOmnismartHandler();            
+            // $action = DiverseFunctions::findAction($args);            
+            //  if ($action['type'] !== 'ASSIGN') {
+            //     throw new WebhookReadErrorException('Não havia uma atribuição do chat ao agente do omnismart', 500);       
+            // }
+            $response = $omnismartHandler->saveClientHook($json, $idUser);
+
+            // $rk = origem.entidade.ação
+            $rk = array('Ploomes', 'Deals');
+            $this->rabbitMQServices->publicarMensagem('deals_exc', $rk, 'ploomes_deals',  $json);
+            
+
+            if ($response > 0) {
+                $message = [
+                    'status_code' => 200,
+                    'status_message' => 'SUCCESS: ' . $response['msg'],
+                ];
+            }
+
+        } catch (WebhookReadErrorException $e) {
+        } finally {
+            ob_start();
+            var_dump($message);
+
+            if (isset($e)) {
+                $message = [
+                    'status_code' => 500,
+                    'status_message' => $e->getMessage(),
+                ];
+
+                $input = ob_get_contents();
+                ob_end_clean();
+                file_put_contents('./assets/logOmni.txt', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
+                return print 'ERROR:' . $message['status_code'] . '. MESSAGE: ' . $message['status_message'];
+            }
+
+            $input = ob_get_contents();
+            ob_end_clean();
+            file_put_contents('./assets/logOmni.txt', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
+            return print $message['status_message'];
         }
     }
 

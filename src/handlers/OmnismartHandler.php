@@ -55,11 +55,22 @@ class OmnismartHandler
     public function startProcess($args)
     {   
         $action = DiverseFunctions::findAction($args);
-        
-        if(isset($action['origem']) && $action['origem'] === 'OMNIToCRM'){
-           
-            return OmnismartFunctions::processOminsmartPloomes($args, $this->ploomesServices, $this->omnismartServices, $action);                                                   
+
+        switch($action['origem'])
+        {
+            case 'OMNIToCRM':
+                return OmnismartFunctions::processOminsmartPloomes($args, $this->ploomesServices, $this->omnismartServices, $action);
+                break;
+            case 'CRMToOMNI':
+                return OmnismartFunctions::processPloomesOmnismart($args, $this->ploomesServices, $this->omnismartServices, $action);
+                break;
+                
         }
+        
+        // if(isset($action['origem']) && $action['origem'] === 'OMNIToCRM'){
+           
+        //     return OmnismartFunctions::processOminsmartPloomes($args, $this->ploomesServices, $this->omnismartServices, $action);                                                   
+        // }
         
        // return OmnismartFunctions::processContactErpToCrm($args, $this->ploomesServices, $this->formatter, $action);
     }

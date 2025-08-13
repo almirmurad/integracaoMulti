@@ -29,17 +29,16 @@ class ApiController extends Controller
        
         $users = UserHandler::listAllUsers();
 
-        // print_r($users);
-        // exit;
-
         if($users > 0){
             
             $response = [];
             $response['status'] = 200;
             $response['content'] = $users;
+
             
             header('Content-Type: application/json'); 
             $json = json_encode($response, JSON_UNESCAPED_UNICODE);
+
             if ($json === false) {
                 echo "❌ Erro ao converter JSON: " . json_last_error_msg();
                 // Possíveis mensagens:
@@ -50,7 +49,7 @@ class ApiController extends Controller
                 exit;
             }else{
                 
-                return print($json);
+                print($json);
                 exit;
             }
             // return print_r(json_encode($response));
