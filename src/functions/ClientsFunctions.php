@@ -31,6 +31,7 @@ class ClientsFunctions{
                         $tenant[$k]->integrar = $tnt['integrar'];
                         $tenant[$k]->sendExternalKeyIdErp = $tnt['sendExternalKeyIdErp'];
                         $contact->tenant = $tenant[$k];
+                        $contact->cTranspOmie = ($contact->transpOmie[$k]['appname'] === strtolower($tnt['app_name'])) ?  $contact->transpOmie[$k]['id'] : null;
                         break;
                     case 'nasajon':
                         $tenant[$k]->tenant = $tnt['app_name'];
@@ -55,7 +56,7 @@ class ClientsFunctions{
                         break;
                 }
                 
-                $contact->totalTenanties = ++$total;
+                $contact->totalTenanties = ++$total;         
                 
                 if($action['action'] === 'create' && $action['type'] === 'empresa'){
                     //aqui manda pro formatter para criar o cliente no ERP e Retorna mensagem de sucesso ou erro
@@ -67,7 +68,7 @@ class ClientsFunctions{
                 }  
                 // Agrupa mensagens no array principal
                 if ($responseMessages['success']) {
-                    $messages['success'][] = $responseMessages['response'];
+                    $messages['success'][] = $responseMessages['response'] ?? $responseMessages['success'];
                 }
                 if (!empty($responseMessages['error'])) {
                     $messages['error'][] = $responseMessages['error'] ?? $responseMessages['response'];
@@ -85,6 +86,10 @@ class ClientsFunctions{
         $message = [];
         $current = date('d/m/Y H:i:s');
         $contact = $formatter->createObjectCrmContactFromErpData($args, $ploomesServices);
+
+        // var_dump($contact->contato);
+        // exit;
+     
         $dFinanceiro = $formatter->getFinHistory($contact);
         $contact->tabela_financeiro = $dFinanceiro['table'];
         $contact->status_financeiro = ucfirst($dFinanceiro['status']);
@@ -93,22 +98,34 @@ class ClientsFunctions{
 
         $idContact = $ploomesServices->consultaClientePloomesCnpj(DiverseFunctions::limpa_cpf_cnpj($contact->cnpjCpf));
 
+
         if($idContact !== null || $action['action'] !== 'create')
         {
             $contactUpdated = $ploomesServices->updatePloomesContact($json, $idContact);
             if($contactUpdated !== null){
                 
-                if(isset($contact->contato))
+                if(isset($contact->contato) && !empty($contact->contato))
                 {
-                    $contact->companyId = $contactUpdated['Contacts'][0]['Id'];
-                    
+                    $contact->companyId = $contactUpdated['Contacts'][0]['Id'] ?? $contactUpdated['Id'];
+
                     $arrayPersonsJson = $formatter->createPersonArrays($contact);
                     $createPersonsIds = [];
+                    
                     foreach($arrayPersonsJson as $personJson){
-                        $idPerson = $ploomesServices->updatePloomesContact($personJson, $contact->companyId);
-                        $createPersonsIds[] = $idPerson;
+
+                        if(isset($contactUpdated['Contacts']) && !empty($contactUpdated['Contacts']))
+                        {
+                            $idPerson = $ploomesServices->updatePloomesContact($personJson, $contact->companyId);
+                        }
+                        else
+                        {
+                            $idPerson = $ploomesServices->createPloomesContact($personJson, $contact->companyId);
+
+                           }
+                        $createPersonsIds[] = $idPerson;                      
                     }
 
+                    
                     if(count($createPersonsIds) > 0){
                         $message['success'] = 'Cliente '.$contact->nomeFantasia.' Alterado no Ploomes CRM com sucesso! Foram alterados também '. count($createPersonsIds) .' contatos para este cliente. Data: '.$current;
                     }else{
@@ -190,10 +207,16 @@ class ClientsFunctions{
         {
             // $status = 4; //falhou
             // $alterStatus = $this->databaseServices->alterStatusWebhook($webhook['id'], $status);
+           
             $m = '';
             foreach($messages['error'] as $error){
-                foreach($error as $e){
-                    $m .= $e .  "\r\n";
+                if(is_array($error)){
+                   
+                    foreach($error as $e){
+                        $m .= $e .  "\r\n";
+                    }
+                }else{
+                     $m .= $error .  "\r\n";
                 }
             }
             

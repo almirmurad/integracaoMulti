@@ -17,7 +17,7 @@ class ServicesFunctions{
         $json = $formatter->createCrmServiceFromErpObject($service, $ploomesServices);
         $pService = $ploomesServices->getProductByCode($service->codigo);
         
-        if(isset($pService['Id']) && $action['action'] === 'update')
+        if($action['action'] === 'update' || isset($pService['Id']))
         {
             if($ploomesServices->updatePloomesProduct($json, $pService['Id']))
             {
