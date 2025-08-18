@@ -1075,7 +1075,7 @@ class PloomesServices implements PloomesManagerInterface{
  
      }
 
-      //CRIA Produto NO PLOOMES
+      //CRIA vínculo Produto NO PLOOMES
     public function createPloomesParts(string $json):array
     {
 
@@ -1091,6 +1091,40 @@ class PloomesServices implements PloomesManagerInterface{
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
             CURLOPT_CUSTOMREQUEST =>strtoupper($this->method[1]),
+            CURLOPT_POSTFIELDS => $json,
+            CURLOPT_HTTPHEADER => $this->headers
+        ));
+
+       
+
+        $response = json_decode(curl_exec($curl),true);
+        // $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+        // $curlError = curl_error($curl);
+        // $curlErrno = curl_errno($curl);
+        curl_close($curl);
+
+        return $response['value'][0] ?? [];     // $idIntegration = $response['value'][0]['Id']??Null;
+
+        // return ($idIntegration !== null)?$idIntegration:false;
+        
+    }
+
+      //CRIA vínculo Produto NO PLOOMES
+    public function updatePloomesParts(string $json, string $idPart):array
+    {
+
+        //CHAMADA CURL PRA CRIAR WEBHOOK NO PLOOMES
+        $curl = curl_init();
+
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => $this->baseApi . 'Products@Parts('.$idPart.')',//ENDPOINT PLOOMES
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST =>strtoupper($this->method[2]),
             CURLOPT_POSTFIELDS => $json,
             CURLOPT_HTTPHEADER => $this->headers
         ));

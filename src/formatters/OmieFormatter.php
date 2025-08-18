@@ -2024,8 +2024,11 @@ Class OmieFormatter implements ErpFormattersInterface{
             $codigosOmie = array_column($items, 'codProdMalha');
             $codigosPloomes = [];
 
+            $idParts = [];
             foreach ($pProduct['Parts'] as $part) {
+               
                 if (isset($part['ProductPart']['Code'])) {
+                     $idParts[$part['ProductPart']['Code']] = $part['Id'];//usado para alterar caso já exista vículo no ploomes
                     $codigosPloomes[] = $part['ProductPart']['Code'];
                 }
             }
@@ -2037,6 +2040,49 @@ Class OmieFormatter implements ErpFormattersInterface{
             if(!empty($codigosNaoCadastrados)){
                 foreach($codigosNaoCadastrados as $code){
                     $pItem = $ploomesServices->getProductByCode($code);
+                    if(isset($pItem) && $pItem !== null){
+                        
+                        foreach($items as $item){
+
+                            if($item['codProdMalha'] === $code){
+                                $array = [
+                                    "ProductId" => $pProduct['Id'],
+                                    "Name" => "{$pProduct['Name']} -  {$pItem['Name']}",
+                                    "ProductPartId" => $pItem['Id'],
+                                    "GroupPartId" => null,
+                                    "ContactProductId" => null,
+                                    "ListPartId" => null,
+                                    "Default" => true,
+                                    "MinimumQuantity" => null,
+                                    "MaximumQuantity" => $item['quantProdMalha'],
+                                    "DefaultQuantity" => $item['quantProdMalha'],
+                                    "CurrencyId" => 1,
+                                    "MinimumUnitPrice" => null,
+                                    "MaximumUnitPrice" => null,
+                                    "DefaultUnitPrice" => $pItem['UnitPrice'],
+                                    //"GroupId" => 40019945,
+                                    "Required" => true,
+                                    "Editable" => true,
+                    
+                                ];
+                                $json = json_encode($array, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                                
+                                $parts['success'][] = $ploomesServices->createPloomesParts($json);
+                            }
+
+                        }
+
+                    }else{
+                        $parts['erro'][] = "ERRO: Produto {$code} não cadastrado no ploomes";
+                    }
+
+                }
+            }else{
+                
+                foreach($codigosPloomes as $code){
+
+                    $pItem = $ploomesServices->getProductByCode($code);
+          
                     if(isset($pItem) && $pItem !== null){
 
                         foreach($items as $item){
@@ -2063,7 +2109,10 @@ Class OmieFormatter implements ErpFormattersInterface{
                     
                                 ];
                                 $json = json_encode($array, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-                                $parts['success'][] = $ploomesServices->createPloomesParts($json);
+
+                                $idPart = $idParts[$code];
+                                                            
+                                $parts['success'][] = $ploomesServices->updatePloomesParts($json, $idPart);
                             }
 
                         }
@@ -2072,7 +2121,10 @@ Class OmieFormatter implements ErpFormattersInterface{
                         $parts['erro'][] = "ERRO: Produto {$code} não cadastrado no ploomes";
                     }
 
+                    
+
                 }
+                // throw new WebhookReadErrorException('Estrutura de Produtos já cadastrada', 500);
             }
 
 
@@ -2125,7 +2177,7 @@ Class OmieFormatter implements ErpFormattersInterface{
         if($args['body']['event']['tipoItem'] === '03' ||  $args['body']['event']['tipoItem'] === '04')
         {
             $structure = self::getProductStructureERP($args);
-
+         
             if($structure){
 
                 $parts = $this->createProductPloomesPartsFromErpObject($structure, $ploomesServices, $pProduct);
