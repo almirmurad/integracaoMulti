@@ -31,7 +31,7 @@ class ClientsFunctions{
                         $tenant[$k]->integrar = $tnt['integrar'];
                         $tenant[$k]->sendExternalKeyIdErp = $tnt['sendExternalKeyIdErp'];
                         $contact->tenant = $tenant[$k];
-                        $contact->cTranspOmie = ($contact->transpOmie[$k]['appname'] === strtolower($tnt['app_name'])) ?  $contact->transpOmie[$k]['id'] : null;
+                        $contact->cTranspOmie = ((isset($contact->transpOmie) && !empty($contact->transpOmie)) && $contact->transpOmie[$k]['appname'] === strtolower($tnt['app_name'])) ?  $contact->transpOmie[$k]['id'] : null;
                         break;
                     case 'nasajon':
                         $tenant[$k]->tenant = $tnt['app_name'];
@@ -94,10 +94,9 @@ class ClientsFunctions{
         $contact->tabela_financeiro = $dFinanceiro['table'];
         $contact->status_financeiro = ucfirst($dFinanceiro['status']);
 
-        $json = $formatter->createPloomesContactFromErpObject($contact, $ploomesServices);      
-
+        $json = $formatter->createPloomesContactFromErpObject($contact, $ploomesServices);
+        
         $idContact = $ploomesServices->consultaClientePloomesCnpj(DiverseFunctions::limpa_cpf_cnpj($contact->cnpjCpf));
-
 
         if($idContact !== null || $action['action'] !== 'create')
         {

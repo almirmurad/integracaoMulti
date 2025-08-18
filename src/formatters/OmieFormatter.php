@@ -464,14 +464,9 @@ Class OmieFormatter implements ErpFormattersInterface{
             
         $omieApp = $this->omieServices->getOmieApp();
 
-        print_r($omieApp);
-        exit;
-
         $c =  $this->omieServices->getClientById($cliente);
   
         $array = DiverseFunctions::achatarArray($c);
-
-        print_r($array);exit;
 
         $chave = 'idClienteOmie' . $omieApp['app_name'];
         $cliente->$chave = $array['codigo_cliente_omie'];
@@ -543,17 +538,17 @@ Class OmieFormatter implements ErpFormattersInterface{
         $cliente->tipoAtividade = $array['tipo_atividade'];
         $cliente->limite_credito = $array['valor_limite_credito'];
 
-        $cliente->nome_endereco_entrega = $array['enderecoEntrega_entRazaoSocial'];
-        $cliente->cpf_cnpj_recebedor = $array['enderecoEntrega_entCnpjCpf'];
-        $cliente->endereco_endereco_entrega = $array['enderecoEntrega_entEndereco'];
-        $cliente->numero_endereco_entrega = $array['enderecoEntrega_entNumero'];
-        $cliente->complemento_endereco_entrega = $array['enderecoEntrega_entComplemento'];
-        $cliente->bairro_endereco_entrega = $array['enderecoEntrega_entBairro'];
-        $cliente->cep_endereco_entrega = $array['enderecoEntrega_entCEP'];
-        $cliente->estado_endereco_entrega = $array['enderecoEntrega_entEstado'];
-        $cliente->cidade_endereco_entrega = $array['enderecoEntrega_entCidade'];
-        $cliente->telefone_endereco_entrega = $array['enderecoEntrega_entTelefone'];
-        $cliente->inscricao_estadual_endereco_entrega = $array['enderecoEntrega_entIE'];
+        $cliente->nome_endereco_entrega = $array['enderecoEntrega_entRazaoSocial'] ?? null;
+        $cliente->cpf_cnpj_recebedor = $array['enderecoEntrega_entCnpjCpf'] ?? null;
+        $cliente->endereco_endereco_entrega = $array['enderecoEntrega_entEndereco'] ?? null;
+        $cliente->numero_endereco_entrega = $array['enderecoEntrega_entNumero'] ?? null;
+        $cliente->complemento_endereco_entrega = $array['enderecoEntrega_entComplemento'] ?? null;
+        $cliente->bairro_endereco_entrega = $array['enderecoEntrega_entBairro'] ?? null;
+        $cliente->cep_endereco_entrega = $array['enderecoEntrega_entCEP'] ?? null;
+        $cliente->estado_endereco_entrega = $array['enderecoEntrega_entEstado'] ?? null;
+        $cliente->cidade_endereco_entrega = $array['enderecoEntrega_entCidade'] ?? null;
+        $cliente->telefone_endereco_entrega = $array['enderecoEntrega_entTelefone'] ?? null;
+        $cliente->inscricao_estadual_endereco_entrega = $array['enderecoEntrega_entIE'] ?? null;
       
         // $cliente->authorEmail = $array['author_email'];
         // $cliente->authorName = $array['author_name'];
@@ -667,9 +662,11 @@ Class OmieFormatter implements ErpFormattersInterface{
         }
         
         $ploomesTags = $ploomesServices->getTagsByEntityId(1);//id da entidade
-        
+        // print_r($ploomesTags);
         $tags = [];
         $tag = [];
+        // print_r($contact->tags);
+        // exit;
         if(isset($contact->tags) && !empty($contact->tags)){
             
             foreach($contact->tags as $t)
@@ -689,9 +686,6 @@ Class OmieFormatter implements ErpFormattersInterface{
         }     
          
         $op = CustomFieldsFunction::createOtherPropertiesByEntity($custom['Cliente'], $contact);
-
-        print_r($op);
-        exit;
         
         $data['OtherProperties'] = $op;
         
@@ -833,12 +827,13 @@ Class OmieFormatter implements ErpFormattersInterface{
 
 
         //transportadora padrão não é obrigatória, mas se for selecionado, osistema vai pegar o codigo do ploomes, buscar o cliente/transportadora cadastrado e em seguida os campos personalizados dele. Depois pega a quantidade de bases do Omie para poder pegar o id da transportadora de cada base, para isso, a transportadora deve ter cadastro em todos os aplicativos omie do cliente. Caso contrário o id da transportadora para a base d edestino pode ser nulo. 
+        $contact->transpOmie = [];
         if($contact->cTransportadoraPadrao !== null){
             $c = $ploomesServices->getClientById($contact->cTransportadoraPadrao);
             
             $transpCustom = CustomFieldsFunction::compareCustomFieldsFromOtherProperties($c['OtherProperties'],'Cliente',$args['Tenancy']['tenancies']['id']);
             
-            $contact->transpOmie = [];
+            
             $transpOmie = [];
             foreach($args['Tenancy']['erp_bases'] as $bTransp){
                 $nBase = strtolower($bTransp['app_name']);
@@ -865,7 +860,7 @@ Class OmieFormatter implements ErpFormattersInterface{
             // $contact->cTranspOmie[2] = $transpOP['contact_AE3D1F66-44A8-4F88-AAA5-F10F05E662C2'] ?? null;
             // $contact->cTranspOmie[3] = $transpOP['contact_07784D81-18E1-42DC-9937-AB37434176FB'] ?? null;
 
-        }   
+        }
 
         //contact_33015EDD-B3A7-464E-81D0-5F38D31F604A = Transferência Padrão
         // $contact->transferenciaPadrao = $prop['contact_33015EDD-B3A7-464E-81D0-5F38D31F604A'] ?? null; este campo não existe mais no cadastro do cliente do Omie
@@ -1790,7 +1785,7 @@ Class OmieFormatter implements ErpFormattersInterface{
         $origem['XMLR'] = 'Conta a Receber Importada de um arquivo XML';
 
         $tr ='';   
-        $html = file_get_contents('http://localhost/integracao/src/views/pages/gerenciador.pages.finTable.php');
+        $html = file_get_contents('http://middleware/src/views/pages/gerenciador.pages.finTable.php');
         // $html = file_get_contents('https://integracao.dev-webmurad.com.br/src/views/pages/gerenciador.pages.finTable.php');
         foreach($financeiro as $fin){
 
