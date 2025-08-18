@@ -20,9 +20,9 @@ class OmieServices implements ErpManagerInterface{
 
     public function __construct($appK = null, $omieBases = null)
     {   
-        $omieBase = [];
+         $omieBase = [];
         foreach($omieBases as $oBase){
-    
+
             if($oBase['app_key'] == $appK){
                 $omieBase['id'] = $oBase['id'];
                 $omieBase['app_name'] = $oBase['app_name'];
@@ -32,7 +32,8 @@ class OmieServices implements ErpManagerInterface{
                 $omieBase['tenancy_id'] = $oBase['tenancy_id'];
             }
         }
-        
+
+
         $this->appName = $omieBase['app_name'] ?? null;
         $this->appKey = $omieBase['app_key'] ?? null;
         $this->appSecret = $omieBase['app_secret'] ?? null;

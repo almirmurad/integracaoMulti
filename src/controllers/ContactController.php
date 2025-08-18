@@ -106,6 +106,7 @@ class ContactController extends Controller
     //processa contatos e clientes do ploomes ou do Erp
     public function processNewContact($args)
     {
+        
         $message = [];
         // processa o webhook 
         try {

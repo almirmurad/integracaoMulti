@@ -281,7 +281,7 @@ class PloomesServices implements PloomesManagerInterface{
         $curl = curl_init();
 
         curl_setopt_array($curl, array(
-            CURLOPT_URL => $this->baseApi .'Contacts?$filter=Id+eq+'.$id.'&$expand=OtherProperties,City,State,Country,Owner($select=Id,Name,Email,Phone),Tags($expand=Tag),Phones($expand=Type),LineOfBusiness,Contacts($expand=Phones($expand=Type))',
+            CURLOPT_URL => $this->baseApi .'Contacts?$filter=Id+eq+'.$id.'&$expand=Status,OtherProperties,City,State,Country,Owner($select=Id,Name,Email,Phone),Tags($expand=Tag),Phones($expand=Type),LineOfBusiness,Contacts($expand=Phones($expand=Type))',
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_ENCODING => '',
             CURLOPT_MAXREDIRS => 10,
@@ -894,8 +894,7 @@ class PloomesServices implements PloomesManagerInterface{
             
         ));
         
-        $response = curl_exec($curl);
-        $response =json_decode($response, true);
+        $response = json_decode(curl_exec($curl), true);
         
         curl_close($curl);
 

@@ -20,7 +20,7 @@ Class OmieFormatter implements ErpFormattersInterface{
     public mixed $current;    
 
     public function __construct($appk, $omieBases)
-    {
+    {        
         $this->omieServices = new OmieServices($appk, $omieBases);
         $this->current = date('d/m/Y H:i:s');
     }
@@ -461,12 +461,17 @@ Class OmieFormatter implements ErpFormattersInterface{
         $cliente = new stdClass();
         $decoded=$args['body'];
         $cliente->codigoClienteOmie= $decoded['event']['codigo_cliente_omie'];
-      
+            
         $omieApp = $this->omieServices->getOmieApp();
+
+        print_r($omieApp);
+        exit;
 
         $c =  $this->omieServices->getClientById($cliente);
   
         $array = DiverseFunctions::achatarArray($c);
+
+        print_r($array);exit;
 
         $chave = 'idClienteOmie' . $omieApp['app_name'];
         $cliente->$chave = $array['codigo_cliente_omie'];
@@ -537,6 +542,19 @@ Class OmieFormatter implements ErpFormattersInterface{
         $cliente->telefoneNumero2 = $array['telefone2_numero'];
         $cliente->tipoAtividade = $array['tipo_atividade'];
         $cliente->limite_credito = $array['valor_limite_credito'];
+
+        $cliente->nome_endereco_entrega = $array['enderecoEntrega_entRazaoSocial'];
+        $cliente->cpf_cnpj_recebedor = $array['enderecoEntrega_entCnpjCpf'];
+        $cliente->endereco_endereco_entrega = $array['enderecoEntrega_entEndereco'];
+        $cliente->numero_endereco_entrega = $array['enderecoEntrega_entNumero'];
+        $cliente->complemento_endereco_entrega = $array['enderecoEntrega_entComplemento'];
+        $cliente->bairro_endereco_entrega = $array['enderecoEntrega_entBairro'];
+        $cliente->cep_endereco_entrega = $array['enderecoEntrega_entCEP'];
+        $cliente->estado_endereco_entrega = $array['enderecoEntrega_entEstado'];
+        $cliente->cidade_endereco_entrega = $array['enderecoEntrega_entCidade'];
+        $cliente->telefone_endereco_entrega = $array['enderecoEntrega_entTelefone'];
+        $cliente->inscricao_estadual_endereco_entrega = $array['enderecoEntrega_entIE'];
+      
         // $cliente->authorEmail = $array['author_email'];
         // $cliente->authorName = $array['author_name'];
         // $cliente->authorUserId = $array['author_userId'];
@@ -672,8 +690,8 @@ Class OmieFormatter implements ErpFormattersInterface{
          
         $op = CustomFieldsFunction::createOtherPropertiesByEntity($custom['Cliente'], $contact);
 
-        // print_r($op);
-        // exit;
+        print_r($op);
+        exit;
         
         $data['OtherProperties'] = $op;
         
@@ -686,7 +704,9 @@ Class OmieFormatter implements ErpFormattersInterface{
     // createObjectErpClientFromCrmData - cria obj cliente vindo do Ploomes ao ERP Omie
     public function createObjectErpClientFromCrmData(array $args, PloomesServices $ploomesServices):object
     {
+ 
         $decoded = $args['body'];
+    
         //aqui ele busca o cliente no Ploomes pelo id, se for tipo 2 (contato) ele vai atualizar o cliente no omie buscando as informações da empresa no ploomes através do companyId do contato do cliente 
         ($decoded['New']['TypeId'] === 2 )? $cliente = $ploomesServices->getClientById($decoded['New']['CompanyId']):$cliente = $ploomesServices->getClientById($decoded['New']['Id']);
        
@@ -702,7 +722,7 @@ Class OmieFormatter implements ErpFormattersInterface{
         
         $contact = new stdClass(); 
         
-        $custom = CustomFieldsFunction::compareCustomFieldsFromOtherProperties($cliente['OtherProperties'],'Cliente',$args['Tenancy']['tenancies']['id']);
+        $custom = CustomFieldsFunction::compareCustomFieldsFromOtherProperties($cliente['OtherProperties'],'Cliente',$args['Tenancy']['tenancies']['id']);  
 
         $allCustoms = $_SESSION['contact_custom_fields'][$args['Tenancy']['tenancies']['id']];
         
@@ -718,7 +738,7 @@ Class OmieFormatter implements ErpFormattersInterface{
             $prop[$key] = $op;
             // print '['.$key.']=>['.$op.']';
         }
-
+       
         //contact_879A3AA2-57B1-49DC-AEC2-21FE89617665 = tipo de cliente
         $contact->tipoCliente = $prop['contact_879A3AA2-57B1-49DC-AEC2-21FE89617665'] ?? null;
         //contact_FF485334-CE8C-4FB9-B3CA-4FF000E75227 = ramo de atividade
@@ -742,7 +762,7 @@ Class OmieFormatter implements ErpFormattersInterface{
         }
 
              
-        $contact->bloquearFaturamento = $custom['bicorp_api_bloquearFaturamento_out'];
+        $contact->bloquearFaturamento = $custom['bicorp_api_bloquear_faturamento_out'] ?? null;
         //contact_FA99392B-CED8-4668-B003-DFC1111DACB0 = Porte
         //$contact->porte = $prop['contact_FA99392B-CED8-4668-B003-DFC1111DACB0'] ?? null;
         //contact_20B72360-82CF-4806-BB05-21E89D5C61FD = importância
@@ -753,68 +773,102 @@ Class OmieFormatter implements ErpFormattersInterface{
         //$contact->cicloCompra = $prop['contact_9E595E72-E50C-4E95-9A05-D3B024C177AD'] ?? null;
         //contact_5D5A8D57-A98F-4857-9D11-FCB7397E53CB = inscrição estadual
         // $contact->inscricaoEstadual = $prop['contact_5D5A8D57-A98F-4857-9D11-FCB7397E53CB'] ?? null; //estava com esta linha aqui ativa
-        $contact->inscricaoEstadual = $custom['bicorp_api_inscricaoEstadual_out'] ?? null;
+        $contact->inscricaoEstadual = $custom['bicorp_api_inscricao_estadual_out'] ?? null;
         //contact_D21FAEED-75B2-40E4-B169-503131EB3609 = inscrição municipal
-        $contact->inscricaoMunicipal = $prop['contact_D21FAEED-75B2-40E4-B169-503131EB3609'] ?? null;
+        // $contact->inscricaoMunicipal = $prop['contact_D21FAEED-75B2-40E4-B169-503131EB3609'] ?? null;
+        $contact->inscricaoMunicipal = $custom['bicorp_api_inscricao_municipal_out'] ?? null;
         //contact_3094AFFE-4263-43B6-A14B-8B0708CA1160 = inscrição suframa
-        $contact->inscricaoSuframa = $prop['contact_3094AFFE-4263-43B6-A14B-8B0708CA1160'] ?? null;
+        // $contact->inscricaoSuframa = $prop['contact_3094AFFE-4263-43B6-A14B-8B0708CA1160'] ?? null;
+        $contact->inscricaoSuframa = $custom['bicorp_api_inscricao_suframa_out'] ?? null;
         //contact_9BB527FD-8277-4D1F-AF99-DD88D5064719 = Simples nacional?(s/n)  
-        $contact->simplesNacional = $prop['contact_9BB527FD-8277-4D1F-AF99-DD88D5064719'] ?? null;//é obrigatório para emissão de nf
+        // $contact->simplesNacional = $prop['contact_9BB527FD-8277-4D1F-AF99-DD88D5064719'] ?? null;//é obrigatório para emissão de nf
+        $contact->simplesNacional = $custom['bicorp_api_simples_nacional_out'] ?? null;//é obrigatório para emissão de nf
         (isset($contact->simplesNacional) && $contact->simplesNacional !== false) ? $contact->simplesNacional = 'S' : $contact->simplesNacional = 'N';
         //contact_3C521209-46BD-4EA5-9F41-34756621CCB4 = contato1
         // $contact->contato1 = $prop['contact_3C521209-46BD-4EA5-9F41-34756621CCB4'] ?? null; //estava com esta linha aqui ativa
         $contact->contato1 = $cliente['Contacts'][0]['Name'] ?? null;
         //contact_F9B60153-6BDF-4040-9C3A-E23B1469894A = Produtor Rural
-        $contact->produtorRural = $prop['contact_F9B60153-6BDF-4040-9C3A-E23B1469894A'] ?? null;
+        // $contact->produtorRural = $prop['contact_F9B60153-6BDF-4040-9C3A-E23B1469894A'] ?? null;
+        $contact->produtorRural = $custom['bicorp_api_produtor_rural_out'] ?? null;
         (isset($contact->produtorRural) && $contact->produtorRural !== false) ? $contact->produtorRural = 'S' : $contact->produtorRural = 'N';
         //contact_FC16AEA5-E4BF-44CE-83DA-7F33B7D56453 = Contribuinte(s/n)
-        $contact->contribuinte = $prop['contact_FC16AEA5-E4BF-44CE-83DA-7F33B7D56453'] ?? null;
+        // $contact->contribuinte = $prop['contact_FC16AEA5-E4BF-44CE-83DA-7F33B7D56453'] ?? null;
+        $contact->contribuinte = $custom['bicorp_api_contribuinte_out'] ?? null;
         (isset($contact->contribuinte) && $contact->contribuinte !== false) ? $contact->contribuinte = 'S' : $contact->contribuinte = 'N';
         //contact_10D27B0F-F9EF-4378-B1A8-099319BAC0AD = limite de crédito
-        $contact->limiteCredito = $prop['contact_10D27B0F-F9EF-4378-B1A8-099319BAC0AD'] ?? null;
+        // $contact->limiteCredito = $prop['contact_10D27B0F-F9EF-4378-B1A8-099319BAC0AD'] ?? null;
+        $contact->limiteCredito = $custom['bicorp_api_limite_credito_out'] ?? null;
         //contact_CED4CBAD-92C7-4A51-9985-B9010D27E1A4 = inativo (s/n)
-        $contact->inativo = $prop['contact_CED4CBAD-92C7-4A51-9985-B9010D27E1A4'] ?? null;
-        (isset($contact->inativo) && $contact->inativo !== false) ? $contact->inativo = 'S' : $contact->inativo = 'N';
+        // $contact->inativo = $prop['contact_CED4CBAD-92C7-4A51-9985-B9010D27E1A4'] ?? null;
+        $contact->inativo = strtolower($cliente['Status']['Name']) ?? null;
+        (isset($contact->inativo) && $contact->inativo === 'inativo') ? $contact->inativo = 'S' : $contact->inativo = 'N';
         //contact_C613A391-155B-42F5-9C92-20C3371CC3DE = bloqueia excusão (s/n)
-        $contact->bloquearExclusao = $prop['contact_C613A391-155B-42F5-9C92-20C3371CC3DE'] ?? null;
+        // $contact->bloquearExclusao = $prop['contact_C613A391-155B-42F5-9C92-20C3371CC3DE'] ?? null;
+        $contact->bloquearExclusao = $custom['bicorp_api_bloquear_exclusao_out'] ?? null;
         (isset($contact->bloquearExclusao) && $contact->bloquearExclusao !== false) ? $contact->bloquearExclusao = 'S' : $contact->bloquearExclusao = 'N';
         //contact_77CCD2FB-53D7-4203-BE6B-14B671A06F33 = transportadora padrão
-        $contact->cTransportadoraPadrao = $prop['contact_77CCD2FB-53D7-4203-BE6B-14B671A06F33'] ?? null;
+        // $contact->cTransportadoraPadrao = $prop['contact_77CCD2FB-53D7-4203-BE6B-14B671A06F33'] ?? null;
+        $contact->cTransportadoraPadrao = $custom['bicorp_api_transportadora_padrao_out'] ?? null;
         //contact_6BB80AEA-43D0-45E8-B9E4-28D89D9773B9 = codigo do banco
-        $contact->cBanco = $prop['contact_6BB80AEA-43D0-45E8-B9E4-28D89D9773B9'] ?? null;
+        // $contact->cBanco = $prop['contact_6BB80AEA-43D0-45E8-B9E4-28D89D9773B9'] ?? null;
+        $contact->cBanco = $custom['bicorp_api_banco_dados_bancarios_out'] ?? null;
         //contact_1F1E1F00-34CB-4356-B852-496D62A90E10 = Agência
-        $contact->agencia = $prop['contact_1F1E1F00-34CB-4356-B852-496D62A90E10'] ?? null;
+        // $contact->agencia = $prop['contact_1F1E1F00-34CB-4356-B852-496D62A90E10'] ?? null;
+        $contact->agencia = $custom['bicorp_api_agencia_dados_bancarios_out'] ?? null;
         //contact_38E58F93-1A6C-4E40-9F5B-45B5692D7C80 = Num conta corrente
-        $contact->nContaCorrente = $prop['contact_38E58F93-1A6C-4E40-9F5B-45B5692D7C80'] ?? null;
+        // $contact->nContaCorrente = $prop['contact_38E58F93-1A6C-4E40-9F5B-45B5692D7C80'] ?? null;
+        $contact->nContaCorrente = $custom['bicorp_api_conta_corrente_dados_bancarios_out'] ?? null;
         //contact_FDFB1BE8-ECC8-4CFF-8A37-58DCF24CDB50 = CNPJ/CPF titular
-        $contact->docTitular = $prop['contact_FDFB1BE8-ECC8-4CFF-8A37-58DCF24CDB50'] ?? null;
+        // $contact->docTitular = $prop['contact_FDFB1BE8-ECC8-4CFF-8A37-58DCF24CDB50'] ?? null;
+        $contact->docTitular = $custom['bicorp_api_cnpj_cpf_titular_dados_bancarios_out'] ?? null;
         //contact_DDD76E27-8EFA-416B-B7DF-321C1FB31066 = Nome di titular
-        $contact->nomeTitular = $prop['contact_DDD76E27-8EFA-416B-B7DF-321C1FB31066'] ?? null;
+        // $contact->nomeTitular = $prop['contact_DDD76E27-8EFA-416B-B7DF-321C1FB31066'] ?? null;
+        $contact->nomeTitular = $custom['bicorp_api_nome_titular_dados_bancarios_out'] ?? null;
         //contact_847FE760-74D0-462D-B464-9E89C7E1C28E = chave pix
-        $contact->chavePix = $prop['contact_847FE760-74D0-462D-B464-9E89C7E1C28E'] ?? null;
+        // $contact->chavePix = $prop['contact_847FE760-74D0-462D-B464-9E89C7E1C28E'] ?? null;
+        $contact->chavePix = $custom['bicorp_api_chave_pix_dados_bancarios_out'] ?? null;
         //contact_3E075EA9-320C-479E-A956-5A3734C55E51 = Transportadora Padrão (código cliente ploomes)
-        $contact->idTranspPadrao = $prop['contact_3E075EA9-320C-479E-A956-5A3734C55E51'] ?? null;
-        if($contact->idTranspPadrao !== null){
-            $c = $ploomesServices->getClientById($contact->idTranspPadrao);
-            $transpOP = [];
-            foreach($c['OtherProperties']  as $cOthers){
+        // $contact->idTranspPadrao = $prop['contact_3E075EA9-320C-479E-A956-5A3734C55E51'] ?? null;
+        // $contact->idTranspPadrao = $custom['contact_3E075EA9-320C-479E-A956-5A3734C55E51'] ?? null; este campo não existe mais no cadastro do cliente
 
-                $fk = $cOthers['FieldKey'];
-                $vl = $cOthers['StringValue'];
 
-                    $transpOP[$fk] = $vl;
-            }
+        //transportadora padrão não é obrigatória, mas se for selecionado, osistema vai pegar o codigo do ploomes, buscar o cliente/transportadora cadastrado e em seguida os campos personalizados dele. Depois pega a quantidade de bases do Omie para poder pegar o id da transportadora de cada base, para isso, a transportadora deve ter cadastro em todos os aplicativos omie do cliente. Caso contrário o id da transportadora para a base d edestino pode ser nulo. 
+        if($contact->cTransportadoraPadrao !== null){
+            $c = $ploomesServices->getClientById($contact->cTransportadoraPadrao);
             
-            $contact->cTranspOmie = [];
-            $contact->cTranspOmie[0] = $transpOP['contact_4F0C36B9-5990-42FB-AEBC-5DCFD7A837C3'] ?? null;
-            $contact->cTranspOmie[1] = $transpOP['contact_6DB7009F-1E58-4871-B1E6-65534737C1D0'] ?? null;
-            $contact->cTranspOmie[2] = $transpOP['contact_AE3D1F66-44A8-4F88-AAA5-F10F05E662C2'] ?? null;
-            $contact->cTranspOmie[3] = $transpOP['contact_07784D81-18E1-42DC-9937-AB37434176FB'] ?? null;
+            $transpCustom = CustomFieldsFunction::compareCustomFieldsFromOtherProperties($c['OtherProperties'],'Cliente',$args['Tenancy']['tenancies']['id']);
+            
+            $contact->transpOmie = [];
+            $transpOmie = [];
+            foreach($args['Tenancy']['erp_bases'] as $bTransp){
+                $nBase = strtolower($bTransp['app_name']);
+                $transpKey = 'bicorp_api_id_cliente_erp_'.$nBase.'_out';
+
+                $transpOmie['id'] = $transpCustom[$transpKey] ?? null;
+                $transpOmie['appKey'] = $bTransp['app_key'] ?? null;
+                $transpOmie['appname'] = $nBase ?? null;
+
+                $contact->transpOmie[] = $transpOmie;
+            }
+
+            // foreach($c['OtherProperties']  as $cOthers){
+
+            //     $fk = $cOthers['FieldKey'];
+            //     $vl = $cOthers['StringValue'];
+
+            //         $transpOP[$fk] = $vl;
+            // }
+            
+            // $contact->cTranspOmie = [];
+            // $contact->cTranspOmie[0] = $transpOP['contact_4F0C36B9-5990-42FB-AEBC-5DCFD7A837C3'] ?? null;
+            // $contact->cTranspOmie[1] = $transpOP['contact_6DB7009F-1E58-4871-B1E6-65534737C1D0'] ?? null;
+            // $contact->cTranspOmie[2] = $transpOP['contact_AE3D1F66-44A8-4F88-AAA5-F10F05E662C2'] ?? null;
+            // $contact->cTranspOmie[3] = $transpOP['contact_07784D81-18E1-42DC-9937-AB37434176FB'] ?? null;
 
         }   
 
         //contact_33015EDD-B3A7-464E-81D0-5F38D31F604A = Transferência Padrão
-        $contact->transferenciaPadrao = $prop['contact_33015EDD-B3A7-464E-81D0-5F38D31F604A'] ?? null;
+        // $contact->transferenciaPadrao = $prop['contact_33015EDD-B3A7-464E-81D0-5F38D31F604A'] ?? null; este campo não existe mais no cadastro do cliente do Omie
         (isset($contact->transferenciaPadrao) && $contact->transferenciaPadrao !== false) ? $contact->transferenciaPadrao = 'S' : $contact->transferenciaPadrao = 'N';
         //contact_55D34FF5-2389-4FEE-947C-ACCC576DB85C = Integrar com base omie 1? (s/n)
         // (isset($prop['contact_55D34FF5-2389-4FEE-947C-ACCC576DB85C']) && $prop['contact_55D34FF5-2389-4FEE-947C-ACCC576DB85C'] !== false) ? $prop['contact_55D34FF5-2389-4FEE-947C-ACCC576DB85C'] = 1 : $prop['contact_55D34FF5-2389-4FEE-947C-ACCC576DB85C'] = 0;
@@ -906,12 +960,34 @@ Class OmieFormatter implements ErpFormattersInterface{
         }
         
         $contact->tags = $tags;
+
+        $enderecoEntrega = [
+            'entRazaoSocial'=>$custom['bicorp_api_nome_endereco_entrega_out'],
+            'entCnpjCpf'=>$custom['bicorp_api_cpf_cnpj_recebedor_out'],
+            'entEndereco'=>$custom['bicorp_api_endereco_endereco_entrega_out'],
+            'entNumero'=>$custom['bicorp_api_numero_endereco_entrega_out'],
+            'entComplemento'=>$custom['bicorp_api_complemento_endereco_entrega_out'],
+            'entBairro'=>$custom['bicorp_api_bairro_endereco_entrega_out'],
+            'entCEP'=>$custom['bicorp_api_cep_endereco_entrega_out'],
+            'entEstado'=>$custom['bicorp_api_estado_endereco_entrega_out'],
+            // 'entEstado'=>'PR',
+            'entCidade'=>$custom['bicorp_api_cidade_endereco_entrega_out'],
+            'entTelefone'=>$custom['bicorp_api_telefone_endereco_entrega_out'],
+            'entIE'=>$custom['bicorp_api_inscricao_estadual_endereco_entrega_out'],
+            'entSepararEndereco'=>'S',
+        ];
+
+        $contact->enderecoEntrega = $enderecoEntrega;
+        
+
         return $contact;
     }
 
     // updateContactCRMToERP - atualiza um contato do CRM para o ERP ok
     public function updateContactCRMToERP(object $contact, PloomesServices $ploomesServices, object $tenant):array
     {
+
+       
         $json = $this->createJsonClienteCRMToERP($contact, $tenant); 
 
         $alterar = $this->omieServices->alteraClienteCRMToERP($json);
@@ -947,7 +1023,7 @@ Class OmieFormatter implements ErpFormattersInterface{
     public function createContactCRMToERP(object $contact, PloomesServices $ploomesServices, object $tenant):array
     { 
         $messages=['success'=>[],'error'=>[]];
-                
+
         $json = $this->createJsonClienteCRMToERP($contact, $tenant);
         
         $criaClienteERP = $this->omieServices->criaClienteERP($json);
@@ -1107,6 +1183,10 @@ Class OmieFormatter implements ErpFormattersInterface{
         $clienteJson['valor_limite_credito'] = $contact->limiteCredito ?? null;
         $clienteJson['observacao'] = $contact->observacao ?? null;
         //fim aba CNAE e Outros
+        //inicio de enderecos
+        $clienteJson['enderecoEntrega'] = [];
+        $clienteJson['enderecoEntrega'][] = $contact->enderecoEntrega ?? null;
+        //fim de endereços
         //inicio array dados bancários
         $clienteJson['dadosBancarios'] =[];
         $dadosBancarios =[];
@@ -1124,7 +1204,8 @@ Class OmieFormatter implements ErpFormattersInterface{
         $recomendacoes = [];//vendedor padrão
 
         $recomendacoes['codigo_vendedor'] = $contact->cVendedorOmie ?? null;
-        $recomendacoes['codigo_transportadora']=$contact->cTransportadora ?? null;//6967396742;// $contact->ownerId ?? null;
+  
+        $recomendacoes['codigo_transportadora']= $contact->cTranspOmie ?? null;//6967396742;// $contact->ownerId ?? null;
         $clienteJson['recomendacoes'][] = array_filter($recomendacoes);
         
         //fim array recomendações
@@ -1564,7 +1645,7 @@ Class OmieFormatter implements ErpFormattersInterface{
         // $data['LastUpdateDate'] = $service->codigoClienteOmie ?? null;//chave externa do cliente(código Omie)
         //$data['ImportationIdCreate'] = $service->latitude ?? null;(inexistente no omie)
         //$data['ImportationIdUpdate'] = $service->longitude ?? null;(inexistente no omie)
-        $op = CustomFieldsFunction::createOtherPropertiesByEntity($custom['Produto'], $service);
+        $op = (isset($custom['Produto'])) ? CustomFieldsFunction::createOtherPropertiesByEntity($custom['Produto'], $service) : [];
        
         // $ncm = [
         //     'FieldKey'=> 'product_15405B03-AA47-4921-BC83-E358501C3227',
