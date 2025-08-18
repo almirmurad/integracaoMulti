@@ -15,8 +15,8 @@ class PloomesServices implements PloomesManagerInterface{
     private $headers;
 
     public function __construct(array $ploomesBase ){       
-        $this->apiKey = $ploomesBase['api_key'];
-        $this->baseApi = $ploomesBase['base_api'];
+        $this->apiKey = trim($ploomesBase['api_key']);
+        $this->baseApi = trim($ploomesBase['base_api']);
         $this->method = array('get','post','patch','update','delete');
         $this->headers = [
             'User-Key:' . $this->apiKey,
@@ -404,7 +404,7 @@ class PloomesServices implements PloomesManagerInterface{
         $curl = curl_init();
 
         curl_setopt_array($curl, array(
-            CURLOPT_URL => $this->baseApi .'Products?$filter=Id+eq+'.$id.'&$expand=OtherProperties',
+            CURLOPT_URL => $this->baseApi .'Products?$filter=Id+eq+'.$id.'&$expand=OtherProperties,Parts',
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_ENCODING => '',
             CURLOPT_MAXREDIRS => 10,
@@ -433,7 +433,7 @@ class PloomesServices implements PloomesManagerInterface{
         $curl = curl_init();
 
         curl_setopt_array($curl, array(
-            CURLOPT_URL => $this->baseApi .'Products?$filter=Code+eq+'."'$codigoEncoded'".'&$expand=OtherProperties',
+            CURLOPT_URL => $this->baseApi .'Products?$filter=Code+eq+'."'$codigoEncoded'".'&$expand=OtherProperties,Parts($expand=ProductPart,Product,OtherProperties)',
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_ENCODING => '',
             CURLOPT_MAXREDIRS => 10,
@@ -445,9 +445,11 @@ class PloomesServices implements PloomesManagerInterface{
 
         ));
 
-        $response = curl_exec($curl);
-        $response =json_decode($response, true);
-        
+        $response =json_decode(curl_exec($curl), true);
+
+        // $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+        // $curlError = curl_error($curl);
+        // $curlErrno = curl_errno($curl);
         curl_close($curl);
     
         return $response['value'][0] ?? null;
@@ -1014,13 +1016,15 @@ class PloomesServices implements PloomesManagerInterface{
      }
 
      public function getGroupByName($group){
-
-        
+     
+    
+        $g = rawurlencode($group);
+        $uri ="{$this->baseApi}Products@Groups?\$filter=Name+eq+'{$g}'";
         
         $curl = curl_init();
         
         curl_setopt_array($curl, array(
-            CURLOPT_URL => "{$this->baseApi}Products@Groups?\$filter=Name+eq+'{$group}'",
+            CURLOPT_URL =>$uri,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_ENCODING => '',
             CURLOPT_MAXREDIRS => 10,
@@ -1031,10 +1035,9 @@ class PloomesServices implements PloomesManagerInterface{
             CURLOPT_HTTPHEADER => $this->headers
             
         ));
-        
-        $response = curl_exec($curl);
-        $response =json_decode($response, true);
-      
+
+        $response =json_decode(curl_exec($curl), true);
+          
         curl_close($curl);
 
         return $response['value'][0] ?? false;
@@ -1071,6 +1074,41 @@ class PloomesServices implements PloomesManagerInterface{
          return $response['value'][0] ?? false;
  
      }
+
+      //CRIA Produto NO PLOOMES
+    public function createPloomesParts(string $json):array
+    {
+
+        //CHAMADA CURL PRA CRIAR WEBHOOK NO PLOOMES
+        $curl = curl_init();
+
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => $this->baseApi . 'Products@Parts',//ENDPOINT PLOOMES
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST =>strtoupper($this->method[1]),
+            CURLOPT_POSTFIELDS => $json,
+            CURLOPT_HTTPHEADER => $this->headers
+        ));
+
+       
+
+        $response = json_decode(curl_exec($curl),true);
+        // $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+        // $curlError = curl_error($curl);
+        // $curlErrno = curl_errno($curl);
+        curl_close($curl);
+
+        return $response['value'][0] ?? [];     // $idIntegration = $response['value'][0]['Id']??Null;
+
+        // return ($idIntegration !== null)?$idIntegration:false;
+        
+    }
+
 
    
 
