@@ -142,6 +142,10 @@ return [
         '/processNewTransferChat'=>[
             'callback' => 'OmnismartController@processNewTransferChat', //nova interação
             'middlewares' => [RequestMiddleware::class, LoadCustomFieldsMiddleware::class]
-        ],               
+        ],   
+        '/finishDeal'=>[
+            'callback' => 'OmnismartController@finishDeal', //nova interação
+            'middlewares' => [RequestMiddleware::class]
+        ],              
     ]
 ];
