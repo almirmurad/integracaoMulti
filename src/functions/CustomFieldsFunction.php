@@ -7,16 +7,46 @@ Class CustomFieldsFunction{
 
     private static $customFields = [];
 
-    public static function loadCustomField($ploomesBase){
-        $ploomesServices = new PloomesServices($ploomesBase);
-        if(empty(self::$customFields)){
-            $customFields =[];
-            //pega todos os campos personalizados
-            $custom = $ploomesServices->getContactCustomFields();
-            //cria um array separado por entidade
-            $customFields = self::divideCustomForEntity($custom, $ploomesServices);
-            self::$customFields = $customFields;
+    // public static function loadCustomField($ploomesBase){
+    //     $ploomesServices = new PloomesServices($ploomesBase);
+    //     if(empty(self::$customFields)){
+    //         $customFields =[];
+    //         //pega todos os campos personalizados
+    //         $custom = $ploomesServices->getContactCustomFields();
+    //         //cria um array separado por entidade
+    //         $customFields = self::divideCustomForEntity($custom, $ploomesServices);
+    //         self::$customFields = $customFields;
+    //     }
+    // }
+    public static function loadCustomField($ploomesBase, $cacheTtl = 86400){
+        // $cacheTtl = 86400 (1 dia) 3600 (1hora)
+        // cada tenancy/ploomesBase terá seu próprio cache
+        $cacheDir = __DIR__ . '/../../cache';
+        if (!is_dir($cacheDir)) {
+            mkdir($cacheDir, 0777, true);
         }
+
+        $tenancyId = md5(json_encode($ploomesBase['tenancy_id'])); // ou use $ploomesBase['id'] se existir
+        $cacheFile = $cacheDir . "/custom_fields_{$tenancyId}.json";
+        
+        // se existe cache e ainda está válido
+        if (file_exists($cacheFile) && (time() - filemtime($cacheFile) < $cacheTtl)) {
+            $data = json_decode(file_get_contents($cacheFile), true);
+            if (is_array($data)) {
+                self::$customFields = $data;
+                return;
+            }
+        }
+
+        // se não tem cache, ou cache expirou → buscar na API do Ploomes
+        $ploomesServices = new PloomesServices($ploomesBase);
+        $custom = $ploomesServices->getContactCustomFields();
+        $customFields = self::divideCustomForEntity($custom, $ploomesServices);
+
+        self::$customFields = $customFields;
+
+        // salvar no cache
+        file_put_contents($cacheFile, json_encode($customFields));
     }
 
     private static function divideCustomForEntity($customFields, $ploomesServices)
