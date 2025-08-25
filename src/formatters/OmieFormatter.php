@@ -1521,6 +1521,7 @@ Class OmieFormatter implements ErpFormattersInterface{
         
         // if(!$pProduct){
         $op = CustomFieldsFunction::createOtherPropertiesByEntity($custom['Produto'], $product);
+        
         $data['OtherProperties'] = $op;
         $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         
