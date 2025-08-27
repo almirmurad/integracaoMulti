@@ -1087,13 +1087,72 @@ class OmieServices implements ErpManagerInterface{
 
     }
 
-    //consulta estoque
+    //consulta estoque 
     public function getStockById(string $json){
 
             $curl = curl_init();
     
             curl_setopt_array($curl, array(
                 CURLOPT_URL => 'https://app.omie.com.br/api/v1/estoque/consulta/',
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_ENCODING => '',
+                CURLOPT_MAXREDIRS => 10,
+                CURLOPT_TIMEOUT => 0,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                CURLOPT_CUSTOMREQUEST => 'POST',
+                CURLOPT_POSTFIELDS => $json,
+                CURLOPT_HTTPHEADER => array(
+                    'Content-Type: application/json'
+                ),
+            ));
+    
+            $response = curl_exec($curl);
+    
+            curl_close($curl);
+    
+            $estoque = json_decode($response, true);
+        
+            return $estoque;
+
+    }
+
+        //consulta estoque 
+    public function getStock(string $json){
+
+            $curl = curl_init();
+    
+            curl_setopt_array($curl, array(
+                CURLOPT_URL => 'https://app.omie.com.br/api/v1/estoque/resumo/',
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_ENCODING => '',
+                CURLOPT_MAXREDIRS => 10,
+                CURLOPT_TIMEOUT => 0,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                CURLOPT_CUSTOMREQUEST => 'POST',
+                CURLOPT_POSTFIELDS => $json,
+                CURLOPT_HTTPHEADER => array(
+                    'Content-Type: application/json'
+                ),
+            ));
+    
+            $response = curl_exec($curl);
+    
+            curl_close($curl);
+    
+            $estoque = json_decode($response, true);
+        
+            return $estoque;
+
+    }
+
+    public function getStockLocation(string $json){
+
+            $curl = curl_init();
+    
+            curl_setopt_array($curl, array(
+                CURLOPT_URL => 'https://app.omie.com.br/api/v1/estoque/local/',
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_ENCODING => '',
                 CURLOPT_MAXREDIRS => 10,
@@ -1286,6 +1345,33 @@ class OmieServices implements ErpManagerInterface{
     }
 
     public function getProductStructure(string $json, string $url): array
+    {
+        $curl = curl_init();
+
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => $url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => 'POST',
+            CURLOPT_POSTFIELDS => $json,
+            CURLOPT_HTTPHEADER => array(
+                'Content-Type: application/json'
+            ),
+        ));
+
+        $response = json_decode(curl_exec($curl), true);
+
+        curl_close($curl);
+
+        return $response;
+
+    }
+
+    public function getProductById(string $json, string $url): array
     {
         $curl = curl_init();
 

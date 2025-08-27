@@ -55,14 +55,11 @@ class ProductHandler
         $action = DiverseFunctions::findAction($args);
         if(isset($action['origem']) && $action['origem'] === 'CRMToERP'){
             
-            return ProductsFunctions::processProductCrmToErp($args, $this->ploomesServices, $this->formatter, $action);                                                   
+            // return ProductsFunctions::processProductCrmToErp($args, $this->ploomesServices, $this->formatter, $action);                                                   
         }
         
         return ProductsFunctions::processProductErpToCrm($args, $this->ploomesServices, $this->formatter, $action);
                  
     }
-
-   
-    
 
 }
