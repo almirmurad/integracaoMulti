@@ -1363,22 +1363,127 @@ Class OmieFormatter implements ErpFormattersInterface{
         return $product;
     }
 
+    //cria um objeto do produto vindo do omie para enviar ao ploomes
+    public function createObjectCrmProductFromErpProduct($prd, $ploomesServices)
+    {      
+        //cria o objeto de produtos
+        $product = new stdClass();
+        $omieApp = $this->omieServices->getOmieApp();
+
+        $chave = 'idProductOmie' . $omieApp['app_name'];
+        $product->$chave = $prd['codigo_produto'];
+
+        $product->appKey = $omieApp['app_key'];
+        $product->appSecret = $omieApp['app_secret'];
+        // $pFamily = explode('.' , $array['topic']);
+        $nameFamily= 'Produtos';//o s é para o topic Produto ficar no plural
+        $verifyFamily = $ploomesServices->getFamilyByName($nameFamily);
+        if(isset($verifyFamily['Id'])){
+            $product->idFamily =  $verifyFamily['Id'];
+        }else{
+            $createFamily = $ploomesServices->createNewFamily($nameFamily);
+            $product->idFamily =  $createFamily['Id'];
+        }        
+       
+        $product->altura = $prd['altura'];
+        $product->bloqueado = $prd['bloqueado'];
+        $product->cnpj_fabricante = $prd['recomendacoes_fiscais']['cnpj_fabricante'];
+        $product->codigo = $prd['codigo'];
+        $product->codigo_familia = $prd['codigo_familia'];
+        ($product->codigo_familia == 0 || $product->codigo_familia == null) ? $product->nome_familia = $nameFamily : $product->nome_familia = $this->omieServices->getFamiliaById($product);
+        $verifyGroup = $ploomesServices->getGroupByName($product->nome_familia);
+        if(isset($verifyGroup['Id'])){
+            $product->idGroup =  $verifyGroup['Id'];
+        }else{
+            $createGroup = $ploomesServices->createNewGroup($product->nome_familia, $product->idFamily);
+            $product->idGroup =  $createGroup['Id'];
+        }
+        $product->codigo_produto = $prd['codigo_produto'];
+        $product->codigo_produto_integracao = $prd['codigo_produto_integracao'];
+        $product->combustivel_codigo_anp = $prd['combustivel']['codigo_anp'] ?? null;
+        $product->combustivel_descr_anp = $prd['combustivel']['descr_anp'] ?? null;
+        $product->cupom_fiscal = $prd['recomendacoes_fiscais']['cupom_fiscal'];
+        $product->descr_detalhada = $prd['descr_detalhada'];
+        $product->descricao = $prd['descricao'];
+        $product->dias_crossdocking = $prd['dias_crossdocking'];
+        $product->dias_garantia = $prd['dias_garantia'];
+        $product->ean = $prd['ean'];
+        $product->estoque_minimo = $prd['estoque_minimo'];
+        $product->id_cest = $prd['recomendacoes_fiscais']['id_cest'];
+        $product->id_preco_tabelado = $prd['recomendacoes_fiscais']['id_preco_tabelado'];
+        $product->inativo = $prd['inativo'];
+        $product->indicador_escala = $prd['recomendacoes_fiscais']['indicador_escala'];
+        $product->largura = $prd['largura'];
+        $product->marca = $prd['marca'];
+        $product->market_place = $prd['recomendacoes_fiscais']['market_place'];
+        $product->modelo = $prd['modelo'];
+        $product->ncm = $prd['ncm'];
+        $product->obs_internas = $prd['obs_internas'];
+        $product->origem_mercadoria = $prd['recomendacoes_fiscais']['origem_mercadoria'];
+        $product->peso_bruto = $prd['peso_bruto'];
+        $product->peso_liq = $prd['peso_liq'];
+        $product->profundidade = $prd['profundidade'];
+        $product->quantidade_estoque = $prd['quantidade_estoque'];
+        $product->tipoItem = $prd['tipoItem'];
+        $product->unidade = $prd['unidade'];
+        $product->valor_unitario = $prd['valor_unitario'];
+
+        $k = 'tabela_estoque_'.strtolower($omieApp['app_name']);
+        $product->$k = $this->getStock($product, $omieApp); 
+        //$product->stock = $this->getStock($product, $omieApp);      
+        
+        return $product;
+    }
+
     public function getStock(object $product, array $omieApp){
+       
+        // $arrayStockLocation = [
+        //             'app_key' => $omieApp['app_key'],
+        //             'app_secret' => $omieApp['app_secret'],
+        //             'call' => 'ListarLocaisEstoque',
+        //             'param' => [
+        //                 [
+        //                     'nPagina'=>1,
+        //                     'nRegPorPagina'=>50,
+                        
+        //                 ]
+        //             ]
+        //         ];
 
-        $array = [
-                    'app_key' => $omieApp['app_key'],
-                    'app_secret' => $omieApp['app_secret'],
-                    'call' => 'PosicaoEstoque',
-                    'param' => [
-                        [
-                            'id_prod'=>$product->codigo_produto,
-                            'data'=>date('d/m/Y'),
-                        ]
-                    ]
-                ];
+        // $arrayPosicao = [
+        //             'app_key' => $omieApp['app_key'],
+        //             'app_secret' => $omieApp['app_secret'],
+        //             'call' => 'PosicaoEstoque',
+        //             'param' => [
+        //                 [
+        //                     'codigo_local_estoque' => 5272991510,
+        //                     'id_prod'=>607108934,
+        //                     'data'=>date('d/m/Y'),
+        //                 ]
+        //             ]
+        //         ];
+        $arrayEstoque = [
+            'app_key' => $omieApp['app_key'],
+            'app_secret' => $omieApp['app_secret'],
+            'call' => 'ObterEstoqueProduto',
+            'param' => [
+                [
+                    'nIdProduto'=>$product->codigo_produto,
+                    'dDia' => date('d/m/Y'),
+                ]
+            ]
+        ];
 
-        $json = json_encode($array);
-        $stock = $this->omieServices->getStockById($json);
+
+        $stock = [
+
+        ];
+
+        // $location = $this->omieServices->getStockLocation(json_encode($arrayStockLocation));
+        // print_r($location);
+        // $stock = $this->omieServices->getStockById(json_encode($arrayPosicao));
+        // print_r($stock);
+        $stock = $this->omieServices->getStock(json_encode($arrayEstoque));
         $table = $this->createTableStock($stock);
 
         return $table;
@@ -1386,16 +1491,32 @@ Class OmieFormatter implements ErpFormattersInterface{
     }
 
     public function createTableStock($stock)
-    {
-        $local = ($stock['codigo_local_estoque'] === 6879399409)? 'Padrão' : $stock['codigo_local_estoque'];
-        //$html = file_get_contents('http://localhost/gamatermic/src/views/pages/gerenciador.pages.stockTable.php');
-        $html = file_get_contents('https://integracao.dev-webmurad.com.br/src/views/pages/gerenciador.pages.stockTable.php');
-        $html = str_replace('{local}', $local, $html);
-        $html = str_replace('{saldo}', $stock['saldo'], $html);
-        $html = str_replace('{minimo}', $stock['estoque_minimo'], $html);
-        $html = str_replace('{pendente}', $stock['pendente'], $html);
-        $html = str_replace('{reservado}', $stock['reservado'], $html);
-        $html = str_replace('{fisico}', $stock['fisico'], $html);
+    {   
+       
+        // $local = ($stock['codigo_local_estoque'] === 6879399409)? 'Padrão' : $stock['codigo_local_estoque'];
+        $html = file_get_contents('http://middleware/src/views/pages/gerenciador.pages.stockTable.php');
+        $tLinha = file_get_contents('http://middleware/src/views/pages/gerenciador.pages.dataStockTable.php');
+        
+        // $html = file_get_contents('https://integracao.dev-webmurad.com.br/src/views/pages/gerenciador.pages.stockTable.php');
+        $linhas = '';
+        if(is_array($stock) && !empty($stock['listaEstoque'])){
+            
+            foreach($stock['listaEstoque'] as $st){
+            
+                $linha =  str_replace(['{local}','{saldo}','{minimo}','{previsaoSaida}' ],[$st['cDescricaoLocal'],$st['nSaldo'],$st['nEstoqueMinimo'],$st['nPrevisaoSaida']],$tLinha);
+                $linhas .= $linha; 
+
+            }
+        }else{
+            $linha =  str_replace(['{local}','{saldo}','{minimo}','{previsaoSaida}' ],['indefinido', 0, 0, 0],$tLinha);
+                $linhas .= $linha; 
+        }
+        // $html = str_replace('{local}', $st['cDescricaoLocal'], $html);
+        // $html = str_replace('{saldo}', $st['nSaldo'], $html);
+        // $html = str_replace('{minimo}', $st['nEstoqueMinimo'], $html);
+        // $html = str_replace('{previsaoSaida}', $st['nPrevisaoSaida'], $html);
+        // $html = str_replace('{reservado}', $st['reservado'], $html);
+        $html = str_replace('{dataStock}', $linhas, $html);
         $html = str_replace('{data}', date('d/m/Y H:i:s'), $html);
 
         return $html;
@@ -2019,7 +2140,7 @@ Class OmieFormatter implements ErpFormattersInterface{
     {
         $parts = [];
         $items = $structure['itens'];
-
+       
         if(isset($pProduct['Parts']) && !empty($pProduct['Parts'])){
 
             $codigosOmie = array_column($items, 'codProdMalha');
@@ -2130,6 +2251,7 @@ Class OmieFormatter implements ErpFormattersInterface{
 
 
         }else{
+            
             foreach ($items as $item){
                 $pItem = $ploomesServices->getProductByCode($item['codProdMalha']);
                 if(isset($pItem) && $pItem !== null){
@@ -2159,7 +2281,60 @@ Class OmieFormatter implements ErpFormattersInterface{
 
                     $parts['success'][] = $ploomesServices->createPloomesParts($json);
                 }else{
-                    $parts['erro'][] = "ERRO: Produto {$item['descrProdMalha']} não cadastrado no ploomes";
+                    
+                    $omieApp = $this->omieServices->getOmieApp();
+       
+                    $url = 'https://app.omie.com.br/api/v1/geral/produtos/';
+
+                    $array = [
+                        'app_key' =>   $omieApp['app_key'],
+                        'app_secret' => $omieApp['app_secret'] ,
+                        'call' => 'ConsultarProduto',
+                        'param'=>[
+                            [
+                                'codigo_produto'=> $item['idProdMalha'],
+                            ]
+                        ],
+                    ];
+                 
+
+                    $json = json_encode($array, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                    $omieProduct = $this->omieServices->getProductById($json, $url);
+                                 
+                    $product = $this->createObjectCrmProductFromErpProduct($omieProduct, $ploomesServices);
+                    
+                    $jsonProduct = $this->createPloomesProductFromErpObject($product, $ploomesServices);
+                    $newProductId = $ploomesServices->createPloomesProduct($jsonProduct);
+                    $newProduct = $ploomesServices->getProductById($newProductId);
+                    
+                    if($newProduct){
+                        $array = [
+                            "ProductId" => $pProduct['Id'],
+                            "Name" => "{$pProduct['Name']} -  {$newProduct['Name']}",
+                            "ProductPartId" => $newProduct['Id'],
+                            "GroupPartId" => null,
+                            "ContactProductId" => null,
+                            "ListPartId" => null,
+                            "Default" => true,
+                            "MinimumQuantity" => null,
+                            "MaximumQuantity" => $item['quantProdMalha'],
+                            "DefaultQuantity" => $item['quantProdMalha'],
+                            "CurrencyId" => 1,
+                            "MinimumUnitPrice" => null,
+                            "MaximumUnitPrice" => null,
+                            "DefaultUnitPrice" => $newProduct['UnitPrice'],
+                            //"GroupId" => 40019945,
+                            "Required" => true,
+                            "Editable" => true,
+                    ];
+
+                    $json = json_encode($array, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+                    $parts['success'][] = $ploomesServices->createPloomesParts($json);
+                    }else{
+                        $parts['erro'][] = "ERRO: Produto {$item['descrProdMalha']} não cadastrado no ploomes";
+                    }
+
                 }
 
             }
