@@ -232,6 +232,7 @@ Class CustomFieldsFunction{
     public static function createOtherPropertiesByEntity(array $custom, array|object $data)
     {
         //cria um array OtherProperties com os campos customizados vindo de $customFIelds porém a chave $k faz referencia a chave do array $data. ou seja a SendExternaKey bicorp_api_$k_out onde $k = $data['ncm'] por exemplo.
+        // print'--------------- custom fields ---------------------'.PHP_EOL;
         // print_r($custom);
         // print_r($data);
         // exit;
@@ -239,6 +240,7 @@ Class CustomFieldsFunction{
         $b =[];
         $type='';
         foreach($data as $k => $value){
+            
             foreach($custom as $field){
                 if($field['SendExternalKey'] == 'bicorp_api_'.$k.'_out'){
                     switch($field['Type']){
@@ -275,7 +277,9 @@ Class CustomFieldsFunction{
 
             }
         }
-        
+
+        // print_r($otherProperties);
+        // exit;
         return $otherProperties;
 
     }

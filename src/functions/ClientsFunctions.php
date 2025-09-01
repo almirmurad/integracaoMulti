@@ -86,19 +86,21 @@ class ClientsFunctions{
         $message = [];
         $current = date('d/m/Y H:i:s');
         $contact = $formatter->createObjectCrmContactFromErpData($args, $ploomesServices);
-
-        // var_dump($contact->contato);
-        // exit;
-     
+        
         $dFinanceiro = $formatter->getFinHistory($contact);
         $contact->tabela_financeiro = $dFinanceiro['table'];
         $contact->status_financeiro = ucfirst($dFinanceiro['status']);
-
-        $json = $formatter->createPloomesContactFromErpObject($contact, $ploomesServices);
         
+        $json = $formatter->createPloomesContactFromErpObject($contact, $ploomesServices);
+
         $idContact = $ploomesServices->consultaClientePloomesCnpj(DiverseFunctions::limpa_cpf_cnpj($contact->cnpjCpf));
 
-        if($idContact !== null || $action['action'] !== 'create')
+        // var_dump($action['action']);
+        // var_dump($idContact);
+        // print_r($json);
+        // exit;
+
+        if($idContact !== NULL || $action['action'] !== 'create')
         {
             $contactUpdated = $ploomesServices->updatePloomesContact($json, $idContact);
             if($contactUpdated !== null){
@@ -151,6 +153,7 @@ class ClientsFunctions{
         }
         else
         {
+            
             $createContactId = $ploomesServices->createPloomesContact($json);
             //$createContactId = 123456;
             $contact->companyId = $createContactId;

@@ -468,7 +468,9 @@ Class OmieFormatter implements ErpFormattersInterface{
   
         $array = DiverseFunctions::achatarArray($c);
 
-        $chave = 'idClienteOmie' . $omieApp['app_name'];
+    
+
+        $chave = 'id_cliente_erp_' . $omieApp['app_name'];
         $cliente->$chave = $array['codigo_cliente_omie'];
     
         //$cliente->messageId = $array['messageId'];
@@ -487,11 +489,12 @@ Class OmieFormatter implements ErpFormattersInterface{
         $cliente->complemento = $array['complemento']  ?? null;
         $cliente->contato = $array['contato']  ?? null;
         $cliente->contribuinte = $array['contribuinte']  ?? null;
-        $cliente->agencia = $array['dadosBancarios_agencia']  ?? null;
-        $cliente->cBanco = $array['dadosBancarios_codigo_banco']  ?? null;
-        $cliente->nContaCorrente = $array['dadosBancarios_conta_corrente']  ?? null;
-        $cliente->docTitular = $array['dadosBancarios_doc_titular']  ?? null;
-        $cliente->nomeTitular = $array['dadosBancarios_nome_titular']  ?? null;
+        $cliente->agencia_dados_bancarios = $array['dadosBancarios_agencia']  ?? null;
+        $cliente->banco_dados_bancarios = $array['dadosBancarios_codigo_banco']  ?? null;
+        $cliente->conta_corrente_dados_bancarios = $array['dadosBancarios_conta_corrente']  ?? null;
+        $cliente->cnpj_cpf_titular_dados_bancarios = $array['dadosBancarios_doc_titular']  ?? null;
+        $cliente->chave_pix_dados_bancarios = $array['dadosBancarios_cChavePix']  ?? null;
+        $cliente->nome_titular_dados_bancarios = $array['dadosBancarios_nome_titular']  ?? null;
         $cliente->email = $array['email']  ?? null;
         $cliente->endereco = $array['endereco']  ?? null;
         $cliente->enderecoNumero = $array['endereco_numero']  ?? null;
@@ -523,6 +526,7 @@ Class OmieFormatter implements ErpFormattersInterface{
         $transp->codigoClienteOmie = $cliente->idTranspPadrao;
         $transp = $this->omieServices->getClientByid($transp );
         $cliente->idTranspPadraoPloomes = $transp['codigo_cliente_integracao'] ?? null;
+        
         $tags=[];
         if(isset($decoded['event']['tags'])){
             foreach($decoded['event']['tags'] as $t=>$v){
@@ -531,6 +535,7 @@ Class OmieFormatter implements ErpFormattersInterface{
             }
         }
         $cliente->tags = $tags;
+        
         $cliente->telefoneDdd1 = $array['telefone1_ddd'];
         $cliente->telefoneNumero1 = $array['telefone1_numero'];
         $cliente->telefoneDdd2 = $array['telefone2_ddd'];
@@ -556,12 +561,15 @@ Class OmieFormatter implements ErpFormattersInterface{
         $cliente->appKey = $decoded['appKey'];
         // $cliente->appHash = $array['appHash'];
         // $cliente->origin = $array['origin'];
+        
         return $cliente;
     }
 
     // createPloomesContactFromErpObject - cria o json no formato do ploomes para enviar pela API do Ploomes
     public function createPloomesContactFromErpObject(object $contact, PloomesServices $ploomesServices):string
     {
+        // print_r($contact);
+     
         
         $omie = new stdClass();
         $omieApp = $this->omieServices->getOmieApp();
@@ -572,6 +580,9 @@ Class OmieFormatter implements ErpFormattersInterface{
         $omie->ncc = $omieApp['ncc'];
         $omie->tenancyId = $omieApp['tenancy_id'];
         $custom = $_SESSION['contact_custom_fields'][$omie->tenancyId];
+        // print_r($contact);
+        // print_r($custom['Cliente']);
+        // exit;
         $chaveTable = "tabela_financeiro_{$omie->appName}";
         $chaveStatus = "status_financeiro_{$omie->appName}";
         $contact->$chaveTable = $contact->tabela_financeiro;
@@ -684,8 +695,12 @@ Class OmieFormatter implements ErpFormattersInterface{
         }else{
             $data['Tags'] = null;
         }     
+        // print_r($custom['Cliente']);
          
         $op = CustomFieldsFunction::createOtherPropertiesByEntity($custom['Cliente'], $contact);
+
+        // print_r($op);
+        // exit;
         
         $data['OtherProperties'] = $op;
         
@@ -1857,7 +1872,7 @@ Class OmieFormatter implements ErpFormattersInterface{
 
         $financeiro = $this->omieServices->getFinaceiro($json, $url) ?? null;
         
-        if(count($financeiro) > 0 ){
+        if(count($financeiro) > 0){
             
             $tableFin = $this->createTableFin($financeiro);
             
@@ -1911,45 +1926,54 @@ Class OmieFormatter implements ErpFormattersInterface{
         // $html = file_get_contents('https://integracao.dev-webmurad.com.br/src/views/pages/gerenciador.pages.finTable.php');
         foreach($financeiro as $fin){
 
-            $o = $origem[$fin['cabecTitulo']['cOrigem']];
-            $status = $fin['cabecTitulo']['cStatus'];
-            
-            if($status == 'RECEBIDO' && !empty($fin['lancamentos']))
-            {
-                
-                $totalLancado = 0;
+            $tipo = $fin['cabecTitulo']['cNatureza'];
 
-                foreach($fin['lancamentos'] as $lancamento){
-                    $totalLancado += $lancamento['nValLanc'];
+            if($tipo !== 'R' ){
+                continue;
+            }else{
+
+                $o = $origem[$fin['cabecTitulo']['cOrigem']];
+                $status = $fin['cabecTitulo']['cStatus'];
+            
+                if($status == 'RECEBIDO' && !empty($fin['lancamentos']))
+                {
+                
+                    $totalLancado = 0;
+
+                    foreach($fin['lancamentos'] as $lancamento){
+                        $totalLancado += $lancamento['nValLanc'];
                 }
 
-                $porcentagem = ($totalLancado / $fin['cabecTitulo']['nValorTitulo'])*100;
+                    $porcentagem = ($totalLancado / $fin['cabecTitulo']['nValorTitulo'])*100;
 
-                $statusRecebido = ($porcentagem === 100) ? 'LIQUIDADO' : round($porcentagem,2) . '% Recebido';
+                    $statusRecebido = ($porcentagem === 100) ? 'LIQUIDADO' : round($porcentagem,2) . '% Recebido';
 
-            }else{
-                $statusRecebido = $status;
+                }else{
+                    $statusRecebido = $status;
+                }
+                    $statusClass = match($statusRecebido)
+                {    
+                    'A VENCER' => 'titulo-a-vencer',
+                    'LIQUIDADO' => 'titulo-pago',
+                    'PAGO' => 'titulo-pago',
+                    'ATRASADO' => 'titulo-vencido',
+                    default=>'titulo-a-vencer'              
+                };
+                $obs = $fin['cabecTitulo']['observacao'] ?? null;
+                $tr .= "<tr>";
+                $tr .= "<td >{$fin['cabecTitulo']['cNumParcela']}</td>
+                <td class='{$statusClass}' style='min-width: 150px;'>{$statusRecebido}</td>
+                <td style='min-width: 150px;'>{$o}</td>
+                <td style='min-width: 150px;'>{$fin['cabecTitulo']['dDtRegistro']}</td>
+                <td style='min-width: 150px;'>{$fin['cabecTitulo']['dDtEmissao']}</td>
+                <td style='min-width: 150px;'>{$fin['cabecTitulo']['dDtPrevisao']}</td>
+                <td style='min-width: 150px;' class='{$statusClass}'>{$fin['cabecTitulo']['dDtVenc']}</td>
+                <td style='min-width: 150px;'>". number_format($fin['cabecTitulo']['nValorTitulo'],2,',','.') ."</td>
+                <td style='min-width: 150px;'>{$obs}</td>";
+                $tr .= "</tr>";
+                    
             }
-            $statusClass = match($statusRecebido)
-            {    
-                'A VENCER' => 'titulo-a-vencer',
-                'LIQUIDADO' => 'titulo-pago',
-                'PAGO' => 'titulo-pago',
-                'ATRASADO' => 'titulo-vencido',
-                default=>'titulo-a-vencer'              
-            };
-            $obs = $fin['cabecTitulo']['observacao'] ?? null;
-            $tr .= "<tr>";
-            $tr .= "<td >{$fin['cabecTitulo']['cNumParcela']}</td>
-            <td class='{$statusClass}' style='min-width: 150px;'>{$statusRecebido}</td>
-            <td style='min-width: 150px;'>{$o}</td>
-            <td style='min-width: 150px;'>{$fin['cabecTitulo']['dDtRegistro']}</td>
-            <td style='min-width: 150px;'>{$fin['cabecTitulo']['dDtEmissao']}</td>
-            <td style='min-width: 150px;'>{$fin['cabecTitulo']['dDtPrevisao']}</td>
-            <td style='min-width: 150px;' class='{$statusClass}'>{$fin['cabecTitulo']['dDtVenc']}</td>
-            <td style='min-width: 150px;'>". number_format($fin['cabecTitulo']['nValorTitulo'],2,',','.') ."</td>
-            <td style='min-width: 150px;'>{$obs}</td>";
-            $tr .= "</tr>";
+
         }
         $html = str_replace('{tr}', $tr, $html);
         $html = str_replace('{data}', date('d/m/Y H:i:s'), $html);
@@ -2014,7 +2038,7 @@ Class OmieFormatter implements ErpFormattersInterface{
          
         $array = DiverseFunctions::achatarArray($c);
         
-        $chave = 'idClienteOmie' . $omieApp['app_name'];
+        $chave = 'id_cliente_erp_' . $omieApp['app_name'];
         $cliente->$chave = $array['codigo_cliente_omie'];
         $contact = new stdClass();
         $contact->cnpjCpf =  $c['cnpj_cpf'];
@@ -2032,7 +2056,7 @@ Class OmieFormatter implements ErpFormattersInterface{
        
     }
 
-        // createPloomesContactFromErpObject - cria o json no formato do ploomes para enviar pela API do Ploomes
+        // createPloomesContactFinancialFromErpObject - cria o json no formato do ploomes para enviar pela API do Ploomes
     public function createPloomesContactFinancialFromErpObject(object $contact, PloomesServices $ploomesServices):string
     {
         $omie = new stdClass();
@@ -2052,6 +2076,9 @@ Class OmieFormatter implements ErpFormattersInterface{
         $data = [];
          
         $op = CustomFieldsFunction::createOtherPropertiesByEntity($custom['Cliente'], $contact);
+
+        print_r($op);
+        exit;
         
         $data['OtherProperties'] = $op;
         
