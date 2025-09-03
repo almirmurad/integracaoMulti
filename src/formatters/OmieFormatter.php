@@ -42,7 +42,6 @@ Class OmieFormatter implements ErpFormattersInterface{
         $contentServices = [];
           //separa e monta os arrays de produtos e serviços
         $opItem = [];       
-        
         foreach($orderArray['Products'] as $prdItem)
         {   
             foreach($prdItem['Product']['OtherProperties'] as $otherp){
@@ -72,7 +71,7 @@ Class OmieFormatter implements ErpFormattersInterface{
 
     public function createOrder(object $order, object $omie):string
     {        
-        
+
         //separa e monta os arrays de produtos e serviços
         // cabecalho
         $cabecalho = [];//cabeçalho do pedido (array)
@@ -87,10 +86,11 @@ Class OmieFormatter implements ErpFormattersInterface{
         //frete
         $frete = [];//array com infos do frete, por exemplo, modailidade;
         $frete['modalidade'] = $order->modalidadeFrete ?? null;//string
+        $frete['previsao_entrega'] = DiverseFunctions::convertDate($order->previsaoEntrega);
     
         //informações adicionais
         $informacoes_adicionais = []; //informações adicionais por exemplo codigo_categoria = 1.01.03, codigo_conta_corrente = 123456789
-        $informacoes_adicionais['codigo_categoria'] = '1.01.03';//string
+        $informacoes_adicionais['codigo_categoria'] = $order->codigoCategoriaVenda;//string
         $informacoes_adicionais['codigo_conta_corrente'] = $omie->ncc;//int
         $informacoes_adicionais['numero_pedido_cliente']= $order->numPedidoCliente ?? "0";
         $informacoes_adicionais['codVend']= $order->codVendedorErp ?? null;
@@ -504,20 +504,20 @@ Class OmieFormatter implements ErpFormattersInterface{
         $cliente->faxNumero = $array['fax_numero']  ?? null;
         $cliente->homepage = $array['homepage']  ?? null;
         $cliente->inativo = $array['inativo']  ?? null;
-        $cliente->inscricaoEstadual = $array['inscricao_estadual']  ?? null;
-        $cliente->inscricaoMunicipal = $array['inscricao_municipal']  ?? null;
-        $cliente->inscricaoSuframa = $array['inscricao_suframa']  ?? null;
+        $cliente->inscricao_estadual = $array['inscricao_estadual']  ?? null;
+        $cliente->inscricao_municipal = $array['inscricao_municipal']  ?? null;
+        $cliente->inscricao_suframa = $array['inscricao_suframa']  ?? null;
         $cliente->logradouro = $array['logradouro']  ?? null;
         $cliente->nif = $array['nif']  ?? null;
         $cliente->nomeFantasia = htmlspecialchars_decode($array['nome_fantasia'])  ?? null;
         $cliente->obsDetalhadas = $array['obs_detalhadas']  ?? null;
         $cliente->observacao = $array['observacao']  ?? null;
-        $cliente->simplesNacional = $array['optante_simples_nacional']  ?? null;
+        $cliente->simples_nacional = $array['optante_simples_nacional']  ?? null;
         $cliente->pessoaFisica = $array['pessoa_fisica']  ?? null;
-        $cliente->produtorRural = $array['produtor_rural']  ?? null;
+        $cliente->produtor_rural = $array['produtor_rural']  ?? null;
         $cliente->razaoSocial = htmlspecialchars_decode($array['razao_social'])  ?? null;
-        $cliente->recomendacaoAtraso = $array['recomendacao_atraso']  ?? null;
-        $cliente->codigoVendedor = $array['recomendacoes_codigo_vendedor'] ?? null;
+        $cliente->recomendacao_atraso = $array['recomendacao_atraso']  ?? null;
+        $cliente->codigo_vendedor = $array['recomendacoes_codigo_vendedor'] ?? null;
         $cliente->emailFatura = $array['recomendacoes_email_fatura'] ?? null;
         $cliente->gerarBoletos = $array['recomendacoes_gerar_boletos'] ?? null;
         $cliente->numeroParcelas = $array['recomendacoes_numero_parcelas'] ?? null;
@@ -540,7 +540,7 @@ Class OmieFormatter implements ErpFormattersInterface{
         $cliente->telefoneNumero1 = $array['telefone1_numero'];
         $cliente->telefoneDdd2 = $array['telefone2_ddd'];
         $cliente->telefoneNumero2 = $array['telefone2_numero'];
-        $cliente->tipoAtividade = $array['tipo_atividade'];
+        $cliente->tipo_atividade = $array['tipo_atividade'];
         $cliente->limite_credito = $array['valor_limite_credito'];
 
         $cliente->nome_endereco_entrega = $array['enderecoEntrega_entRazaoSocial'] ?? null;
@@ -653,9 +653,9 @@ Class OmieFormatter implements ErpFormattersInterface{
         //OtherProperties
         $op = [];
 
-        if(!empty($contact->tipoAtividade) || $contact->tipoAtividade == 0){
+        if(!empty($contact->tipo_atividade) || $contact->tipo_atividade == 0){
             
-            $atividade = $this->omieServices->getTipoAtividade( $omie, $contact->tipoAtividade, $name = null);
+            $atividade = $this->omieServices->getTipoAtividade( $omie, $contact->tipo_atividade, $name = null);
             
             foreach($custom['Cliente'] as $c){
                 if($c['SendExternalKey'] === 'bicorp_api_tipo_atividade_out'){
@@ -664,7 +664,7 @@ Class OmieFormatter implements ErpFormattersInterface{
                         
                         if($optAtividade['Name'] === $atividade['cDescricao']){
 
-                            $contact->tipoAtividade = $optAtividade['Id'];
+                            $contact->tipo_atividade = $optAtividade['Id'];
                         }
                     }
                 }
@@ -764,7 +764,7 @@ Class OmieFormatter implements ErpFormattersInterface{
                 {
                     if(isset($custom['bicorp_api_tipo_atividade_out']) && $opt['Id'] === $custom['bicorp_api_tipo_atividade_out']){
                         $atividade = $this->omieServices->getTipoATividade($omie, $id = null, $opt['Name']);
-                        $contact->tipoAtividade = $atividade['cCodigo'];
+                        $contact->tipo_atividade = $atividade['cCodigo'];
                     }
                 }
             }
@@ -782,31 +782,31 @@ Class OmieFormatter implements ErpFormattersInterface{
         //$contact->cicloCompra = $prop['contact_9E595E72-E50C-4E95-9A05-D3B024C177AD'] ?? null;
         //contact_5D5A8D57-A98F-4857-9D11-FCB7397E53CB = inscrição estadual
         // $contact->inscricaoEstadual = $prop['contact_5D5A8D57-A98F-4857-9D11-FCB7397E53CB'] ?? null; //estava com esta linha aqui ativa
-        $contact->inscricaoEstadual = $custom['bicorp_api_inscricao_estadual_out'] ?? null;
+        $contact->inscricao_estadual = $custom['bicorp_api_inscricao_estadual_out'] ?? null;
         //contact_D21FAEED-75B2-40E4-B169-503131EB3609 = inscrição municipal
         // $contact->inscricaoMunicipal = $prop['contact_D21FAEED-75B2-40E4-B169-503131EB3609'] ?? null;
-        $contact->inscricaoMunicipal = $custom['bicorp_api_inscricao_municipal_out'] ?? null;
+        $contact->inscricao_municipal = $custom['bicorp_api_inscricao_municipal_out'] ?? null;
         //contact_3094AFFE-4263-43B6-A14B-8B0708CA1160 = inscrição suframa
         // $contact->inscricaoSuframa = $prop['contact_3094AFFE-4263-43B6-A14B-8B0708CA1160'] ?? null;
-        $contact->inscricaoSuframa = $custom['bicorp_api_inscricao_suframa_out'] ?? null;
+        $contact->inscricao_suframa = $custom['bicorp_api_inscricao_suframa_out'] ?? null;
         //contact_9BB527FD-8277-4D1F-AF99-DD88D5064719 = Simples nacional?(s/n)  
         // $contact->simplesNacional = $prop['contact_9BB527FD-8277-4D1F-AF99-DD88D5064719'] ?? null;//é obrigatório para emissão de nf
-        $contact->simplesNacional = $custom['bicorp_api_simples_nacional_out'] ?? null;//é obrigatório para emissão de nf
-        (isset($contact->simplesNacional) && $contact->simplesNacional !== false) ? $contact->simplesNacional = 'S' : $contact->simplesNacional = 'N';
+        $contact->simples_nacional = $custom['bicorp_api_simples_nacional_out'] ?? null;//é obrigatório para emissão de nf
+        (isset($contact->simples_nacional) && $contact->simples_nacional !== false) ? $contact->simples_nacional = 'S' : $contact->simples_nacional = 'N';
         //contact_3C521209-46BD-4EA5-9F41-34756621CCB4 = contato1
         // $contact->contato1 = $prop['contact_3C521209-46BD-4EA5-9F41-34756621CCB4'] ?? null; //estava com esta linha aqui ativa
         $contact->contato1 = $cliente['Contacts'][0]['Name'] ?? null;
         //contact_F9B60153-6BDF-4040-9C3A-E23B1469894A = Produtor Rural
         // $contact->produtorRural = $prop['contact_F9B60153-6BDF-4040-9C3A-E23B1469894A'] ?? null;
-        $contact->produtorRural = $custom['bicorp_api_produtor_rural_out'] ?? null;
-        (isset($contact->produtorRural) && $contact->produtorRural !== false) ? $contact->produtorRural = 'S' : $contact->produtorRural = 'N';
+        $contact->produtor_rural = $custom['bicorp_api_produtor_rural_out'] ?? null;
+        (isset($contact->produtor_rural) && $contact->produtor_rural !== false) ? $contact->produtor_rural = 'S' : $contact->produtor_rural = 'N';
         //contact_FC16AEA5-E4BF-44CE-83DA-7F33B7D56453 = Contribuinte(s/n)
         // $contact->contribuinte = $prop['contact_FC16AEA5-E4BF-44CE-83DA-7F33B7D56453'] ?? null;
         $contact->contribuinte = $custom['bicorp_api_contribuinte_out'] ?? null;
         (isset($contact->contribuinte) && $contact->contribuinte !== false) ? $contact->contribuinte = 'S' : $contact->contribuinte = 'N';
         //contact_10D27B0F-F9EF-4378-B1A8-099319BAC0AD = limite de crédito
         // $contact->limiteCredito = $prop['contact_10D27B0F-F9EF-4378-B1A8-099319BAC0AD'] ?? null;
-        $contact->limiteCredito = $custom['bicorp_api_limite_credito_out'] ?? null;
+        $contact->limite_credito = $custom['bicorp_api_limite_credito_out'] ?? null;
         //contact_CED4CBAD-92C7-4A51-9985-B9010D27E1A4 = inativo (s/n)
         // $contact->inativo = $prop['contact_CED4CBAD-92C7-4A51-9985-B9010D27E1A4'] ?? null;
         $contact->inativo = strtolower($cliente['Status']['Name']) ?? null;
@@ -1183,14 +1183,14 @@ Class OmieFormatter implements ErpFormattersInterface{
         $clienteJson['bloquear_exclusao'] = $contact->bloquearExclusao ?? null;
         //inicio aba CNAE e Outros
         $clienteJson['cnae'] = $contact->cnaeCode ?? null;//3091102 ?? null;
-        $clienteJson['inscricao_estadual'] = $contact->inscricaoEstadual ?? null;
-        $clienteJson['inscricao_municipal'] = $contact->inscricaoMunicipal ?? null;
-        $clienteJson['inscricao_suframa'] = $contact->inscricaoSuframa ?? null;
-        $clienteJson['optante_simples_nacional'] = $contact->simplesNacional ?? null;
-        $clienteJson['produtor_rural'] = $contact->produtorRural ?? null;
+        $clienteJson['inscricao_estadual'] = $contact->inscricao_estadual ?? null;
+        $clienteJson['inscricao_municipal'] = $contact->inscricao_municipal ?? null;
+        $clienteJson['inscricao_suframa'] = $contact->inscricao_suframa ?? null;
+        $clienteJson['optante_simples_nacional'] = $contact->simples_nacional ?? null;
+        $clienteJson['produtor_rural'] = $contact->produtor_rural ?? null;
         $clienteJson['contribuinte'] = $contact->contribuinte ?? null;
-        $clienteJson['tipo_atividade'] = $contact->tipoAtividade ?? null;
-        $clienteJson['valor_limite_credito'] = $contact->limiteCredito ?? null;
+        $clienteJson['tipo_atividade'] = $contact->tipo_atividade ?? null;
+        $clienteJson['valor_limite_credito'] = $contact->limite_credito ?? null;
         $clienteJson['observacao'] = $contact->observacao ?? null;
         //fim aba CNAE e Outros
         //inicio de enderecos
@@ -1509,8 +1509,10 @@ Class OmieFormatter implements ErpFormattersInterface{
     {   
        
         // $local = ($stock['codigo_local_estoque'] === 6879399409)? 'Padrão' : $stock['codigo_local_estoque'];
-        $html = file_get_contents('http://middleware/src/views/pages/gerenciador.pages.stockTable.php');
-        $tLinha = file_get_contents('http://middleware/src/views/pages/gerenciador.pages.dataStockTable.php');
+        $html = file_get_contents('https://integracao.dev-webmurad.com.br/src/views/pages/gerenciador.pages.stockTable.php');
+        $tLinha = file_get_contents('https://integracao.dev-webmurad.com.br/src/views/pages/gerenciador.pages.dataStockTable.php');
+        // $html = file_get_contents('http://middleware/src/views/pages/gerenciador.pages.stockTable.php');
+        // $tLinha = file_get_contents('http://middleware/src/views/pages/gerenciador.pages.dataStockTable.php');
         
         // $html = file_get_contents('https://integracao.dev-webmurad.com.br/src/views/pages/gerenciador.pages.stockTable.php');
         $linhas = '';
@@ -1922,8 +1924,8 @@ Class OmieFormatter implements ErpFormattersInterface{
         $origem['XMLR'] = 'Conta a Receber Importada de um arquivo XML';
 
         $tr ='';   
-        $html = file_get_contents('http://middleware/src/views/pages/gerenciador.pages.finTable.php');
-        // $html = file_get_contents('https://integracao.dev-webmurad.com.br/src/views/pages/gerenciador.pages.finTable.php');
+        // $html = file_get_contents('http://middleware/src/views/pages/gerenciador.pages.finTable.php');
+        $html = file_get_contents('https://integracao.dev-webmurad.com.br/src/views/pages/gerenciador.pages.finTable.php');
         foreach($financeiro as $fin){
 
             $tipo = $fin['cabecTitulo']['cNatureza'];

@@ -283,8 +283,14 @@ class OrdersFunction{
         $order->ownerId = $orderArray['OwnerId']; // Responsável
         $order->amount = $orderArray['Amount']; // Valor
 
-        //previsão de faturamento
-        $order->previsaoFaturamento = (isset($customFiels['api_bicorp_previsao_faturamento_out']) && !empty($customFiels['api_bicorp_previsao_faturamento_out']))? $customFiels['api_bicorp_previsao_faturamento_out'] : date('Y-m-d');
+         //previsão de faturamento
+        $order->previsaoFaturamento = (isset($customFields['api_bicorp_previsao_faturamento_out']) && !empty($customFields['api_bicorp_previsao_faturamento_out']))? $customFields['api_bicorp_previsao_faturamento_out'] : date('Y-m-d');
+
+        //código da categoria de vendas
+        $order->codigoCategoriaVenda = (isset($customFields['bicorp_api_codigo_categoria_venda_out']) && !empty($customFields['bicorp_api_codigo_categoria_venda_out'])) ? $customFields['bicorp_api_codigo_categoria_venda_out'] : "1.01.03";
+
+        //previsão de entrega
+        $order->previsaoEntrega = (isset($customFields['api_bicorp_previsao_entrega_out']) && !empty($customFields['api_bicorp_previsao_entrega_out'])) ? $customFields['api_bicorp_previsao_entrega_out'] : null;
 
         //template id (tipo de venda produtos ou serviços) **Obrigatório
         $order->templateId = (isset($customFields['bicorp_api_tipo_venda_tratado_out']) && !empty($customFields['bicorp_api_tipo_venda_tratado_out']))? $customFields['bicorp_api_tipo_venda_tratado_out'] : $m[] = 'Erro: não foi possível identificar o tipo de venda (Produtos ou serviços)';
