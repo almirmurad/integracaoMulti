@@ -77,10 +77,9 @@ class OrdersFunction{
         $contentOrder = $formatter->distinctProductsServicesFromOmieOrders($orderArray, $arrayIsServices, $idItemErp, $order);
 
         //insere o projeto e retorna o id
-        // $order->codProjeto = self::insertProjectOmie($erp, $order);
+        (isset($order->projeto) || $order->projeto != null) ? $order->codProjeto = $formatter->insertProjectOmie($erp, $order) : $order->codProjeto = null;
         
         //se o array de produtos tiver conteúdo significa quee é uma venda de produto se não de serviço pra incluir no modulo certo do omie        
-        
         if($arrayIsServices['isService'] === false)
         {
             //monta estrutura Omie para a requisição de pedidos
@@ -293,7 +292,7 @@ class OrdersFunction{
         $order->previsaoEntrega = (isset($customFields['api_bicorp_previsao_entrega_out']) && !empty($customFields['api_bicorp_previsao_entrega_out'])) ? $customFields['api_bicorp_previsao_entrega_out'] : null;
 
         //template id (tipo de venda produtos ou serviços) **Obrigatório
-        $order->templateId = (isset($customFields['bicorp_api_tipo_venda_tratado_out']) && !empty($customFields['bicorp_api_tipo_venda_tratado_out']))? $customFields['bicorp_api_tipo_venda_tratado_out'] : $m[] = 'Erro: não foi possível identificar o tipo de venda (Produtos ou serviços)';
+        $order->templateId = (isset($customFields['bicorp_api_tipo_venda_tratado_out']) && !empty($customFields['bicorp_api_tipo_venda_tratado_out']))? $customFields['bicorp_api_tipo_venda_tratado_out'] : 'produtos';
 
         //recurrence (tipo de venda de serviço é recorrente)
         $order->recurrence = (isset($customFields['bicorp_api_order_recorrencia_out']) && !empty($customFields['bicorp_api_order_recorrencia_out']))? $order->recurrence = true : $order->recurrence = false;
@@ -346,12 +345,36 @@ class OrdersFunction{
         ((isset($customFields['bicorp_api_codigo_modalidade_frete_out'])) && (!empty($customFields['bicorp_api_codigo_modalidade_frete_out']) || $customFields['bicorp_api_codigo_modalidade_frete_out'] === "0")) ? $order->modalidadeFrete = $customFields['bicorp_api_codigo_modalidade_frete_out'] : $order->modalidadeFrete = null;
     
         //projeto
-        $order->projeto = ($customFields['bicorp_api_projeto_out']) ?? $m[]='Erro ao montar pedido para enviar ao Omie ERP: Não foi informado o Projeto';
+        $order->projeto = $customFields['bicorp_api_projeto_out'] ?? null;
 
         //observações da nota
         $order->notes = (isset($customFields['bicorp_api_dados_adicionais_nota_fiscal_out']) ? htmlspecialchars_decode(strip_tags($customFields['bicorp_api_dados_adicionais_nota_fiscal_out'])): null);  
 
         $order->idParcelamento = $customFields['bicorp_api_codigo_condicao_pagamento_out'] ?? null;
+
+        // Endereço de entrega
+        // CNPJ/CPF do recebedor
+        $order->docRecebedorEnderecoEntrega = $customFields['bicorp_api_entrega_doc_recebedor_venda_out'] ?? null;
+        // Nome / Razão Social
+        $order->nomeEnderecoEntrega = $customFields['bicorp_api_entrega_razao_social_venda_out'] ?? null;
+        // Inscrição Estadual
+        $order->ieEnderecoEntrega = $customFields['bicorp_api_entrega_inscircao_estadual_venda_out'] ?? null;
+        // CEP Endereco Entrega
+        $order->cepEnderecoEntrega = $customFields['bicorp_api_entrega_cep_venda_out'] ?? null;
+        // Endereco Entrega
+        $order->enderecoEnderecoEntrega = $customFields['bicorp_api_entrega_endereco_venda_out'] ?? null;
+        // Número
+        $order->numeroEnderecoEntrega = $customFields['bicorp_api_entrega_numero_venda_out'] ?? null;
+        // Complemento
+        $order->complementoEnderecoEntrega = $customFields['bicorp_api_entrega_complemento_venda_out'] ?? null;
+        // Bairro
+        $order->bairroEnderecoEntrega = $customFields['bicorp_api_entrega_bairro_venda_out'] ?? null;
+        // Estado UF
+        $order->ufEnderecoEntrega = $customFields['bicorp_api_entrega_uf_venda_out'] ?? null;
+        // Cidade
+        $order->cidadeEnderecoEntrega = $customFields['bicorp_api_entrega_cidade_venda_out'] ?? null;
+        // Telefone
+        $order->telefoneEnderecoEntrega = $customFields['bicorp_api_entrega_telefone_venda_out'] ?? null;
 
         if(!empty($m)){
             throw new WebhookReadErrorException($m[0], 500);
@@ -361,7 +384,7 @@ class OrdersFunction{
  
     //  private static function insertProjectOmie(object $erp, object $order):string
     //  {
-    //      $project = $this->omieServices->insertProject($erp,  $order->projeto);
+    //      $project = $omieServices->insertProject($erp,  $order->projeto);
  
     //      if(isset($project['faultstring'])){
     //          throw new WebhookReadErrorException('Erro ao cadastrar o Projeto no Omie: ' . $project['faultstring'], 500);
