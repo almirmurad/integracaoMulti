@@ -90,12 +90,27 @@ Class OmieFormatter implements ErpFormattersInterface{
     
         //informações adicionais
         $informacoes_adicionais = []; //informações adicionais por exemplo codigo_categoria = 1.01.03, codigo_conta_corrente = 123456789
+        //enderço de entrega do pedido de venda
+        $outros_detalhes = [];
+        $outros_detalhes['cCnpjCpfOd'] = $order->docRecebedorEnderecoEntrega;
+        $outros_detalhes['cNomeOd'] = $order->nomeEnderecoEntrega;
+        $outros_detalhes['cInscrEstadualOd'] = $order->ieEnderecoEntrega;
+        $outros_detalhes['cEnderecoOd'] = $order->enderecoEnderecoEntrega;
+        $outros_detalhes['cNumeroOd'] = $order->numeroEnderecoEntrega;
+        $outros_detalhes['cComplementoOd'] = $order->complementoEnderecoEntrega;
+        $outros_detalhes['cBairroOd'] = $order->bairroEnderecoEntrega;
+        $outros_detalhes['cEstadoOd'] = $order->ufEnderecoEntrega;
+        $outros_detalhes['cCidadeOd'] = $order->cidadeEnderecoEntrega;
+        $outros_detalhes['cCEPOd'] = $order->cepEnderecoEntrega;
+        $outros_detalhes['cTelefoneOd'] = $order->telefoneEnderecoEntrega;
+
         $informacoes_adicionais['codigo_categoria'] = $order->codigoCategoriaVenda;//string
         $informacoes_adicionais['codigo_conta_corrente'] = $omie->ncc;//int
         $informacoes_adicionais['numero_pedido_cliente']= $order->numPedidoCliente ?? "0";
         $informacoes_adicionais['codVend']= $order->codVendedorErp ?? null;
         $informacoes_adicionais['codproj']= $order->codProjeto ?? null;
         $informacoes_adicionais['dados_adicionais_nf'] = $order->notes;
+        $informacoes_adicionais['outros_detalhes'] = $outros_detalhes;
     
         //observbacoes
         $observacoes =[];
@@ -413,6 +428,18 @@ Class OmieFormatter implements ErpFormattersInterface{
         $det['inf_adic']['item_pedido_compra'] =$prdItem['Ordination']+1;
 
         return $productsOrder[] = $det;
+
+    }
+
+    public function insertProjectOmie(object $erp, object $order):string
+    {
+        $project = $this->omieServices->insertProject($erp,  $order->projeto);
+
+        if(isset($project['faultstring'])){
+            throw new WebhookReadErrorException('Erro ao cadastrar o Projeto no Omie: ' . $project['faultstring'], 500);
+        }else{
+            return $project['codigo'];
+        }
 
     }
 
