@@ -283,13 +283,13 @@ class OrdersFunction{
         $order->amount = $orderArray['Amount']; // Valor
 
          //previsão de faturamento
-        $order->previsaoFaturamento = (isset($customFields['api_bicorp_previsao_faturamento_out']) && !empty($customFields['api_bicorp_previsao_faturamento_out']))? $customFields['api_bicorp_previsao_faturamento_out'] : date('Y-m-d');
+        $order->previsaoFaturamento = (isset($customFields['bicorp_api_previsao_faturamento_out']) && !empty($customFields['bicorp_api_previsao_faturamento_out']))? $customFields['bicorp_api_previsao_faturamento_out'] : date('Y-m-d');
 
         //código da categoria de vendas
         $order->codigoCategoriaVenda = (isset($customFields['bicorp_api_codigo_categoria_venda_out']) && !empty($customFields['bicorp_api_codigo_categoria_venda_out'])) ? $customFields['bicorp_api_codigo_categoria_venda_out'] : "1.01.03";
 
         //previsão de entrega
-        $order->previsaoEntrega = (isset($customFields['api_bicorp_previsao_entrega_out']) && !empty($customFields['api_bicorp_previsao_entrega_out'])) ? $customFields['api_bicorp_previsao_entrega_out'] : null;
+        $order->previsaoEntrega = (isset($customFields['bicorp_api_previsao_entrega_out']) && !empty($customFields['bicorp_api_previsao_entrega_out'])) ? $customFields['bicorp_api_previsao_entrega_out'] : null;
 
         //template id (tipo de venda produtos ou serviços) **Obrigatório
         $order->templateId = (isset($customFields['bicorp_api_tipo_venda_tratado_out']) && !empty($customFields['bicorp_api_tipo_venda_tratado_out']))? $customFields['bicorp_api_tipo_venda_tratado_out'] : 'produtos';

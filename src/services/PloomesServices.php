@@ -196,12 +196,12 @@ class PloomesServices implements PloomesManagerInterface{
     }
 
     //encontra cliente no ploomes pelo CNPJ
-    public function consultaClientePloomesCnpj(string $cnpj){
-
+    public function consultaClientePloomesCnpj(string $cnpj)
+    {
+        $filter = "CNPJ+eq+'{$cnpj}'";
         $curl = curl_init();
-
         curl_setopt_array($curl, array(
-            CURLOPT_URL => $this->baseApi .'Contacts?$filter=CNPJ+eq+'."'$cnpj'",
+            CURLOPT_URL => $this->baseApi ."Contacts?\$filter={$filter}",
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_ENCODING => '',
             CURLOPT_MAXREDIRS => 10,

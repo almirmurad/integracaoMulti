@@ -499,7 +499,9 @@ Class OmieFormatter implements ErpFormattersInterface{
 
         $chave = 'id_cliente_erp_' . $omieApp['app_name'];
         $cliente->$chave = $array['codigo_cliente_omie'];
-    
+
+        $keyIntegrar ='integrar_base_'.$omieApp['app_name'];
+        
         //$cliente->messageId = $array['messageId'];
         // $cliente->topic = $array['topic'];
         $cliente->bairro = $array['bairro'] ?? null;
@@ -531,8 +533,9 @@ Class OmieFormatter implements ErpFormattersInterface{
         $cliente->faxNumero = $array['fax_numero']  ?? null;
         $cliente->homepage = $array['homepage']  ?? null;
         $cliente->inativo = $array['inativo']  ?? null;
+        $cliente->$keyIntegrar = ($cliente->inativo === 'N') ? true : false;
         $cliente->inscricao_estadual = $array['inscricao_estadual']  ?? null;
-        $cliente->inscricao_municipal = $array['inscricao_municipal']  ?? null;
+        $cliente->inscricao_municipal = $array['inscricao_municipal']  ?? null;       
         $cliente->inscricao_suframa = $array['inscricao_suframa']  ?? null;
         $cliente->logradouro = $array['logradouro']  ?? null;
         $cliente->nif = $array['nif']  ?? null;
@@ -721,14 +724,10 @@ Class OmieFormatter implements ErpFormattersInterface{
             $data['Tags'] = $tags;
         }else{
             $data['Tags'] = null;
-        }     
-        // print_r($custom['Cliente']);
-         
+        }    
+                     
         $op = CustomFieldsFunction::createOtherPropertiesByEntity($custom['Cliente'], $contact);
 
-        // print_r($op);
-        // exit;
-        
         $data['OtherProperties'] = $op;
         
         $json = json_encode($data,JSON_UNESCAPED_UNICODE);
@@ -999,18 +998,17 @@ Class OmieFormatter implements ErpFormattersInterface{
         $contact->tags = $tags;
 
         $enderecoEntrega = [
-            'entRazaoSocial'=>$custom['bicorp_api_nome_endereco_entrega_out'],
-            'entCnpjCpf'=>$custom['bicorp_api_cpf_cnpj_recebedor_out'],
-            'entEndereco'=>$custom['bicorp_api_endereco_endereco_entrega_out'],
-            'entNumero'=>$custom['bicorp_api_numero_endereco_entrega_out'],
-            'entComplemento'=>$custom['bicorp_api_complemento_endereco_entrega_out'],
-            'entBairro'=>$custom['bicorp_api_bairro_endereco_entrega_out'],
-            'entCEP'=>$custom['bicorp_api_cep_endereco_entrega_out'],
-            'entEstado'=>$custom['bicorp_api_estado_endereco_entrega_out'],
+            'entCnpjCpf'=>$custom['bicorp_api_cpf_cnpj_recebedor_out'] ?? null,
+            'entEndereco'=>$custom['bicorp_api_endereco_endereco_entrega_out'] ?? null,
+            'entNumero'=>$custom['bicorp_api_numero_endereco_entrega_out'] ?? null,
+            'entComplemento'=>$custom['bicorp_api_complemento_endereco_entrega_out']?? null,
+            'entBairro'=>$custom['bicorp_api_bairro_endereco_entrega_out'] ?? null,
+            'entCEP'=>$custom['bicorp_api_cep_endereco_entrega_out'] ?? null,
+            'entEstado'=>$custom['bicorp_api_estado_endereco_entrega_out'] ?? null,
             // 'entEstado'=>'PR',
-            'entCidade'=>$custom['bicorp_api_cidade_endereco_entrega_out'],
-            'entTelefone'=>$custom['bicorp_api_telefone_endereco_entrega_out'],
-            'entIE'=>$custom['bicorp_api_inscricao_estadual_endereco_entrega_out'],
+            'entCidade'=>$custom['bicorp_api_cidade_endereco_entrega_out'] ?? null,
+            'entTelefone'=>$custom['bicorp_api_telefone_endereco_entrega_out'] ?? null,
+            'entIE'=>$custom['bicorp_api_inscricao_estadual_endereco_entrega_out'] ?? null,
             'entSepararEndereco'=>'S',
         ];
 
@@ -2443,7 +2441,7 @@ Class OmieFormatter implements ErpFormattersInterface{
             }
 
         }else{
-            $message['success'] = 'Integração concluída com sucesso! Produto Ploomes id: '.$pProduct['Id'].' alterado no Ploomes CRM com sucesso. Produto do tipo '.$args['event']['tipoItem'].' não contém estrutura: ';
+            $message['success'] = 'Integração concluída com sucesso! Produto Ploomes id: '.$pProduct['Id'].' alterado no Ploomes CRM com sucesso. Produto do tipo '.$args['body']['event']['tipoItem'].' não contém estrutura: ';
         }
 
         return $message;
