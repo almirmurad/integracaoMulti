@@ -5,6 +5,7 @@ namespace src\controllers;
 use core\Controller;
 use src\exceptions\WebhookReadErrorException;
 use src\factories\ErpFormatterFactory;
+use src\functions\CustomFieldsFunction;
 use src\functions\DiverseFunctions;
 use src\handlers\LoginHandler;
 use src\handlers\OmnismartHandler;
@@ -25,6 +26,7 @@ class OmnismartController extends Controller
 
     public function __construct($args)
     {
+        
         $ploomesBase = $args['Tenancy']['ploomes_bases'][0];
         $omnismart = $args['Tenancy']['omnichannel'][0];
 
@@ -52,16 +54,15 @@ class OmnismartController extends Controller
             
             $omnismartHandler = $this->getOmnismartHandler();            
             $action = DiverseFunctions::findAction($args);            
-             if ($action['type'] !== 'ASSIGN') {
-                throw new WebhookReadErrorException('Não havia uma atribuição do chat ao agente do omnismart', 500);       
+             if ($action['type'] !== 'INITATT') {
+                throw new WebhookReadErrorException('Ação não foi o início de um atendimento. Webhook descartado!', 500);       
             }
             $response = $omnismartHandler->saveClientHook($json, $idUser);
 
             // $rk = origem.entidade.ação
             $rk = array('Omnismart', 'Contacts');
             $this->rabbitMQServices->publicarMensagem('contacts_exc', $rk, 'omnismart_contacts',  $json);
-            
-
+           
             if ($response > 0) {
                 $message = [
                     'status_code' => 200,
@@ -141,6 +142,13 @@ class OmnismartController extends Controller
         $json = json_encode($args['body']);
         
         try {
+
+            $customFields = CustomFieldsFunction::compareCustomFields($args['body']['New']['OtherProperties'], $idUser,'Negócio' );
+            $idChat = $customFields['bicorp_api_id_chat_out'] ?? null;
+            
+            if(!isset($idChat) || $idChat === null){
+                throw new WebhookReadErrorException('Card fechado no Ploomes, porém não foi criado pela integração', 500);
+            }
             
             $omnismartHandler = $this->getOmnismartHandler();            
             // $action = DiverseFunctions::findAction($args);            

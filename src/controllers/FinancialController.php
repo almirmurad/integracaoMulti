@@ -193,35 +193,5 @@ class FinancialController extends Controller
         }
     }
 
-    public function nasajonClients()
-    {
-
-        // Definir cabeçalhos CORS
-        header("Access-Control-Allow-Origin: *");
-        header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
-        header("Access-Control-Allow-Headers: Content-Type, Authorization");
-        header("Content-Type: application/json");
-
-        // Se for uma requisição OPTIONS (preflight), apenas retornar status 200 e encerrar
-        if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-            http_response_code(200);
-            exit();
-        }
-
-        // Receber JSON normalmente
-        $json = file_get_contents('php://input');
-
-        ob_start();
-        print_r($json);
-        $input = ob_get_contents();
-        ob_end_clean();
-        file_put_contents('./assets/nasajon.log', $input . PHP_EOL, FILE_APPEND);
-
-        $r = [
-            'pong' => true
-        ];
-        $jsonR = json_encode($r);
-
-        return print $jsonR;
-    }
+  
 }

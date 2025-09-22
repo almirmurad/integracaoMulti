@@ -24,11 +24,12 @@ class OmnismartFunctions
         $assignAgent = [];
         $pipeline = [];
         $owner = new stdClass();
+        $tag ='';
 
         $idChat = $decoded['data']['_id'];
         //atendimento atribuido ao agente independente de quem enviou
-        if ($action['type'] !== 'ASSIGN') {
-            throw new WebhookReadErrorException('Não era uma atribuição', 500);       
+        if ($action['type'] !== 'INITATT') {
+            throw new WebhookReadErrorException('Ação não foi o início de um atendimento', 500);       
         }
 
         $chat = $omnismartServices->chatGetOne($idChat);
@@ -45,29 +46,67 @@ class OmnismartFunctions
         $contact = $chat['contact'];
         $assignAgent = $chat['agent'];
         $assignTeam  = $chat['team'];
+
+        // print_r($assignAgent['name']);
+        // print_r($contact['name']);
+        // print_r($assignTeam['name']);
+        // exit;
     
         $owner->owner = $assignAgent['name'] ?? null;
         $owner->mailVendedor = $assignAgent['email'] ?? null;
         ($owner->mailVendedor) ? $owner->ploomesOwnerId = $ploomesServices->ownerId($owner) : $owner->ploomesOwnerId = null;
-        $contact['ownerId'] = $owner->ploomesOwnerId;
-
-        $contactJson = self::contactPloomesJson($contact);
-        if (!$contactJson) {
-            throw new WebhookReadErrorException('Não foi possível montar os dados do contato', 500);
-        }
+        $contact['ownerId'] = $owner->ploomesOwnerId;       
 
         $pipeline['pipelineId'] = $ploomesServices->getPipelineByName($assignTeam['name']);
+
+        if(!isset($pipeline['pipelineId']) || $pipeline['pipelineId'] === null){
+             throw new WebhookReadErrorException('Funil de Destino não foi encontrado no Ploomes', 500);
+        }
+
         $pipeline['stageId'] = $ploomesServices->getPipelineStagesByPipelineId($pipeline['pipelineId']);
         
         //verifica se o cliente já existe no ploomes
         $pContact = $ploomesServices->getClientByPhone(DiverseFunctions::formatarTelefone($contact['telephones'][0]));
 
         //titulo do card
-        $title =  "Integração Omnismart - [Cliente {$contact['name']}] Atendimento atribuído ao Agente {$assignAgent['name']} do time {$assignTeam['name']}";
+        $title = $contact['name'];
+        // $title =  "Integração Omnismart - [Cliente {$contact['name']}] Atendimento atribuído ao Agente {$assignAgent['name']} do time {$assignTeam['name']}";
         
         //primeiro contato 
         if(!$pContact) 
         {   
+            //seta a tag como lead
+            $tag = 'LEAD';
+            $entityId = 1;
+            $tags = $ploomesServices->getTagsByEntityId(1);
+            
+            if(!empty($tags)){
+                //se a tag não existe cria
+                foreach($tags as $oneTag)
+                {
+                    //verifica se a tag já existe
+                    if(mb_strtolower($oneTag['Name']) === mb_strtolower($tag))
+                    {
+                        //se já existe atribui a $pTagId
+                        $contact['tagId'] = $oneTag['Id'];
+                        break;
+                    }
+                }
+
+            }else{
+                //se a tag não existe cria
+                //cor da tag
+                $hexa = '#'. str_pad(rand(0, 999999), 6, '0', STR_PAD_LEFT);
+                $contact['tagId'] = $ploomesServices->insertTag($tag, $entityId, $hexa) ?? null;
+
+            }
+
+            $contactJson = self::contactPloomesJson($contact);
+            
+            if (!$contactJson) {
+                throw new WebhookReadErrorException('Não foi possível montar os dados do contato', 500);
+            }
+
             $createContactPloomes = $ploomesServices->createPloomesPerson($contactJson);
             if ($createContactPloomes <= 0) {
                 throw new WebhookReadErrorException('Não foi possível cadastrar contato no Ploomes', 500);
@@ -89,6 +128,53 @@ class OmnismartFunctions
         } 
         else //recompra ou transferência entre agentes do time de vendas
         {  
+            
+            //seta a tag como prospect
+            foreach($pContact['Tags'] as $cTag){
+
+               if($cTag['Tag']['Name'] === 'CUSTOMER'){
+
+                $tag = $cTag['Tag']['Name'];
+                $contact['tagId'] = $cTag['TagId'];
+                break;
+
+               }
+            }
+
+            if(empty($tag)){
+                $tag = 'PROSPECT';
+                $entityId = 1;
+
+                $tags = $ploomesServices->getTagsByEntityId(1);       
+     
+                if(!empty($tags)){
+                    //se a tag não existe cria
+                    foreach($tags as $oneTag)
+                    {
+                        //verifica se a tag já existe
+                        if(mb_strtolower($oneTag['Name']) === mb_strtolower($tag))
+                        {
+                            //se já existe atribui a $pTagId
+                            $contact['tagId'] = $oneTag['Id'];
+                            break;
+                        }
+                    }
+
+                }else{
+                    //se a tag não existe cria
+                    //cor da tag
+                    $hexa = '#'. str_pad(rand(0, 999999), 6, '0', STR_PAD_LEFT);
+                    $contact['tagId'] = $ploomesServices->insertTag($tag, $entityId, $hexa) ?? null;
+
+                }
+
+            }
+            
+            $contactJson = self::contactPloomesJson($contact);
+            
+            if (!$contactJson) {
+                throw new WebhookReadErrorException('Não foi possível montar os dados do contato', 500);
+            }
                     
             //1) atualiza os dados do cliente ou se o email foi alterado pelo sdr no omnismart.
             $ploomesServices->updatePloomesContact($contactJson, $pContact['Id']);
@@ -164,8 +250,13 @@ class OmnismartFunctions
         $idUser = $args['Tenancy']['tenancies']['user_id'];
         $idChat = '';
         // card perdido no Ploomes
+        
         $customFields = CustomFieldsFunction::compareCustomFields($args['body']['New']['OtherProperties'], $idUser,'Negócio' );
         $idChat = $customFields['bicorp_api_id_chat_out'];
+
+        if(!isset($idChat) || empty($idChat) || $idChat === null){
+            throw new WebhookReadErrorException('Card fechado no Ploomes, porém não foi criado pela integração', 500);
+        }
 
         $chat = $omnismartServices->chatGetOne($idChat);
 
@@ -175,17 +266,18 @@ class OmnismartFunctions
             throw new WebhookReadErrorException('Não era um webhook de card perdido', 500);
         }
 
+        $ploomesCard = self::getCardByIdChat($idChat, $ploomesServices);
+        $status = match($ploomesCard['StatusId'])
+        {
+            1 => 'aberto',
+            2 => 'ganho',
+            3 => 'perdido'
+        };
+            
+
         $closeChat = self::closeChatOmnichannel($idChat, $idAgent, $omnismartServices); // encerra chat omnismart
         
         if($closeChat){
-
-            $ploomesCard = self::getCardByIdChat($idChat, $ploomesServices);
-            $status = match($ploomesCard['StatusId'])
-                {
-                    1 => 'aberto',
-                    2 => 'ganho',
-                    3 => 'perdido'
-                };
 
             $content = "ATENÇÃO! -  O atendimento do Card [{$ploomesCard['Id']}] foi encerrado no Omnismart após o card ter sido {$status}.";
 
@@ -197,10 +289,22 @@ class OmnismartFunctions
             ];
 
             ($ploomesServices->createPloomesIteraction(json_encode($arrayInteractionMessage))) ? $message['success'] = "Card {$ploomesCard['Id']} foi {$status}. Foi finalizado o atendimanto no Omnismart e enviado uma interação no card e no cliente. {$current} " : throw new WebhookReadErrorException("Card {$ploomesCard['Id']} se encontra {$status}. Houve um erro ao enviar interação no card e no cliente após a finalização do atendimento no Omnismart. {$current}");
+        }else{
+
+            $content = "ATENÇÃO! - Atendimento do Card [{$ploomesCard['Id']}], no Omnismart já havia sido encerrado na plataforma.";
+
+            $arrayInteractionMessage=[
+                'DealId' => $ploomesCard['Id'],
+                'ContactId' => $ploomesCard['ContactId'],
+                'Content' => $content,
+                'Title' => "Erro ao finalizar atendimento no Omnismart {$status}"
+            ];
+
+            ($ploomesServices->createPloomesIteraction(json_encode($arrayInteractionMessage))) ? $message['success'] = "Card {$ploomesCard['Id']} foi {$status} porém o atendimento já havia sido finalizado no Omnismart. Enviado uma interação no card e no cliente. {$current} " : throw new WebhookReadErrorException("Card {$ploomesCard['Id']} se encontra {$status}. Houve um erro ao enviar interação no card e no cliente após a finalização do atendimento no Omnismart. {$current}");
+
         }
 
         $message['success'] = $content;
-       
         
         return $message;
 
@@ -216,6 +320,12 @@ class OmnismartFunctions
                 [
                     'PhoneNumber' => DiverseFunctions::formatarTelefone($contact['telephones'][0]),
                     'TypeId' => 1,
+                ],
+            ],
+            'Tags' => [
+                [
+                    "TagId" => $contact['tagId']
+                    
                 ],
             ],
             'OwnerId' => $contact['ownerId']
@@ -278,11 +388,14 @@ class OmnismartFunctions
             "agent" => $idAgent
         ];
 
-        if($omnismartServices->closeChat(json_encode($array))){
+          if($omnismartServices->closeChat(json_encode($array))){
             return true;
+        }else{
+            return false;
         }
+       
         
-        throw new WebhookReadErrorException('Erro ao finalizar o chat', 500);
+       // throw new WebhookReadErrorException('Erro ao finalizar o chat', 500);
         
 
     }

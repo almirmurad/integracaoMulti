@@ -310,7 +310,8 @@ class PloomesServices implements PloomesManagerInterface{
         // $encodedPhone = rawurlencode($phone);
         $filter = rawurlencode("Phones/any(c1: (c1/PhoneNumber eq '$phone'))");
 
-        $url = $this->baseApi.'Contacts?$filter='.$filter.'&$select=Id';
+        // $url = $this->baseApi.'Contacts?$filter='.$filter.'&$select=Id';
+        $url = $this->baseApi.'Contacts?$filter='.$filter.'&$expand=Tags($expand=Tag)';//($select=Name)
         // print_r($url);
         // exit;
         $curl = curl_init();
@@ -930,6 +931,39 @@ class PloomesServices implements PloomesManagerInterface{
         // exit;
         return $response['value'][0] ?? [];
 
+    }
+
+    public function insertTag( string $tagName, int $entityId, string $color ):int|bool
+    {
+        $tagArray = [
+                    'Name' => $tagName,
+                    'EntityId'=>1,
+                    'Color' => $color
+                ];
+
+        $json = json_encode($tagArray);
+
+        $curl = curl_init();
+
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => $this->baseApi . 'Tags',//ENDPOINT PLOOMES
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST =>strtoupper($this->method[1]),
+            CURLOPT_POSTFIELDS => $json,
+            CURLOPT_HTTPHEADER => $this->headers
+        ));
+
+        $response = json_decode(curl_exec($curl),true);
+        curl_close($curl);
+
+        $id = $response['value'][0]['Id']??Null;
+
+        return ($id !== null) ? $id : false;
     }
 
     public function getTagsByEntityId($entityId){
