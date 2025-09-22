@@ -7,6 +7,7 @@ use Exception;
 use PhpAmqpLib\Connection\AMQPStreamConnection;
 use PhpAmqpLib\Message\AMQPMessage;
 use PhpAmqpLib\Wire\AMQPTable;
+use src\exceptions\WebhookReadErrorException;
 
 class RabbitMQServices {
     private $connection;
@@ -48,7 +49,7 @@ class RabbitMQServices {
 
         } catch (Exception $e) {
             error_log("Erro ao conectar no RabbitMQ: " . $e->getMessage());
-            throw $e;
+            throw new WebhookReadErrorException("Erro ao conectar no RabbitMQ: " .$e->getMessage(), 500);
         }
     }
 
@@ -200,7 +201,7 @@ class RabbitMQServices {
             error_log("Erro ao publicar mensagem: " . $e->getMessage());
             // tenta reconectar uma vez
             $this->connect();
-            throw $e;
+            throw new WebhookReadErrorException("Erro ao publicar mensagem: " . $e->getMessage(), 500);
         }
     }
 
@@ -223,6 +224,7 @@ class RabbitMQServices {
     } catch (\Exception $e) {
         // só loga, não deixa estourar fatal
         error_log("Erro ao fechar RabbitMQ: " . $e->getMessage());
+        throw new WebhookReadErrorException("Erro ao fechar RabbitMQ: " . $e->getMessage(), 500);
     }
 }
 

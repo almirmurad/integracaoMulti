@@ -145,7 +145,7 @@ return [
         ],   
         '/finishDeal'=>[
             'callback' => 'OmnismartController@finishDeal', //nova interação
-            'middlewares' => [RequestMiddleware::class]
+            'middlewares' => [RequestMiddleware::class, LoadCustomFieldsMiddleware::class]
         ],              
     ]
 ];

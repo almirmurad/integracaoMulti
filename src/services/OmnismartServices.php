@@ -47,7 +47,7 @@ class OmnismartServices implements OmnichannelManagerInterface{
         $response =json_decode($response, true);
         curl_close($curl);
 
-        if(isset($response['error'])){
+        if(isset($response['error']) || $response === null){
             return false;
         }else{
             return true;

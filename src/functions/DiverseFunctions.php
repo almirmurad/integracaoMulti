@@ -163,6 +163,9 @@ class DiverseFunctions{
                                 // $type = 'AGENTToSUP';
                             
                             
+                        }elseif(  $step['type'] === 'initAttendance')
+                        {
+                            $type = 'INITATT';
                         }
                     }
                 }
