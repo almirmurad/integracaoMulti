@@ -632,6 +632,8 @@ class OmieServices implements ErpManagerInterface{
     //busca cliente pelo ID
     public function getClientById( $contact)
     { 
+        // print_r($contact);
+        // exit;
         $jsonOmieIdCliente = [
             'app_key' => $omie->appKey ?? $this->appKey,
             'app_secret' => $omie->appSecret ?? $this->appSecret,
@@ -669,6 +671,51 @@ class OmieServices implements ErpManagerInterface{
         return json_decode($response, true);
         
         
+    }
+    
+    //busca cliente pelo ID
+    public function getCaracteristicasClienteByid($contact)
+    { 
+        // print_r($contact);
+        // exit;
+        $jsonOmieIdCliente = [
+            'app_key' => $omie->appKey ?? $this->appKey,
+            'app_secret' => $omie->appSecret ?? $this->appSecret,
+            'call' => 'ConsultarCaractCliente',
+            'param' => [
+                [
+                    'codigo_cliente_omie'=>$contact->codigoClienteOmie
+                    ]
+                    ]
+                ];
+                
+        $jsonCnpj = json_encode($jsonOmieIdCliente);
+
+        $curl = curl_init();
+
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => 'https://app.omie.com.br/api/v1/geral/clientescaract/',
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => 'POST',
+            CURLOPT_POSTFIELDS => $jsonCnpj,
+            CURLOPT_HTTPHEADER => array(
+                'Content-Type: application/json'
+            ),
+        ));
+
+        $response = curl_exec($curl);
+
+        curl_close($curl);
+     
+        $r = json_decode($response, true);
+        
+  
+        return (!isset($r['faultstring'])) ? $r : false;
     }
 
     //busca cliente pelo ID

@@ -25,6 +25,10 @@ class Request {
         return json_decode($this->body, true) ?? [];
     }
 
+    public function getQuery(): array {
+        return $this->query ?? [];
+    }
+
     public function getJsonHeaders(): array {
         return $this->headers ?? [];
     }

@@ -11,7 +11,7 @@ class RouterBase {
     public function run($routes) {
         $method = Request::getMethod();
         $url = Request::getUrl();
-    
+
         $controller = $_ENV['ERROR_CONTROLLER'];
         $action = $_ENV['DEFAULT_ACTION'];
         $args = [];

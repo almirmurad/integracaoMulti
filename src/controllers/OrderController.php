@@ -20,7 +20,7 @@ class OrderController extends Controller {
     private $loggedUser;
     private $ploomesServices;
     private $databaseServices;
-    // private $rabbitMQServices;
+    private $rabbitMQServices;
     private $formatter;
 
 
@@ -33,7 +33,7 @@ class OrderController extends Controller {
         $vhost = $args['Tenancy']['vhost'][0];
         $this->ploomesServices = new PloomesServices($ploomesBase);
         $this->databaseServices = new DatabaseServices();
-        // $this->rabbitMQServices = new RabbitMQServices($vhost);
+        $this->rabbitMQServices = new RabbitMQServices($vhost);
     }
 
     private function getOrderHandler($args): OrderHandler
@@ -59,7 +59,7 @@ class OrderController extends Controller {
                         
             // $rk = origem.entidade.ação
             $rk = array('Ploomes','Orders');
-            // $this->rabbitMQServices->publicarMensagem('orders_exc', $rk, 'ploomes_orders',  $json);
+            $this->rabbitMQServices->publicarMensagem('orders_exc', $rk, 'ploomes_orders',  $json);
 
             if ($response > 0) {
 
@@ -101,7 +101,7 @@ class OrderController extends Controller {
             $orderHandler = $this->getOrderHandler($args);
 
             $response = $orderHandler->startProcess($args);
-
+            
             $message =[
                 'status_code' => 200,
                 'status_message' => $response,
@@ -139,6 +139,54 @@ class OrderController extends Controller {
             //return print $message['status_message']['winDeal']['success'];
         }
 
+    }
+
+    public function erpOrder($args)
+    {
+        $idUser = $args['Tenancy']['tenancies']['user_id'];
+        
+        $json = json_encode($args['body']);
+        $message = [];
+
+        try{
+
+            $orderHandler = $this->getOrderHandler($args);
+            $orderHandler->detectLoop($args);
+            $response = $orderHandler->saveDealHook($json, $idUser);
+                        
+            // $rk = origem.entidade.ação
+            $rk = array('Erp','Orders');
+            $this->rabbitMQServices->publicarMensagem('orders_exc', $rk, 'erp_orders',  $json);
+
+            if ($response > 0) {
+
+                $message =[
+                    'status_code' => 200,
+                    'status_message' => 'SUCCESS: '. $response['msg'],
+                ];  
+            }
+
+        }catch(WebhookReadErrorException $e){        
+        }
+        finally{
+            if(isset($e)){
+                
+                $message =[
+                    'status_code' => 500,
+                    'status_message' => $e->getMessage(),
+                ];
+
+                ob_start();
+                var_dump($e->getMessage());
+                $input = ob_get_contents();
+                ob_end_clean();
+                file_put_contents('./assets/orders.log', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
+
+                return print 'ERROR:'. $message['status_code'].'. MESSAGE: ' .$message['status_message'];
+            }
+             
+            return print $message['status_message'];
+        }        
     }
 
 

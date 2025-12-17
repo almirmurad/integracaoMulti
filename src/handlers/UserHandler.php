@@ -53,6 +53,7 @@ class UserHandler {
                 'email'     => $data['mail'],
                 'password'  => $hash,
                 'type' => 1,
+                'mkt_platform_name' => $data['mkt-platform_name'],
                 'erp_name' => $data['erpName'],
                 'subdomain' => $data['subdomain'],
                 'id_permission' => 1,

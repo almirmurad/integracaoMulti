@@ -92,7 +92,8 @@ class FinancialFunctions{
         $dFinanceiro = $formatter->getFinHistory($contactFinancial);
         $contactFinancial->tabela_financeiro = $dFinanceiro['table'];
         $contactFinancial->status_financeiro = ucfirst($dFinanceiro['status']);
-        
+        // print_r($contactFinancial->tabela_financeiro);
+        // exit;
         $json = $formatter->createPloomesContactFinancialFromErpObject($contactFinancial, $ploomesServices);      
 
         $idContact = $ploomesServices->consultaClientePloomesCnpj(DiverseFunctions::limpa_cpf_cnpj($contactFinancial->cnpjCpf));

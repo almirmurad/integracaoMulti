@@ -14,7 +14,7 @@ use src\models\User;
 class TenancyController extends Controller
 {
 
-    private $loggedUser;
+    private $loggedUser; 
 
     // public function __construct(){
 
@@ -37,7 +37,7 @@ class TenancyController extends Controller
 
     public function listApiUsers()
     {
-
+        header('Content-Type: application/json');
         $users = UserHandler::listAllUsers();
 
         if($users > 0){
@@ -46,12 +46,16 @@ class TenancyController extends Controller
             $response['status'] = 200;
             $response['content'] = $users;
             
-            return print_r(json_encode($response));
+            print json_encode($response, JSON_UNESCAPED_UNICODE);
+            exit;
         }else{
 
             $response = [];
             $response['status'] = 500;
             $response['content'] = 'Erro ao buscar usuários cadastrados!';
+
+            print json_encode($response, JSON_UNESCAPED_UNICODE);
+            exit;
 
         }
 
@@ -67,7 +71,7 @@ class TenancyController extends Controller
     public function createNewTenancyAction()
     {
        
-
+        header('Content-Type: application/json');
         $json = file_get_contents('php://input');
        
         $data = json_decode($json, true); 
@@ -78,18 +82,22 @@ class TenancyController extends Controller
         if($id){
             $response['status'] = 200;
             $response['content'] = $id;
-            return print_r(json_encode($response));        
+
+            print json_encode($response, JSON_UNESCAPED_UNICODE);
+            exit;      
         }else{
             $response['status'] = 500;
             $response['content'] = 'Erro ao gravar o tenancy na base de dados da API integração';
-            return print_r(json_encode($response));
+
+            print json_encode($response, JSON_UNESCAPED_UNICODE);
+            exit;
         }
        
     }
 
     public function allInfoUserApi($idTenancy)
     {   
-        
+        header('Content-Type: application/json');
         $response =[];
         //recebe todas as informações do usuário de api pelo código
         $t = TenancyHandler::getAllInfoUserAPi($idTenancy['id']);
@@ -98,35 +106,64 @@ class TenancyController extends Controller
             $response['status'] = 500;
             $response['content'] = $t['error'];
             
-            return print json_encode($response);
+            print json_encode($response, JSON_UNESCAPED_UNICODE);
+            exit;
         }
         
         $response['status'] = 200;
         $response['content'] = $t;
 
-        return print json_encode($response);
+        print json_encode($response, JSON_UNESCAPED_UNICODE);
+        exit;
 
     }
 
     //na evolução do sitema teremos um create new ERP
     public function createNewAppErp()
     {
+        header('Content-Type: application/json');
         $this->loggedUser  = LoginHandler::checkLogin();
 
         $json = file_get_contents('php://input');
         
         $data = json_decode($json, true);        
-        
                 
         if($this->loggedUser)
         {                
             $response = AppsHandler::createNewAppErp($data);
 
-            return print_r(json_encode($response));
+            print json_encode($response, JSON_UNESCAPED_UNICODE);
+            exit;
+        }else{
+
+            $response['status'] = 200;
+            $response['content'] = 'Não foi possível logar encontrar o usuário logado na API';
+
+            print json_encode($response, JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+    }
+
+    public function createNewAppMkt()
+    {
+        header('Content-Type: application/json');
+        $this->loggedUser  = LoginHandler::checkLogin();
+
+        $json = file_get_contents('php://input');
+        
+        $data = json_decode($json, true);        
+                        
+        
+        if($this->loggedUser)
+        {                
+            $response = AppsHandler::createNewAppMkt($data);
+            print json_encode($response, JSON_UNESCAPED_UNICODE);
+            exit;
         }else{
             $response['status'] = 200;
             $response['content'] = 'Não foi possível logar encontrar o usuário logado na API';
-            return print_r(json_encode($response));     
+            print json_encode($response, JSON_UNESCAPED_UNICODE);    
+            exit; 
         }
     }
 
@@ -134,6 +171,7 @@ class TenancyController extends Controller
     //na evolução do sitema teremos um create new CRM
     public function createNewAppPloomes()
     {
+        header('Content-Type: application/json');
         $this->loggedUser  = LoginHandler::checkLogin();
 
         $json = file_get_contents('php://input');
@@ -144,17 +182,20 @@ class TenancyController extends Controller
         {                
             $response = AppsHandler::createNewAppPloomes($data);
 
-            return print_r(json_encode($response));
+            print json_encode($response, JSON_UNESCAPED_UNICODE);
+            exit;
         }else{
             $response['status'] = 200;
             $response['content'] = 'Não foi possível logar encontrar o usuário logado na API';
-            return print_r(json_encode($response));     
+            print json_encode($response, JSON_UNESCAPED_UNICODE);
+            exit;     
         }
     }
 
         //na evolução do sitema teremos um create new CRM
     public function createNewAppOmni()
     {
+        header('Content-Type: application/json');
         $this->loggedUser  = LoginHandler::checkLogin();
 
         $json = file_get_contents('php://input');
@@ -165,15 +206,18 @@ class TenancyController extends Controller
         {                
             $response = AppsHandler::createNewAppOmni($data);
 
-            return print_r(json_encode($response));
+            print json_encode($response, JSON_UNESCAPED_UNICODE);
+            exit; 
         }else{
             $response['status'] = 200;
             $response['content'] = 'Não foi possível logar encontrar o usuário logado na API';
-            return print_r(json_encode($response));     
+            print json_encode($response, JSON_UNESCAPED_UNICODE);
+            exit;      
         }
     }
 
     public function createVhostRabbitMQ(){
+        header('Content-Type: application/json');
         $this->loggedUser  = LoginHandler::checkLogin();
 
         $json = file_get_contents('php://input');
@@ -184,13 +228,16 @@ class TenancyController extends Controller
         {                
             $response = AppsHandler::createVhostRabbitMQ($data);
 
-            return print_r(json_encode($response));
+            print json_encode($response, JSON_UNESCAPED_UNICODE);
+            exit; 
         }else{
             $response['status'] = 200;
             $response['content'] = 'Não foi possível logar encontrar o usuário logado na API';
-            return print_r(json_encode($response));     
+            print json_encode($response, JSON_UNESCAPED_UNICODE);
+            exit;   
         }
     }
+
 
     
 }

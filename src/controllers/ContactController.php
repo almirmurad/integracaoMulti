@@ -23,13 +23,15 @@ class ContactController extends Controller
 
     public function __construct($args)
     {
+      
         $ploomesBase = $args['Tenancy']['ploomes_bases'][0];
 
         $args['Tenancy']['vhost'][0]['key'] = $args['Tenancy']['tenancies']['cpf_cnpj'];
         $vhost = $args['Tenancy']['vhost'][0];
         $this->ploomesServices = new PloomesServices($ploomesBase);
+          
         $this->databaseServices = new DatabaseServices();
-        //$this->rabbitMQServices = new RabbitMQServices($vhost);
+        $this->rabbitMQServices = new RabbitMQServices($vhost);
     }
 
     private function getClientHandler($args): ClientHandler
@@ -44,6 +46,7 @@ class ContactController extends Controller
     //recebe webhook de cliente criado, alterado e excluído do PLOOMES CRM
     public function ploomesContacts($args)
     {
+        
         $message = [];
         $idUser = $args['Tenancy']['tenancies']['user_id'];
         $json = json_encode($args['body']);
@@ -51,7 +54,7 @@ class ContactController extends Controller
         try {
 
             $action = DiverseFunctions::findAction($args);
-       
+           
             if($action['type'] === 'pessoa' && $args['body']['New']['CompanyId'] === null){
                 throw new WebhookReadErrorException('Cadastro de pessoa sem empresa referenciada', 500);
             }
@@ -68,10 +71,10 @@ class ContactController extends Controller
             
             $clienteHandler = $this->getClientHandler($args);
             $response = $clienteHandler->saveClientHook($json, $idUser);
-
+        
             // $rk = origem.entidade.ação
             $rk = array('Ploomes', 'Contacts');
-            //$this->rabbitMQServices->publicarMensagem('contacts_exc', $rk, 'ploomes_contacts',  $json);
+            $this->rabbitMQServices->publicarMensagem('contacts_exc', $rk, 'ploomes_contacts',  $json);
 
             if ($response > 0) {
                 $message = [
@@ -92,13 +95,13 @@ class ContactController extends Controller
 
                 $input = ob_get_contents();
                 ob_end_clean();
-                file_put_contents('./assets/logClient', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
+                file_put_contents('./assets/client_err.log', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
                 return print 'ERROR:' . $message['status_code'] . '. MESSAGE: ' . $message['status_message'];
             }
 
             $input = ob_get_contents();
             ob_end_clean();
-            file_put_contents('./assets/logClient', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
+            file_put_contents('./assets/client_log.log', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
             return print $message['status_message'];
         }
     }
@@ -106,13 +109,12 @@ class ContactController extends Controller
     //processa contatos e clientes do ploomes ou do Erp
     public function processNewContact($args)
     {
-        
         $message = [];
         // processa o webhook 
         try {
             $clienteHandler = $this->getClientHandler($args);
             $response = $clienteHandler->startProcess($args);
-
+          
             $message = [
                 'status_code' => 200,
                 'status_message' => $response['success'],
@@ -130,14 +132,14 @@ class ContactController extends Controller
                 var_dump($message);
                 $input = ob_get_contents();
                 ob_end_clean();
-                file_put_contents('./assets/logClient.log', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
+                file_put_contents('./assets/client_err.log', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
                 $m = json_encode($message);
                 return print_r($m);
             }
             var_dump($message);
             $input = ob_get_contents();
             ob_end_clean();
-            file_put_contents('./assets/logClient.log', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
+            file_put_contents('./assets/client_log.log', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
             $m = json_encode($message);
             return print_r($m);
         }
@@ -182,14 +184,14 @@ class ContactController extends Controller
                 var_dump($message);
                 $input = ob_get_contents();
                 ob_end_clean();
-                file_put_contents('./assets/logClient', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
+                file_put_contents('./assets/client_err.log', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
                 $m = json_encode($message);
                 return print_r($m);
             }
             var_dump($message);
             $input = ob_get_contents();
             ob_end_clean();
-            file_put_contents('./assets/logClient', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
+            file_put_contents('./assets/client_log.log', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
             $m = json_encode($message);
             return print_r($m);
         }

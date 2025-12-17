@@ -16,6 +16,8 @@ class RabbitMQServices {
 
     public function __construct($vhost)
     {
+        // print_r($vhost);
+        // exit;
         $this->vhost = $vhost;
         $this->connect();
         

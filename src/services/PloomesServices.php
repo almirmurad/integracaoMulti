@@ -4,6 +4,7 @@ namespace src\services;
 
 use GuzzleHttp\Psr7\Response;
 use src\contracts\PloomesManagerInterface;
+use src\exceptions\WebhookReadErrorException;
 
 use Dotenv\Dotenv;
 
@@ -221,6 +222,96 @@ class PloomesServices implements PloomesManagerInterface{
         return $response['value'][0]['Id'] ?? null;
 
     }
+    
+    //encontra cliente no ploomes pelo campo customizado (cpf empresa)
+    public function consultaClientePloomesByCustomField(string $key, string $cpf)
+    {
+        // $filter = "CNPJ+eq+'{$cnpj}'";
+        $filter = "((((OtherProperties/any(o:+o/FieldKey+eq+'{$key}'+and+(o/StringValue+eq+'{$cpf}'))))))";
+     
+        $curl = curl_init();
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => $this->baseApi ."Contacts?\$filter={$filter}",
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 10,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => strtoupper($this->method[0]),
+            CURLOPT_HTTPHEADER => $this->headers
+
+        ));
+
+        $response = curl_exec($curl);
+        $response =json_decode($response, true);
+        
+        curl_close($curl);
+
+        return $response['value'][0]['Id'] ?? null;
+
+    }
+
+    public function getTasks($dealId, $finished = false){
+        // $filter=Finished+eq+false+and+DealId+eq+602608430&$expand=Creator
+
+        ($finished)? $finished = 'true': $finished = 'false';
+        
+        $filter="?\$filter=Finished+eq+false+and+DealId+eq+{$dealId}&\$expand=Creator";
+        // var_dump($filter);
+        // exit;
+        $curl = curl_init();
+
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => $this->baseApi . 'Tasks'.$filter,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => strtoupper($this->method[0]),
+            CURLOPT_HTTPHEADER => $this->headers
+        ));
+
+        $response = curl_exec($curl);
+        $tasks =json_decode($response, true);      
+        curl_close($curl);
+
+       return $tasks['value'] ?? [];
+
+    }
+
+    public function finishTask($taskId):bool
+    {
+        $curl = curl_init();
+
+        $array = [
+            'finished' => true
+        ];
+
+        $json = json_encode($array);
+
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => $this->baseApi . 'Tasks('.$taskId.')/Finish',
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => strtoupper($this->method[1]),
+            CURLOPT_POSTFIELDS =>$json,
+            CURLOPT_HTTPHEADER => $this->headers
+        ));
+
+        $response =json_decode(curl_exec($curl), true);
+               
+        curl_close($curl);
+
+        return (isset($response['value'][0]['Finished']) && $response['value'][0]['Finished'] > 0) ? true :  false;
+
+    }
 
     public function getOrderStages(){
         $curl = curl_init();
@@ -274,14 +365,14 @@ class PloomesServices implements PloomesManagerInterface{
 
        return ($response['value'][0]['StageId'] === $stage['StageId']) ? true :  false;
     }
-
-    //encontra cliente no ploomes pelo Id
-    public function getClientById(string $id):array|null
+    
+    //encontra cliente no ploomes pelo Nome
+    public function getClientByName(string $name):array|null
     {
         $curl = curl_init();
 
         curl_setopt_array($curl, array(
-            CURLOPT_URL => $this->baseApi .'Contacts?$filter=Id+eq+'.$id.'&$expand=Status,OtherProperties,City,State,Country,Owner($select=Id,Name,Email,Phone),Tags($expand=Tag),Phones($expand=Type),LineOfBusiness,Contacts($expand=Phones($expand=Type))',
+            CURLOPT_URL => $this->baseApi ."Contacts?\$filter=Name+eq+'{$name}'&\$expand=Status,OtherProperties,City,State,Country,Owner(\$select=Id,Name,Email,Phone),Tags(\$expand=Tag),Phones(\$expand=Type),LineOfBusiness,Contacts(\$expand=Phones(\$expand=Type))",
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_ENCODING => '',
             CURLOPT_MAXREDIRS => 10,
@@ -299,6 +390,63 @@ class PloomesServices implements PloomesManagerInterface{
         curl_close($curl);
 
         return $response['value'][0];
+
+    }
+
+    //encontra cliente no ploomes pelo Id
+    public function getClientById(string $id):array|null
+    {
+       
+     
+        $curl = curl_init();
+
+        curl_setopt_array($curl, array(
+            //$filter=Id+eq+603454513&$expand=Contacts,Role,OtherProperties,City($expand=State,Country),Owner($select=Id,Name,Email,Phone),Tags($expand=Tag),Phones($expand=Type)
+            CURLOPT_URL => $this->baseApi .'Contacts?$filter=Id+eq+'.$id.'&$expand=Status,OtherProperties,City,State,Country,Owner($select=Id,Name,Email,Phone),Tags($expand=Tag),Phones($expand=Type),LineOfBusiness,Contacts($expand=Phones($expand=Type))',
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => strtoupper($this->method[0]),
+            CURLOPT_HTTPHEADER => $this->headers
+
+        ));
+
+        $response = curl_exec($curl);
+        $response =json_decode($response, true);
+      
+        curl_close($curl);
+
+        return $response['value'][0];
+
+    }
+
+        //encontra cliente no ploomes pelo Id
+    public function getClientByEmail(string $email):array|null
+    {
+        $curl = curl_init();
+        $filter = "Email+eq+'{$email}'&\$expand=Status,OtherProperties,City,State,Country,Owner(\$select=Id,Name,Email,Phone),Tags(\$expand=Tag),Phones(\$expand=Type),LineOfBusiness,Contacts(\$expand=Phones(\$expand=Type))&\$top=1";
+
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => $this->baseApi ."Contacts?\$filter={$filter}",
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => strtoupper($this->method[0]),
+            CURLOPT_HTTPHEADER => $this->headers
+
+        ));
+
+        $response = curl_exec($curl);
+        $response =json_decode($response, true);
+        curl_close($curl);
+        
+        return $response['value'][0] ?? null;
 
     }
 
@@ -622,6 +770,36 @@ class PloomesServices implements PloomesManagerInterface{
        
     }
 
+    //BUSCA UM FUNIL NO PLOOMES PELO Id
+    public function getPipelineById(string $pipelineId):array|null
+    {
+       
+        //CHAMADA CURL PRA CRIAR WEBHOOK NO PLOOMES
+        $curl = curl_init();
+        $filter =rawurlencode("Id eq $pipelineId");
+        $expand = "Stages";
+
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => $this->baseApi . 'Deals@Pipelines?$filter='.$filter.'&$expand='.$expand,//ENDPOINT PLOOMES
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => strtoupper($this->method[0]),
+            CURLOPT_HTTPHEADER => $this->headers
+        ));
+
+        $response = json_decode(curl_exec($curl),true);
+        curl_close($curl);
+      
+        return (!empty($response['value'][0])) ? $response['value'][0] : null;
+       
+    }
+
+
+
     //BUSCA O ESTÀGIO DO FUNIL NO PLOOMES PELO ID DO FUNIL
     public function getPipelineStagesByPipelineId(int $pipelineId):int|null
     {
@@ -648,6 +826,36 @@ class PloomesServices implements PloomesManagerInterface{
         return (!empty($response['value'][0])) ? $response['value'][0]['Id'] : null;
        
     }
+
+    //BUSCA OS CARGOS CADASTRADOS 
+    public function getRoles():array|null
+    {
+       
+        //CHAMADA CURL PRA CRIAR WEBHOOK NO PLOOMES
+        $curl = curl_init();
+        //$filter =rawurlencode("Name eq '".strtoupper($pipelineName)."'");
+
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => $this->baseApi . '/Roles',//ENDPOINT PLOOMES
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => strtoupper($this->method[0]),
+            CURLOPT_HTTPHEADER => $this->headers
+        ));
+
+        $response = json_decode(curl_exec($curl),true);
+
+        curl_close($curl);
+        
+        return (!empty($response['value'])) ? $response['value'] : null;
+       
+    }
+
+
 
     //Busca um  CARD NO PLOOMES pelo id do chat
     public function getCardByIdChat(string $idChat, array $keys, $pipeline = null):array|null
@@ -930,6 +1138,89 @@ class PloomesServices implements PloomesManagerInterface{
         // var_dump($response);
         // exit;
         return $response['value'][0] ?? [];
+
+    }
+    
+    //busca a opção do tabela de opções pelo id
+    public function getOptionsFieldById($id):array
+    {
+
+        $curl = curl_init();
+        //Fields@OptionsTables@Options?$expand=Table&$filter=Id+eq+423400976
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => $this->baseApi ."Fields@OptionsTables@Options?\$expand=Table&\$filter=Id+eq+{$id}",
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => strtoupper($this->method[0]),
+            CURLOPT_HTTPHEADER => $this->headers
+            
+        ));
+        
+        $response = curl_exec($curl);
+        $response =json_decode($response, true);
+        
+        curl_close($curl);
+        // var_dump($response);
+        // exit;
+        return $response['value'][0] ?? [];
+
+    }
+    
+    public function insertOptionsByTableId( string $json){
+
+       
+        $query = '/Fields@OptionsTables@Options';
+        $headers = $this->headers;
+        $baseApi = $this->baseApi;
+        $url = $baseApi . $query;
+    
+
+         
+        $curl = curl_init();
+
+        
+        //CURLOPT_SSL_VERIFYPEER, false); // Desativar verificação SSL (se necessário)
+        //CURLOPT_SSL_VERIFYHOST, false);
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => $url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => 'POST',
+            CURLOPT_POSTFIELDS => $json,
+            CURLOPT_HTTPHEADER => $headers
+
+        ));
+
+        $response = curl_exec($curl);
+        $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE); // Obtém código HTTP
+        $error = curl_error($curl); // Captura erro do cURL
+
+        curl_close($curl);
+       
+
+        // Verifica erros
+        if ($response === false) {
+            // print "Erro no cURL: $error\n";
+            // exit;
+            throw new WebhookReadErrorException("Erro no cURL: $error\n", 500);
+        } elseif ($httpCode !== 200) {
+            // print "Falha na requisição. Código HTTP: $httpCode\n";
+            // exit;
+            throw new WebhookReadErrorException("Falha na requisição. Código HTTP: $httpCode\n", 500);
+        } else {
+           $r =  json_decode($response, true);
+        
+           return $r['value'][0];
+        }
+
 
     }
 

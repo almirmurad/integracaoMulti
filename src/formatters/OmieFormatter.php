@@ -38,6 +38,7 @@ Class OmieFormatter implements ErpFormattersInterface{
     //order
     public function distinctProductsServicesFromOmieOrders(array $orderArray, array $arrayIsServices, string $idItemOmie, object $order):array
     { 
+        
         $productsOrder = [];
         $contentServices = [];
           //separa e monta os arrays de produtos e serviços
@@ -48,7 +49,8 @@ Class OmieFormatter implements ErpFormattersInterface{
                 $opItem[$otherp['FieldKey']] = $otherp['ObjectValueName'] ?? 
                 $otherp['BigStringValue'] ?? $otherp['StringValue'] ??  $otherp['IntegerValue'] ?? $otherp['DateTimeValue'];
             } 
- 
+            
+            
             if(!array_key_exists($idItemOmie, $opItem )){
                 throw new WebhookReadErrorException('Erro ao montar pedido para enviar ao Omie: Não foi encontrado o id do produto  Omie para o aplicativo de faturamento escolhido no pedido.', 500);
             }
@@ -114,7 +116,7 @@ Class OmieFormatter implements ErpFormattersInterface{
     
         //observbacoes
         $observacoes =[];
-        $observacoes['obs_venda'] = $order->notes;
+        $observacoes['obs_venda'] = $order->description;
     
         $newPedido = [];//array que engloba tudo
         $newPedido['cabecalho'] = $cabecalho;
@@ -488,20 +490,40 @@ Class OmieFormatter implements ErpFormattersInterface{
         $cliente = new stdClass();
         $decoded=$args['body'];
         $cliente->codigoClienteOmie= $decoded['event']['codigo_cliente_omie'];
-            
+       
         $omieApp = $this->omieServices->getOmieApp();
 
-        $c =  $this->omieServices->getClientById($cliente);
-  
+        $c = $this->omieServices->getClientById($cliente);
+        $caracteristicas = $this->omieServices->getCaracteristicasClienteById($cliente);
+        
+       
+        
+        //as características são um array nome do campo e conteudo
+        //a chave campo vai ser parte da sendExternalKey do campo do ploomes
+        
+        if($caracteristicas){
+       
+            foreach($caracteristicas['caracteristicas'] as $caracteristica){
+                
+                
+                $chaveNome = mb_strtolower($caracteristica['campo']);
+                
+                if(mb_strpos($chaveNome, ' ')){
+                    $chaveNome = str_replace(' ', '_', $chaveNome);
+                }
+                
+                $cliente->$chaveNome = $caracteristica['conteudo'];
+            }
+            
+        }
+        
+        
         $array = DiverseFunctions::achatarArray($c);
-
-    
 
         $chave = 'id_cliente_erp_' . $omieApp['app_name'];
         $cliente->$chave = $array['codigo_cliente_omie'];
-
         $keyIntegrar ='integrar_base_'.$omieApp['app_name'];
-        
+    
         //$cliente->messageId = $array['messageId'];
         // $cliente->topic = $array['topic'];
         $cliente->bairro = $array['bairro'] ?? null;
@@ -517,7 +539,8 @@ Class OmieFormatter implements ErpFormattersInterface{
         $cliente->codigoPais = $array['codigo_pais']  ?? null;
         $cliente->complemento = $array['complemento']  ?? null;
         $cliente->contato = $array['contato']  ?? null;
-        $cliente->contribuinte = $array['contribuinte']  ?? null;
+        $contribuinte = (isset($array['contribuinte']) && $array['contribuinte'] === 'S') ? true : false;
+        $cliente->contribuinte = $contribuinte  ?? null;
         $cliente->agencia_dados_bancarios = $array['dadosBancarios_agencia']  ?? null;
         $cliente->banco_dados_bancarios = $array['dadosBancarios_codigo_banco']  ?? null;
         $cliente->conta_corrente_dados_bancarios = $array['dadosBancarios_conta_corrente']  ?? null;
@@ -535,16 +558,18 @@ Class OmieFormatter implements ErpFormattersInterface{
         $cliente->inativo = $array['inativo']  ?? null;
         $cliente->$keyIntegrar = ($cliente->inativo === 'N') ? true : false;
         $cliente->inscricao_estadual = $array['inscricao_estadual']  ?? null;
-        $cliente->inscricao_municipal = $array['inscricao_municipal']  ?? null;       
+        $cliente->inscricao_municipal = $array['inscricao_municipal']  ?? null;
         $cliente->inscricao_suframa = $array['inscricao_suframa']  ?? null;
         $cliente->logradouro = $array['logradouro']  ?? null;
         $cliente->nif = $array['nif']  ?? null;
         $cliente->nomeFantasia = htmlspecialchars_decode($array['nome_fantasia'])  ?? null;
         $cliente->obsDetalhadas = $array['obs_detalhadas']  ?? null;
         $cliente->observacao = $array['observacao']  ?? null;
-        $cliente->simples_nacional = $array['optante_simples_nacional']  ?? null;
+        $simplesNacional = (isset($array['optante_simples_nacional']) && $array['optante_simples_nacional'] === 'S') ? true : false;
+        $cliente->simples_nacional = $simplesNacional ?? null;
         $cliente->pessoaFisica = $array['pessoa_fisica']  ?? null;
-        $cliente->produtor_rural = $array['produtor_rural']  ?? null;
+        $produtorRural = (isset($array['produtor_rural']) && $array['produtor_rural'] === 'S') ? true : false;
+        $cliente->produtor_rural = $produtorRural ?? null;
         $cliente->razaoSocial = htmlspecialchars_decode($array['razao_social'])  ?? null;
         $cliente->recomendacao_atraso = $array['recomendacao_atraso']  ?? null;
         $cliente->codigo_vendedor = $array['recomendacoes_codigo_vendedor'] ?? null;
@@ -592,14 +617,14 @@ Class OmieFormatter implements ErpFormattersInterface{
         // $cliente->appHash = $array['appHash'];
         // $cliente->origin = $array['origin'];
         
+        
         return $cliente;
     }
 
     // createPloomesContactFromErpObject - cria o json no formato do ploomes para enviar pela API do Ploomes
     public function createPloomesContactFromErpObject(object $contact, PloomesServices $ploomesServices):string
     {
-        // print_r($contact);
-     
+      
         
         $omie = new stdClass();
         $omieApp = $this->omieServices->getOmieApp();
@@ -693,8 +718,9 @@ Class OmieFormatter implements ErpFormattersInterface{
                     foreach($c['Options'] as $optAtividade){
                         
                         if($optAtividade['Name'] === $atividade['cDescricao']){
-
+                        
                             $contact->tipo_atividade = $optAtividade['Id'];
+                            break;
                         }
                     }
                 }
@@ -702,6 +728,7 @@ Class OmieFormatter implements ErpFormattersInterface{
 
         }
         
+     
         $ploomesTags = $ploomesServices->getTagsByEntityId(1);//id da entidade
         // print_r($ploomesTags);
         $tags = [];
@@ -724,13 +751,21 @@ Class OmieFormatter implements ErpFormattersInterface{
             $data['Tags'] = $tags;
         }else{
             $data['Tags'] = null;
-        }    
-                     
-        $op = CustomFieldsFunction::createOtherPropertiesByEntity($custom['Cliente'], $contact);
+        }     
+        // print'tipo de atividade'.PHP_EOL;
+        // print_r($contact->tipo_atividade );
+         
+        $op = CustomFieldsFunction::createOtherPropertiesByEntity($custom['Cliente'], $contact, $ploomesServices);
 
+        // print_r($op);
+        // exit;
+        
         $data['OtherProperties'] = $op;
         
         $json = json_encode($data,JSON_UNESCAPED_UNICODE);
+        
+        // print_r($json);
+        // exit;
      
         return $json;
 
@@ -741,10 +776,14 @@ Class OmieFormatter implements ErpFormattersInterface{
     {
  
         $decoded = $args['body'];
-    
-        //aqui ele busca o cliente no Ploomes pelo id, se for tipo 2 (contato) ele vai atualizar o cliente no omie buscando as informações da empresa no ploomes através do companyId do contato do cliente 
-        ($decoded['New']['TypeId'] === 2 )? $cliente = $ploomesServices->getClientById($decoded['New']['CompanyId']):$cliente = $ploomesServices->getClientById($decoded['New']['Id']);
+        
+           
        
+        //aqui ele busca o cliente no Ploomes pelo id, se for tipo 2 (contato) ele vai atualizar o cliente no omie buscando as informações da empresa no ploomes através do companyId do contato do cliente 
+        /*quando um cliente é pessoa física o sistema busca o id da empresa em company Id e transforma a empresa no contato a ser integrado e a pessoa como contato, se a pessoa não tiver company id cadastra como pessoa*/
+        ($decoded['New']['TypeId'] === 2 && isset($decoded['New']['CompanyId']) && $decoded['New']['CompanyId'] !== null)? $cliente = $ploomesServices->getClientById($decoded['New']['CompanyId']):$cliente = $ploomesServices->getClientById($decoded['New']['Id']);
+      
+        //$cliente = $ploomesServices->getClientById($decoded['New']['Id']);
         $omie = new stdClass();
         //este app omie só pode servir para buscar campos fixos do omie os dados dos usuários devem vir do ploomes
         $omieApp =$args['Tenancy']['erp_bases'][0];
@@ -757,10 +796,13 @@ Class OmieFormatter implements ErpFormattersInterface{
         
         $contact = new stdClass(); 
         
-        $custom = CustomFieldsFunction::compareCustomFieldsFromOtherProperties($cliente['OtherProperties'],'Cliente',$args['Tenancy']['tenancies']['id']);  
+        $custom = CustomFieldsFunction::compareCustomFieldsFromOtherProperties($cliente['OtherProperties'],'Cliente',$args['Tenancy']['tenancies']['id']); 
+        
+        
 
         $allCustoms = $_SESSION['contact_custom_fields'][$args['Tenancy']['tenancies']['id']];
         
+
         /************************************************************
          *                   Other Properties                        *
          *                                                           *
@@ -780,8 +822,9 @@ Class OmieFormatter implements ErpFormattersInterface{
         //$contact->ramoAtividade = $prop['contact_FF485334-CE8C-4FB9-B3CA-4FF000E75227'] ?? null;
         // $ramo= $prop['contact_FF485334-CE8C-4FB9-B3CA-4FF000E75227'] ?? null;
 
+        
         foreach($allCustoms['Cliente'] as $ac){
-            
+         
             if ($ac['SendExternalKey'] === 'bicorp_api_tipo_atividade_out'){
                 
                 $options = $ac['Options'];
@@ -789,15 +832,20 @@ Class OmieFormatter implements ErpFormattersInterface{
                 foreach($options as $opt)
                 {
                     if(isset($custom['bicorp_api_tipo_atividade_out']) && $opt['Id'] === $custom['bicorp_api_tipo_atividade_out']){
+                
                         $atividade = $this->omieServices->getTipoATividade($omie, $id = null, $opt['Name']);
                         $contact->tipo_atividade = $atividade['cCodigo'];
+                        break;
                     }
                 }
             }
         }
+               
+        
 
              
         $contact->bloquearFaturamento = $custom['bicorp_api_bloquear_faturamento_out'] ?? null;
+        $contact->cpf_empresa = $custom['bicorp_api_cpf_empresa_out'] ?? null;
         //contact_FA99392B-CED8-4668-B003-DFC1111DACB0 = Porte
         //$contact->porte = $prop['contact_FA99392B-CED8-4668-B003-DFC1111DACB0'] ?? null;
         //contact_20B72360-82CF-4806-BB05-21E89D5C61FD = importância
@@ -865,8 +913,7 @@ Class OmieFormatter implements ErpFormattersInterface{
         //contact_3E075EA9-320C-479E-A956-5A3734C55E51 = Transportadora Padrão (código cliente ploomes)
         // $contact->idTranspPadrao = $prop['contact_3E075EA9-320C-479E-A956-5A3734C55E51'] ?? null;
         // $contact->idTranspPadrao = $custom['contact_3E075EA9-320C-479E-A956-5A3734C55E51'] ?? null; este campo não existe mais no cadastro do cliente
-
-
+   
         //transportadora padrão não é obrigatória, mas se for selecionado, osistema vai pegar o codigo do ploomes, buscar o cliente/transportadora cadastrado e em seguida os campos personalizados dele. Depois pega a quantidade de bases do Omie para poder pegar o id da transportadora de cada base, para isso, a transportadora deve ter cadastro em todos os aplicativos omie do cliente. Caso contrário o id da transportadora para a base d edestino pode ser nulo. 
         $contact->transpOmie = [];
         if($contact->cTransportadoraPadrao !== null){
@@ -920,6 +967,7 @@ Class OmieFormatter implements ErpFormattersInterface{
                 'nPhone' => $nPhone
             ];        
         }
+         
         
         $contact->id = $cliente['Id']; //Id do Contact
         $contact->name = $cliente['Name']; // Nome ou nome fantasia do contact !obrigatório!
@@ -958,25 +1006,33 @@ Class OmieFormatter implements ErpFormattersInterface{
         
         $bases =[];
         $contact->codOmie = [];
+        
+       
         foreach($args['Tenancy']['erp_bases'] as $base)
         {   
             $name = strtolower($base['app_name']);
+
             $chaveId = "bicorp_api_id_cliente_erp_{$name}_out";
             
             $contact->codOmie[] = $custom[$chaveId] ?? null;           
             
             $chave = "bicorp_api_integrar_base_{$name}_out";
-            
+          
             if(isset($custom[$chave]) && $custom[$chave] !== false){
+              
                 $base['sendExternalKey'] = $chave;
                 $base['sendExternalKeyIdErp'] = $chaveId;
                 $base['integrar'] = 1;
+            }else{
+                $base['integrar'] = null;
+                
             }
-            
+           
             $bases[] =$base; 
         }
+       
 
-        $contact->basesFaturamento = $bases;      
+        $contact->basesFaturamento = $bases;    
         
         $tags = [];
 
@@ -998,6 +1054,7 @@ Class OmieFormatter implements ErpFormattersInterface{
         $contact->tags = $tags;
 
         $enderecoEntrega = [
+            'entRazaoSocial'=>$custom['bicorp_api_nome_endereco_entrega_out'] ?? null,
             'entCnpjCpf'=>$custom['bicorp_api_cpf_cnpj_recebedor_out'] ?? null,
             'entEndereco'=>$custom['bicorp_api_endereco_endereco_entrega_out'] ?? null,
             'entNumero'=>$custom['bicorp_api_numero_endereco_entrega_out'] ?? null,
@@ -1021,7 +1078,6 @@ Class OmieFormatter implements ErpFormattersInterface{
     // updateContactCRMToERP - atualiza um contato do CRM para o ERP ok
     public function updateContactCRMToERP(object $contact, PloomesServices $ploomesServices, object $tenant):array
     {
-
        
         $json = $this->createJsonClienteCRMToERP($contact, $tenant); 
 
@@ -1185,7 +1241,7 @@ Class OmieFormatter implements ErpFormattersInterface{
 
         $clienteJson['razao_social'] = htmlspecialchars_decode($contact->legalName) ?? null; 
         $clienteJson['nome_fantasia'] = htmlspecialchars_decode($contact->name) ?? null;
-        $clienteJson['cnpj_cpf'] = $contact->cnpj ?? $contact->cpf ?? null;
+        $clienteJson['cnpj_cpf'] = $contact->cnpj ?? $contact->cpf ?? $contact->cpf_empresa ?? null;
         $clienteJson['bloquear_faturamento'] = ($contact->bloquearFaturamento) ? 'S' : 'N';
         $clienteJson['email'] = $contact->email ?? null;
         $clienteJson['homepage'] = $contact->website ?? null;
@@ -1707,12 +1763,14 @@ Class OmieFormatter implements ErpFormattersInterface{
 
         $chave = 'idProductOmie' . $omieApp['app_name'];
         $service->$chave = $array['event_intListar_nCodServ'];
-       
+        
         $service->appKey = $array['appKey'];
         $service->appSecret = $omieApp['app_secret'];
         $pFamily = explode('.' , $array['topic']);
         $nFamily = $pFamily[0].'s';//o s é para o topic Produto ficar no plural
         $nameFamily= str_replace('c', 'ç', $nFamily);
+        
+        
 
         $verifyFamily = $ploomesServices->getFamilyByName($nFamily);
 
@@ -1722,13 +1780,13 @@ Class OmieFormatter implements ErpFormattersInterface{
             $createFamily = $ploomesServices->createNewFamily($nameFamily);
             $service->idFamily =  $createFamily['Id'];
         }        
-        $verifyGroup = $ploomesServices->getGroupByName($nFamily);
-        if(isset($verifyGroup['Id'])){
-            $service->idGroup =  $verifyGroup['Id'];
-        }else{
-            $createGroup = $ploomesServices->createNewGroup($nameFamily, $service->idFamily);
-            $service->idGroup =  $createGroup['Id'];
-        }
+        // $verifyGroup = $ploomesServices->getGroupByName($nFamily);
+        // if(isset($verifyGroup['Id'])){
+        //     $service->idGroup =  $verifyGroup['Id'];
+        // }else{
+        //     $createGroup = $ploomesServices->createNewGroup($nameFamily, $service->idFamily);
+        //     $service->idGroup =  $createGroup['Id'];
+        // }
        
         $service->messageId = $array['messageId'];
         $service->topic = $array['topic'];
@@ -1769,7 +1827,7 @@ Class OmieFormatter implements ErpFormattersInterface{
         $service->appKey = $array['appKey'];
         $service->appHash = $array['appHash'];
         $service->origin = $array['origin'];    
- 
+        
         return $service;
     }
 
@@ -1788,7 +1846,7 @@ Class OmieFormatter implements ErpFormattersInterface{
         //cria o produto formato ploomes 
         $data = [];
         $data['Name'] = $service->descricao;
-        $data['GroupId'] = $service->idGroup;
+       
         $data['FamilyId'] = $service->idFamily;
         $data['Code'] = $service->codigo;
         //$data['ImageUrl'] = $service->endereco ?? null;
@@ -1838,7 +1896,7 @@ Class OmieFormatter implements ErpFormattersInterface{
         // $op[] = $categoria;
    
         $data['OtherProperties'] = $op;
-      
+
         $json = json_encode($data);
 
         return $json;
@@ -2104,6 +2162,7 @@ Class OmieFormatter implements ErpFormattersInterface{
          
         $op = CustomFieldsFunction::createOtherPropertiesByEntity($custom['Cliente'], $contact);
 
+    
         $data['OtherProperties'] = $op;
         
         $json = json_encode($data,JSON_UNESCAPED_UNICODE);

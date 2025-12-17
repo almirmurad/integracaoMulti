@@ -86,6 +86,7 @@ class DiverseFunctions{
                     'ContratoServico.Faturado' => 'csFaturado',
                     'OrdemServico.Faturada' => 'osFaturada',
                     'VendaProduto.Faturada' => 'venFaturada',
+                    'VendaProduto.EtapaAlterada' => 'venEtapaAlterada',
                 };
 
                 $array = [
@@ -179,7 +180,25 @@ class DiverseFunctions{
                 throw new WebhookReadErrorException('Não foi encontrada nenhuma ação no webhook ['.$e->getMessage().']'.$current, 500);
             }
 
-        }else{
+        }elseif(isset($decoded['event_type'])){
+
+            $origem = 'RDToCRM';
+            $type = $decoded['entity_type'];
+
+            $action = match($decoded['event_type']){
+                    'WEBHOOK.MARKED_OPPORTUNITY' => 'OPPORTUNITY',
+                    default => 'inaction'
+                };
+
+            $array = [
+                    'action' =>$action,
+                    'type' => $type ?? null,
+                    'origem' => $origem,
+                ];
+
+
+        }
+        else{
             throw new WebhookReadErrorException('Não foi encontrada nenhuma ação no webhook '.$current, 500);
         }
         

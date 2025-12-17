@@ -30,7 +30,7 @@ class ProductController extends Controller {
         $vhost = $args['Tenancy']['vhost'][0];
         $this->ploomesServices = new PloomesServices($ploomesBase);
         $this->databaseServices = new DatabaseServices();
-        // $this->rabbitMQServices = new RabbitMQServices($vhost);
+        $this->rabbitMQServices = new RabbitMQServices($vhost);
     }
 
     private function getProductHandler($args): ProductHandler
@@ -57,7 +57,7 @@ class ProductController extends Controller {
          
              // $rk = origem.entidade.ação
              $rk = array('Erp','Products');
-            //  $this->rabbitMQServices->publicarMensagem('products_exc', $rk, 'erp_products',  $json);
+             $this->rabbitMQServices->publicarMensagem('products_exc', $rk, 'erp_products',  $json);
             
             if ($response > 0) {
                 
@@ -76,7 +76,7 @@ class ProductController extends Controller {
                 var_dump($e->getMessage());
                 $input = ob_get_contents();
                 ob_end_clean();
-                file_put_contents('./assets/log.log', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
+                file_put_contents('./assets/logERPProduct.log', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
                 
                 $message =[
                     'status_code' => 500,
@@ -111,7 +111,7 @@ class ProductController extends Controller {
                 var_dump($e->getMessage());
                 $input = ob_get_contents();
                 ob_end_clean();
-                file_put_contents('./assets/logProduct.log', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
+                file_put_contents('./assets/logProcessProduct.log', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
                 //print $e->getMessage();
                 
                 $message =[

@@ -2,6 +2,6 @@
 namespace src\models;
 use \core\Model;
 
-class User extends Model {
+class Mkt_base extends Model {
 
 }

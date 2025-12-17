@@ -5,7 +5,6 @@ namespace src\controllers;
 use core\Controller;
 use src\exceptions\WebhookReadErrorException;
 use src\factories\ErpFormatterFactory;
-use src\functions\CustomFieldsFunction;
 use src\functions\DiverseFunctions;
 use src\handlers\LoginHandler;
 use src\handlers\OmnismartHandler;
@@ -13,6 +12,7 @@ use src\services\DatabaseServices;
 use src\services\OmnismartServices;
 use src\services\PloomesServices;
 use src\services\RabbitMQServices;
+use src\functions\CustomFieldsFunction;
 
 class OmnismartController extends Controller
 {
@@ -26,7 +26,6 @@ class OmnismartController extends Controller
 
     public function __construct($args)
     {
-        
         $ploomesBase = $args['Tenancy']['ploomes_bases'][0];
         $omnismart = $args['Tenancy']['omnichannel'][0];
 
@@ -37,6 +36,7 @@ class OmnismartController extends Controller
         $this->omnismartServices = new OmnismartServices($omnismart);
         $this->rabbitMQServices = new RabbitMQServices($vhost);
     }
+    
 
     private function getOmnismartHandler(): OmnismartHandler
     {   
@@ -62,7 +62,8 @@ class OmnismartController extends Controller
             // $rk = origem.entidade.ação
             $rk = array('Omnismart', 'Contacts');
             $this->rabbitMQServices->publicarMensagem('contacts_exc', $rk, 'omnismart_contacts',  $json);
-           
+            
+
             if ($response > 0) {
                 $message = [
                     'status_code' => 200,
@@ -94,7 +95,8 @@ class OmnismartController extends Controller
     }
 
     public function processNewTransferChat($args)
-    {       
+    {
+      
         $message = [];
         // processa o webhook 
         try 
@@ -142,7 +144,9 @@ class OmnismartController extends Controller
         $json = json_encode($args['body']);
         
         try {
-
+            
+            // card perdido no Ploomes
+            $idChat = '';
             $customFields = CustomFieldsFunction::compareCustomFields($args['body']['New']['OtherProperties'], $idUser,'Negócio' );
             $idChat = $customFields['bicorp_api_id_chat_out'] ?? null;
             
@@ -182,13 +186,13 @@ class OmnismartController extends Controller
 
                 $input = ob_get_contents();
                 ob_end_clean();
-                file_put_contents('./assets/logOmni.txt', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
+                file_put_contents('./assets/logOmniCloseDeal.log', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
                 return print 'ERROR:' . $message['status_code'] . '. MESSAGE: ' . $message['status_message'];
             }
 
             $input = ob_get_contents();
             ob_end_clean();
-            file_put_contents('./assets/logOmni.txt', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
+            file_put_contents('./assets/logOmniCloseDeal.log', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
             return print $message['status_message'];
         }
     }

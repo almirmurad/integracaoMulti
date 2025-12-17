@@ -4,6 +4,7 @@ namespace src\functions;
 use src\contracts\ErpFormattersInterface;
 use src\exceptions\WebhookReadErrorException;
 use src\services\PloomesServices;
+use src\functions\CustomFieldsFunction;
 use stdClass;
 
 
@@ -12,10 +13,30 @@ class ClientsFunctions{
     //processa o contato do CRM para o ERP
     public static function processContactCrmToErp($args, PloomesServices $ploomesServices, ErpFormattersInterface $formatter, $action):array
     {
-
+        $total = 0;
+        $nBasesIntegrar = 0;
+        $totalBases = count($args['Tenancy']['erp_bases']);
+        
+         
         $contact = $formatter->createObjectErpClientFromCrmData($args, $ploomesServices);
         
-        $total = 0;
+     
+        
+     
+        foreach ($contact->basesFaturamento as $base){
+            
+            if(!$base['integrar']){
+                $nBasesIntegrar --;
+            }
+            
+        }
+        
+        $totalBasesIntegrar = $nBasesIntegrar + $totalBases;
+        if($totalBasesIntegrar === 0){
+            throw new WebhookReadErrorException('Cliente não está marcado para integrar com nenhuma base', 500);
+        }
+
+        
         foreach($contact->basesFaturamento as $k => $tnt)
         {
             $tenant[$k] = new stdClass();
@@ -56,13 +77,15 @@ class ClientsFunctions{
                         break;
                 }
                 
-                $contact->totalTenanties = ++$total;         
+                $contact->totalTenanties = ++$total;       
                 
                 if($action['action'] === 'create' && $action['type'] === 'empresa'){
+                   
                     //aqui manda pro formatter para criar o cliente no ERP e Retorna mensagem de sucesso ou erro
                     $responseMessages = $formatter->createContactCRMToERP($contact, $ploomesServices, $tenant[$k]); 
                 }
                 else{
+              
                     //aqui manda pro formatter que altera o cliente nbo ERP e retorna mensagem de erro ou sucesso   
                     $responseMessages = $formatter->updateContactCRMToERP($contact, $ploomesServices, $tenant[$k]);
                 }  
@@ -86,23 +109,53 @@ class ClientsFunctions{
         $message = [];
         $current = date('d/m/Y H:i:s');
         $contact = $formatter->createObjectCrmContactFromErpData($args, $ploomesServices);
-        
+
+        // print_r($contact);
+        // exit;
+     
         $dFinanceiro = $formatter->getFinHistory($contact);
         $contact->tabela_financeiro = $dFinanceiro['table'];
         $contact->status_financeiro = ucfirst($dFinanceiro['status']);
         
-        $json = $formatter->createPloomesContactFromErpObject($contact, $ploomesServices);
-
-        $idContact = $ploomesServices->consultaClientePloomesCnpj(DiverseFunctions::limpa_cpf_cnpj($contact->cnpjCpf));
-
-        // var_dump($action['action']);
-        // var_dump($idContact);
-        // print_r($json);
+        // print_r($contact);
         // exit;
 
-        if($idContact !== NULL || $action['action'] !== 'create')
+        $json = $formatter->createPloomesContactFromErpObject($contact, $ploomesServices);
+        
+        
+        
+        $idContact = $ploomesServices->consultaClientePloomesCnpj(DiverseFunctions::limpa_cpf_cnpj($contact->cnpjCpf));
+        
+        // var_dump($idContact);
+        // exit;
+        
+        if($idContact === null){
+            //procurar o cliente pelo campo personalizado cpf da empresa
+            $customFieldSendExternalKey = "bicorp_api_cpf_empresa_out";
+            
+            $customFields = CustomFieldsFunction::getCustomFieldsByEntity('Cliente');
+            
+            foreach ($customFields as $custom){
+                if(in_array($customFieldSendExternalKey, $custom)){
+                    
+                    $keyField = $custom['Key'];
+                }
+            }
+            
+            if($keyField){
+               $idContact = $ploomesServices->consultaClientePloomesByCustomField($keyField, DiverseFunctions::limpa_cpf_cnpj($contact->cnpjCpf));
+              
+            }
+        }
+
+        if((isset($idContact) && $idContact !== null) || $action['action'] === 'update')
         {
+            
+            // print_r($json);
+            // exit;
             $contactUpdated = $ploomesServices->updatePloomesContact($json, $idContact);
+                
+         
             if($contactUpdated !== null){
                 
                 if(isset($contact->contato) && !empty($contact->contato))

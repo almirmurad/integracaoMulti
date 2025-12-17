@@ -24,7 +24,12 @@ return [
         '/teste-carga'=>[
             'callback' => 'TesteController@teste',
             'middlweares' => []
-        ]
+        ],
+        //Rd Station login API
+        '/api/rdstation/login' => [
+            'callback' => 'RDStationController@loginRdStation',
+            'middlewares' => [AuthenticateMiddleware::class, RequestMiddleware::class] 
+        ],
     ],
     'post' => [
         // login
@@ -61,6 +66,11 @@ return [
         '/api/vhost/add' => [
             'callback' => 'TenancyController@createVhostRabbitMQ',
             'middlewares' => [AuthenticateMiddleware::class]
+        ],
+        // /api/mkt/add
+        '/api/mkt/add' => [
+            'callback' => 'TenancyController@createNewAppMkt',
+            'middlewares' => [AuthenticateMiddleware::class] 
         ],
 
         //rotas do sistema
@@ -102,6 +112,10 @@ return [
             'middlewares' => [RequestMiddleware::class, LoadCustomFieldsMiddleware::class]
         ],
         //Orders
+        '/erpOrder'=>[
+            'callback' => 'OrderController@erpOrder', //Nova venda no omie
+            'middlewares' => [RequestMiddleware::class,]
+        ],
         '/ploomesOrder'=>[
             'callback' => 'OrderController@ploomesOrder', //novo pedido no ploomes
             'middlewares' => [RequestMiddleware::class,]
@@ -119,7 +133,6 @@ return [
             'callback' => 'InvoicingController@processNewInvoice', //inicia processo
             'middlewares' => [RequestMiddleware::class, LoadCustomFieldsMiddleware::class]
         ],
-        
         //financeiro ERP X Ploomes
         '/erpFinancial'=>[
             'callback' => 'FinancialController@financialIssued', //inicia processo
@@ -146,6 +159,39 @@ return [
         '/finishDeal'=>[
             'callback' => 'OmnismartController@finishDeal', //nova interação
             'middlewares' => [RequestMiddleware::class, LoadCustomFieldsMiddleware::class]
-        ],              
+        ],    
+        //Rhopen - RDStation
+        '/rdNewOpportunity'=>[
+            'callback' => 'RDStationController@rdNewOpportunity', //nova interação
+            'middlewares' => [RequestMiddleware::class]
+        ],
+        '/processNewOpportunity'=>[
+            'callback' => 'RDStationController@processNewOpportunity', //nova interação
+            'middlewares' => [RequestMiddleware::class, LoadCustomFieldsMiddleware::class]
+        ],   
+        '/ploomesResponseOpportunity'=>[
+            'callback' => 'OmnismartController@rdNewOpportunity', //nova interação
+            'middlewares' => [RequestMiddleware::class, LoadCustomFieldsMiddleware::class]
+        ],
+        '/ploomesTasks'=>[
+            'callback' => 'TasksController@ploomesTasks', //nova interação
+            'middlewares' => [RequestMiddleware::class]
+        ],
+        '/processPloomesTasks'=>[
+            'callback' => 'TasksController@processPloomesTasks', //nova interação
+            'middlewares' => [RequestMiddleware::class, LoadCustomFieldsMiddleware::class]
+        ],
+        //Deals
+        '/ploomesDeal'=>[
+            'callback' => 'DealController@ploomesDeal', //nova interação
+            'middlewares' => [RequestMiddleware::class, LoadCustomFieldsMiddleware::class]
+        ],
+        '/processPloomesDeal'=>[
+            'callback' => 'DealController@processPloomesDeal', //nova interação
+            'middlewares' => [RequestMiddleware::class, LoadCustomFieldsMiddleware::class]
+        ],
+
+
+
     ]
 ];

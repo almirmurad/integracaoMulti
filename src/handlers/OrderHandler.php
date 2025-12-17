@@ -59,15 +59,20 @@ class OrderHandler
 
         //$action = $this->formatter->findAction($args);
         $action = DiverseFunctions::findAction($args);
-
+        
         if(isset($action['origem']) && $action['origem'] === 'CRMToERP'){
             
             return OrdersFunction::processOrdersCrmToErp($args, $this->ploomesServices, $this->formatter, $action);                                                   
         }
         
         return OrdersFunction::processOrderErpToCrm($args, $this->ploomesServices, $this->formatter, $action);
-      
+        
     } 
+
+    public function detectLoop($args)
+    {
+       return $this->formatter->detectLoop($args);
+    }
  
     
 }

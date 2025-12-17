@@ -51,6 +51,7 @@ class TenancyHandler {
 
     public static function getAllInfoUserAPi($idTenancy): array
     {
+        
         $array = [];  
         try{
 

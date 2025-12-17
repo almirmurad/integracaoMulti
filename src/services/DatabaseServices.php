@@ -17,11 +17,13 @@ use src\models\Manospr_invoicing;
 use src\models\Manospr_order;
 use src\models\Manossc_invoicing;
 use src\models\Manossc_order;
+use src\models\Mkt_base;
 use src\models\Nasajon_base;
 use src\models\Omie_base;
 use src\models\Omnichannel_webhook;
 use src\models\Omnismart_base;
 use src\models\Ploomes_base;
+use src\models\RDStation_webhook;
 use src\models\Tenancie;
 use src\models\Tenancy;
 use src\models\User;
@@ -43,6 +45,7 @@ class DatabaseServices implements DatabaseManagerInterface{
                     'result'=>$webhook->result,
                     'origem'=>$webhook->origem,
                     'created_at'=>date("Y-m-d H:i:s"),
+                    'updated_at'=>date("Y-m-d H:i:s"),
                     ]
             )->execute();
             
@@ -59,6 +62,31 @@ class DatabaseServices implements DatabaseManagerInterface{
         try{
 
             $id=Omnichannel_webhook::insert(
+                [
+                    'entity'=>$webhook->entity,
+                    'json'=>$webhook->json,
+                    'status'=>$webhook->status,
+                    'user_id'=>$webhook->user_id,
+                    'result'=>$webhook->result,
+                    'origem'=>$webhook->origem,
+                    'created_at'=>date("Y-m-d H:i:s"),
+                    'updated_at'=>date("Y-m-d H:i:s"),
+                    ]
+            )->execute();
+            
+            return $id;
+
+        }catch(PDOException $e){
+            throw new WebhookReadErrorException('Erro ao gravar o webhook na base de dados: '.$e->getMessage(). 'Data: '.date('d/m/Y H:i:s'), 552);
+        }
+        
+    }
+        //SALVA NO BANCO DE DADOS AS INFORMAÇÕES DO WEBHOOK OMNICHANNEL
+    public function saveRDStationWebhook(object $webhook):string
+    {   
+        try{
+
+            $id=RDStation_webhook::insert(
                 [
                     'entity'=>$webhook->entity,
                     'json'=>$webhook->json,
@@ -496,6 +524,10 @@ class DatabaseServices implements DatabaseManagerInterface{
             ->where('tenancy_id', $tenancy['id'])
             ->get();
 
+            $mkt = Mkt_base::select('*')
+            ->where('tenancy_id', $tenancy['id'])
+            ->get();
+
 
             // Montar o array no formato desejado
             $resultado = [
@@ -503,7 +535,8 @@ class DatabaseServices implements DatabaseManagerInterface{
                 'erp_bases' => $bases ?? null,
                 'ploomes_bases' => $ploomesBases ?? null,
                 'vhost' => $vhost ?? null,
-                'omnichannel' => $omni ?? null
+                'omnichannel' => $omni ?? null,
+                'mkt_platform' => $mkt ?? null,
             ];
 
         
@@ -562,6 +595,38 @@ class DatabaseServices implements DatabaseManagerInterface{
             return  $e->getMessage();
         }
     }
+    public function createNewAppMkt($data){
+    $result = [];
+        try{
+            switch(strtolower($data['mkt-platform_name'])){
+
+                case 'rdstation':
+                    $id=Mkt_base::insert(
+                        [ 
+                            'app_name'=>$data['rd-app_name'],
+                            'client_id'=>$data['rd-client_id'],
+                            'client_secret'=>$data['rd-client_secret'],
+                            'callback_url'=>$data['rd-callback_url'],
+                            'tenancy_id'=>$data['tenancy_id'],
+                            'created_at'=> date('Y-m-d H:i:s'),
+                        ]
+                    )->execute();
+                    
+                    $result['error'] = false;
+                    $result['success'] = true;
+                    $result['content'] = $id;
+                    return $result;
+            }
+            
+
+        }catch(PDOException $e){
+            $result['success'] = false;
+            $result['error'] = true;
+            $result['content'] = $e->getMessage();
+            return $result;
+        }
+    }
+    
 
     public function createNewAppPloomes($data){
         
@@ -679,6 +744,27 @@ class DatabaseServices implements DatabaseManagerInterface{
                 ->set('expires_in', $nasajonInfos['expires_in'])
                 ->set('updated_at', date('Y-m-d H:i:s'))
                 ->where('id',$nasajonInfos['id'])
+                ->execute();
+
+            return true;
+
+
+        }catch(PDOException $e){
+            throw new WebhookReadErrorException("Erro ao atualizar os dados da tabela nasajon_bases após autenticar o usuário: {$e->getMessage()}", 500);
+        }
+        
+
+    }
+
+    public function setRdStationAuthInfo(array $authInfo){
+        try{
+            Mkt_base::update()
+                ->set('access_token', $authInfo['access_token'])
+                ->set('refresh_token', $authInfo['refresh_token'])
+                ->set('auth_time', $authInfo['auth_time'])
+                ->set('expires_in', $authInfo['expires_in'])
+                ->set('updated_at', date('Y-m-d H:i:s'))
+                ->where('id',$authInfo['id-mkt_platform'])
                 ->execute();
 
             return true;

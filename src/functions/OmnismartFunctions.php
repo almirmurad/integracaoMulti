@@ -24,7 +24,6 @@ class OmnismartFunctions
         $assignAgent = [];
         $pipeline = [];
         $owner = new stdClass();
-        $tag ='';
 
         $idChat = $decoded['data']['_id'];
         //atendimento atribuido ao agente independente de quem enviou
@@ -245,16 +244,15 @@ class OmnismartFunctions
     public static function processPloomesOmnismart($args, $ploomesServices, $omnismartServices, $action): array
     {
         
+        // card perdido no Ploomes
         $message = [];
         $current = date('d/m/Y H:i:s');
         $idUser = $args['Tenancy']['tenancies']['user_id'];
         $idChat = '';
-        // card perdido no Ploomes
-        
         $customFields = CustomFieldsFunction::compareCustomFields($args['body']['New']['OtherProperties'], $idUser,'Negócio' );
-        $idChat = $customFields['bicorp_api_id_chat_out'];
-
-        if(!isset($idChat) || empty($idChat) || $idChat === null){
+        $idChat = $customFields['bicorp_api_id_chat_out'] ?? null;
+        
+        if(!isset($idChat) || $idChat === null){
             throw new WebhookReadErrorException('Card fechado no Ploomes, porém não foi criado pela integração', 500);
         }
 
@@ -291,7 +289,7 @@ class OmnismartFunctions
             ($ploomesServices->createPloomesIteraction(json_encode($arrayInteractionMessage))) ? $message['success'] = "Card {$ploomesCard['Id']} foi {$status}. Foi finalizado o atendimanto no Omnismart e enviado uma interação no card e no cliente. {$current} " : throw new WebhookReadErrorException("Card {$ploomesCard['Id']} se encontra {$status}. Houve um erro ao enviar interação no card e no cliente após a finalização do atendimento no Omnismart. {$current}");
         }else{
 
-            $content = "ATENÇÃO! - Atendimento do Card [{$ploomesCard['Id']}], no Omnismart já havia sido encerrado na plataforma.";
+            $content = "ATENÇÃO! - Não foi possível encerrar o atendimento do Card [{$ploomesCard['Id']}], atendimento já havia sido encerrado.";
 
             $arrayInteractionMessage=[
                 'DealId' => $ploomesCard['Id'],
@@ -388,7 +386,7 @@ class OmnismartFunctions
             "agent" => $idAgent
         ];
 
-          if($omnismartServices->closeChat(json_encode($array))){
+        if($omnismartServices->closeChat(json_encode($array))){
             return true;
         }else{
             return false;

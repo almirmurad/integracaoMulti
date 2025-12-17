@@ -28,6 +28,9 @@ class ProductsFunctions{
             {
                 if($ploomesServices->updatePloomesProduct($json, $pProduct['Id']))
                 {
+                    //depois que cadastrar todoss os produtos inclusive os com estrutura, comenta as duas linhas a baixo e descomenta o return com estrutura
+                    // $message['success'] = 'Produto '.$product->descricao.' alterado no Ploomes CRM com sucesso! Data: '.$current;
+                    // return $message;
                     
                     return $formatter->productStructure($args, $ploomesServices, $pProduct );     
                 }

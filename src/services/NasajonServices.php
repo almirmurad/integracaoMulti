@@ -30,37 +30,56 @@ class NasajonServices implements ErpManagerInterface
     private function refreshToken($erpBases)
     {
         
-        $uri = 'https://auth.nasajon.com.br/auth/realms/master/protocol/openid-connect/token';
+        //$uri = 'https://auth.nasajon.com.br/auth/realms/master/protocol/openid-connect/token';
         $credentials = [];
         $credentials['client_id'] = $erpBases[0]['client_id'];
         $credentials['client_secret']=$erpBases[0]['client_secret'];
         $credentials['grant_type'] = 'refresh_token';
         $credentials['refresh_token'] = $erpBases[0]['refresh_token'];
     
-        $data = "client_id={$credentials['client_id']}&grant_type={$credentials['grant_type']}&refresh_token={$credentials['refresh_token']}";
+        // $data = http_build_query($credentials);
 
-        $curl = curl_init();
+        //POST https://auth.nasajon.com.br/auth/realms/master/protocol/openid-connect/token HTTP/1.1
+        //content-type: application/x-www-form-urlencoded
 
-        curl_setopt_array($curl, array(
-            CURLOPT_URL => $uri,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_ENCODING => '',
-            CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 10,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_POST => true,
-            CURLOPT_CUSTOMREQUEST => 'POST',
-            CURLOPT_POSTFIELDS => $data,
-            CURLOPT_HTTPHEADER => array(
-                'Content-Type: application/x-www-form-urlencoded',
-                'Content-Length: ' . strlen($data)
-            ),
-        ));
+        //client_id=<CIENT_ID>&client_secret=<CLIENT_SECRET>&grant_type=refresh_token&refresh_token=<REFRESH_TOKEN>
 
-        $response = curl_exec($curl);
+        // $curl = curl_init();
 
-        curl_close($curl);
+        // curl_setopt_array($curl, array(
+        //     CURLOPT_URL => $uri,
+        //     CURLOPT_RETURNTRANSFER => true,
+        //     CURLOPT_ENCODING => '',
+        //     CURLOPT_MAXREDIRS => 10,
+        //     CURLOPT_TIMEOUT => 10,
+        //     CURLOPT_FOLLOWLOCATION => true,
+        //     CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+        //     CURLOPT_POST => true,
+        //     CURLOPT_CUSTOMREQUEST => 'POST',
+        //     CURLOPT_POSTFIELDS => $data,
+        //     CURLOPT_HTTPHEADER => array(
+        //         'Content-Type: application/x-www-form-urlencoded',
+        //         'Content-Length: ' . strlen($data)
+        //     ),
+        // ));
+
+        // $response = curl_exec($curl);
+
+        // curl_close($curl);
+
+        // HTTP/1.1 200 OK 
+        // Content-Type: application/json
+
+       $response ='{ 
+                        "access_token": "eyJhbGciOiJSUzUxMiIsInR5cCIgOiExLtIz...",
+                        "expires_in": 86400, 
+                        "refresh_expires_in": 0, 
+                        "refresh_token": "eyJhbGciOiJSUzUxMiIsInR5cCIgOiExLtIz...", 
+                        "token_type": "bearer", 
+                        "not-before-policy": 1611009366, 
+                        "session_state": "4fe8e300-d5af-4f28-9879-35efd5ab50e5", 
+                        "scope": "profile email offline_access"
+                    }';
 
         $authentication = json_decode($response, true);
 
@@ -70,7 +89,8 @@ class NasajonServices implements ErpManagerInterface
         $erpBases[0]['auth_time'] = date('Y-m-d H:i:s', time());
         
         $this->databaseServices->setNasajonInfo($erpBases[0]);
-
+        
+        
         return $authentication['access_token'];
 
     }
@@ -90,43 +110,55 @@ class NasajonServices implements ErpManagerInterface
             }
         }
 
-        $uri = 'https://auth.nasajon.com.br/auth/realms/master/protocol/openid-connect/token';
+        //$uri = 'https://auth.nasajon.com.br/auth/realms/master/protocol/openid-connect/token';
         $credentials = [];
         $credentials['client_id'] = $erpBases[0]['client_id'];
-        //$credentials['client_secret']=$erpBases[0]['client_secret'];
+        $credentials['client_secret']=$erpBases[0]['client_secret'];
         $credentials['username'] = $erpBases[0]['email'];
-        $credentials['password'] = '!1379Amoju09!';//$this->decrypt($erpBases);
+        $credentials['password'] = $this->decrypt($erpBases);
         $credentials['scope'] = 'offline_access';
         $credentials['grant_type'] = 'password';
    
         //$data = http_build_query($credentials);
 
-        // print_r($data);
-        // exit;
-        $data = "client_id={$credentials['client_id']}&username={$credentials['username']}&password={$credentials['password']}&scope={$credentials['scope']}&grant_type={$credentials['grant_type']}";
+        //POST https://auth.nasajon.com.br/auth/realms/master/protocol/openid-connect/token HTTP/1.1
+        //content-type: application/x-www-form-urlencoded
 
-        $curl = curl_init();
+        //client_id=<CLIENT_ID>&client_secret=<CLIENT_SECRET>&scope=offline_access&grant_type=password&username=<EMAIL LOGIN USUARIO>&password=<SENHA>
 
-        curl_setopt_array($curl, array(
-            CURLOPT_URL => $uri,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_ENCODING => '',
-            CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 10,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_POST => true,
-            CURLOPT_CUSTOMREQUEST => 'POST',
-            CURLOPT_POSTFIELDS => $data,
-            CURLOPT_HTTPHEADER => array(
-                'Content-Type: application/x-www-form-urlencoded',
-                'Content-Length: ' . strlen($data)
-            ),
-        ));
+        // $curl = curl_init();
 
-        $response = curl_exec($curl);
+        // curl_setopt_array($curl, array(
+        //     CURLOPT_URL => $uri,
+        //     CURLOPT_RETURNTRANSFER => true,
+        //     CURLOPT_ENCODING => '',
+        //     CURLOPT_MAXREDIRS => 10,
+        //     CURLOPT_TIMEOUT => 10,
+        //     CURLOPT_FOLLOWLOCATION => true,
+        //     CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+        //     CURLOPT_POST => true,
+        //     CURLOPT_CUSTOMREQUEST => 'POST',
+        //     CURLOPT_POSTFIELDS => $data,
+        //     CURLOPT_HTTPHEADER => array(
+        //         'Content-Type: application/x-www-form-urlencoded',
+        //         'Content-Length: ' . strlen($data)
+        //     ),
+        // ));
 
-        curl_close($curl);
+        // $response = curl_exec($curl);
+
+        // curl_close($curl);
+
+        $response = '{ 
+                        "access_token": "eyJhbGciOiJSUzUxMiIsInR5cCIgOiAiSldU...",
+                        "expires_in": 86400, 
+                        "refresh_expires_in": 0, 
+                        "refresh_token": "eyJhbGciOiJSUzUxMiIsInR5cCIgOiAiSldU...", 
+                        "token_type": "bearer", 
+                        "not-before-policy": 1611009366, 
+                        "session_state": "4fe8e300-d5af-4f28-9879-35efd5ab50e5", 
+                        "scope": "profile email offline_access"
+                    }';
 
         $authentication = json_decode($response, true);
 
@@ -187,6 +219,7 @@ class NasajonServices implements ErpManagerInterface
 
     public function criaClienteERP(string $json)
     {
+
         $curl = curl_init();
 
         curl_setopt_array($curl, array(
@@ -209,93 +242,9 @@ class NasajonServices implements ErpManagerInterface
 
         curl_close($curl);
         
-        $response = curl_exec($curl);
-        $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-        $curlError = curl_error($curl);
-        $curlErrno = curl_errno($curl);
+        $cliente = json_decode($response, true);
 
-        curl_close($curl);
-
-        if ($curlErrno) {
-            return [
-                'success' => false,
-                'error' => "Erro cURL: {$curlError}",
-                'http_code' => $httpCode,
-                'response' => null
-            ];
-        }
-
-        if ($httpCode < 200 || $httpCode >= 300) {
-            return [
-                'success' => false,
-                'error' => "Erro HTTP: código {$httpCode}",
-                'http_code' => $httpCode,
-                'response' => $response
-            ];
-        }
-
-        return [
-            'success' => true,
-            'error' => null,
-            'http_code' => $httpCode,
-            'response' => $response
-        ];
-
-    }
-
-    public function editaClienteERP(string $json, string $id)
-    {
-        $url = "https://api.nasajon.app/dados-mestre/erp3/2531/clientes/{$id}";
-   
-        $curl = curl_init();
-
-        curl_setopt_array($curl, array(
-            CURLOPT_URL => $url,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_ENCODING => '',
-            CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 0,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_CUSTOMREQUEST => 'PUT',
-            CURLOPT_POSTFIELDS => $json,
-            CURLOPT_HTTPHEADER => array(
-                'Content-Type: application/json',
-                'Authorization: Bearer '.$this->accessToken,
-            ),
-        ));
-
-        $response = curl_exec($curl);
-        $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-        $curlError = curl_error($curl);
-        $curlErrno = curl_errno($curl);
-
-        curl_close($curl);
-
-        if ($curlErrno) {
-            return [
-                'success' => false,
-                'error' => "Erro cURL: {$curlError}",
-                'http_code' => $httpCode,
-                'response' => null
-            ];
-        }
-
-        if ($httpCode < 200 || $httpCode >= 300) {
-            return [
-                'success' => false,
-                'error' => "Erro HTTP: código {$httpCode}",
-                'http_code' => $httpCode,
-                'response' => $response
-            ];
-        }
-
-        return [
-            'success' => true,
-            'error' => null,
-            'http_code' => $httpCode,
-            'response' => $response
-        ];
+        return $cliente;
 
 
     }
@@ -310,7 +259,7 @@ class NasajonServices implements ErpManagerInterface
         
     }
 
-    public function criaPedidoErp(string $json, string $url):array
+    public function criaPedidoErp(string $json):array
     {
         return [];   
     }
