@@ -18,11 +18,14 @@ class OrdersFunction{
     //processa o pedido do CRM para o ERP
     public static function processOrdersCrmToErp($args, $ploomesServices, $formatter, $action):array
     {
+
         self::setCurrent();
         $entity = 'Venda';
         $tenancyId = $args['Tenancy']['tenancies']['id'];
         $message = [];
         $decoded = $args['body'];
+        
+        
        
         //Cria o objeto de order e seta o id da Venda no plooomes
         $order = self::createNewOrder($decoded);
@@ -34,11 +37,11 @@ class OrdersFunction{
         $contact = $orderArray['Contact'];
 
         //pega as informações dos aplicativos
-        $bases = $args['Tenancy']['erp_bases'];     
-                       
+        $bases = $args['Tenancy']['erp_bases'];
+                
         //busca o Id do cliente no contact do ploomes
         $order->ids = self::getIdCustomerErpFromContactPloomes($contact['OtherProperties'], $bases, 'Cliente', $tenancyId);
-
+        
         //busca os campos customizáveis **Obrigatório (busca com campos simples como no otherProperties do pedido do webook)
         $customFields = CustomFieldsFunction::compareCustomFields($decoded['New']['OtherProperties'],$tenancyId, $entity);
         if(empty($customFields)) {
@@ -52,6 +55,8 @@ class OrdersFunction{
         //Seta a base de faturamento ***Obrigatório
         ($bf) ? $order->baseFaturamento = $bf : throw new WebhookReadErrorException('Erro ao montar pedido pra enviar ao omie: não foi encontrada a empresa de faturamento do pedido', 500);
         
+        // print_r($order);
+        // exit;
         //seta o id do cliente do omie para a base de faturamento de destino
         self::setIdClienteErp($order);
  
@@ -59,39 +64,40 @@ class OrdersFunction{
         $erp = self::createErpObjectSetDetailsOrder($bases, $bf);
         //busca o código do vendedor pelo email do ploomes, se não encotrar retorna nulo
         $order->codVendedorErp = self::getIdVendedorErpFromMail($erp, $orderArray['Owner']['Email'], $formatter); 
-
+        
         //observações da nota
         $order->description = (isset($orderArray['Description']) ? htmlspecialchars_decode(strip_tags($orderArray['Description'])): null);  
+        
+        
+        
+        
 
-        // SendExternalKey do id dos itens no omie registrados no ploomes *** Obrigatório
-        $idItemErp = self::setIdItemErp($erp);
+        //SendExternalKey do id dos itens no omie registrados no ploomes *** Obrigatório
+        $idItemErp = self::setIdItemErp($erp);    
+        
+        // print_r($idItemErp);
+        // exit;
         
         //seta informações adicionais(pega as informações como modalidade de frete, projeto etc de other properties pela sendExternalKey)
-        self::setAdditionalOrderProperties($order, $orderArray, $customFields);
+        self::setAdditionalOrderProperties($order, $orderArray, $customFields, $ploomesServices);
+        // print_r($order);
+        // exit;
         
+
         $arrayIsServices =[];
         //tipo da venda (is service) ***Obrigatótio
         $arrayIsServices['isService'] = self::isService($order);
-
         //é um contrato de recorrência
         $arrayIsServices['isRecurrence'] = $order->recurrence;
-        
-        //serviço e recorrencia
-        $arrayIsServices['isServiceAndRecurrence'] = self::isServiceRecurrence($order);
-
-         //var_dump($arrayIsServices);
-        // exit;
 
         //separa os produtos dos serviços
         $contentOrder = $formatter->distinctProductsServicesFromOmieOrders($orderArray, $arrayIsServices, $idItemErp, $order);
-        print_r($contentOrder);
-        exit;
+
         //insere o projeto e retorna o id
         (isset($order->projeto) || $order->projeto != null) ? $order->codProjeto = $formatter->insertProjectOmie($erp, $order) : $order->codProjeto = null;
-
         
         //se o array de produtos tiver conteúdo significa quee é uma venda de produto se não de serviço pra incluir no modulo certo do omie        
-        if($arrayIsServices['isService'] === false && $arrayIsServices['isServiceAndRecurrence'] === false)
+        if($arrayIsServices['isService'] === false)
         {
             //monta estrutura Omie para a requisição de pedidos
             $order->contentOrder = $contentOrder['products'];
@@ -121,61 +127,6 @@ class OrdersFunction{
             $message = self::createRequestNewOrder($erp, $order, $json, $formatter, $ploomesServices, $arrayIsServices);
 
         }
-        elseif(isset($contentOrder['services-recurrence']) && !empty($contentOrder['services-recurrence']))
-        {
-            // print_r($contentOrder['services-recurrence']);
-
-            $totalPedidos = count($contentOrder['services-recurrence']);
-            $contador = 0;
-            foreach($contentOrder['services-recurrence'] as $itemServiceAndRecurrence){
-
-                // print_r($itemServiceAndRecurrence);
-                // exit;
-
-                if(mb_strtolower($itemServiceAndRecurrence['type']) === 'ativação' ){
-                    //$order->contentOrder[] = $itemServiceAndRecurrence['item'];
-                    
-                    $json = $formatter->createOS($order, $erp);
-                    
-                    // $createOs = self::createRequestNewOrder($erp, $order, $json, $formatter, $ploomesServices, $arrayIsServices);
-                    
-                    // if(isset($createOs['winDeal']['error'])){
-                    //     --$contador;
-                    //     $msgCreateOs = $createOs['winDeal']['error'];
-                    // }else{
-                    //     ++$contador;
-                    //     $msgCreateOs =  $createOs['winDeal']['returnPedidoOmie'];
-                    // }
-                }elseif(mb_strtolower($itemServiceAndRecurrence['type']) === 'recorrência'){
-                    
-                    $order->contentOrder[] = $itemServiceAndRecurrence['item'];
-                    
-                    $json = $formatter->createContract($order, $erp);
-print_r($json);
-                    exit;
-                    $createContract = self::createRequestNewOrder($erp, $order, $json, $formatter, $ploomesServices, $arrayIsServices);
-                    // print_r($createContract);
-                    // exit;
-                                        
-
-                    if(isset($createContract['winDeal']['error'])){
-                        --$contador;
-                        $msgCreateContract = $createContract['winDeal']['error'];
-                    }else{
-                        ++$contador;
-                        $msgCreateContract =  $createContract['winDeal']['returnPedidoOmie'];
-                    }  
-                }   
-            }
-            $msgCreateOs = '';
-            $message = "{$msgCreateOs} - {$msgCreateContract}";
-            
-            $resultado = $totalPedidos + $contador;
-            if($resultado === 0){
-                throw new WebhookReadErrorException($message, 500);
-            }
-        
-        }
    
         return $message;
 
@@ -183,8 +134,7 @@ print_r($json);
 
     //processa o pedido do ERP para o CRM
     public static function processOrderErpToCrm($args, $ploomesServices, $formatter, $action):array
-    {  
-        
+    {        
         $message = [];
         $current = date('d/m/Y H:i:s');
         
@@ -192,15 +142,12 @@ print_r($json);
         if($action['action'] === 'venEtapaAlterada'){
            
             $decoded = $args['body'];
-            $message[] = self::alterOrderStage($ploomesServices, $decoded);           
+            $message[] = self::alterOrderStage($ploomesServices, $decoded);
+            
 
             return $message;
 
         }
-
-        $json = $formatter->createPloomesContactFromErpObject($contact, $ploomesServices);      
-    
-        $idContact = $ploomesServices->consultaClientePloomesCnpj(DiverseFunctions::limpa_cpf_cnpj($contact->cnpjCpf));
 
         if($idContact !== null || $action['action'] !== 'create')
         {
@@ -249,18 +196,24 @@ print_r($json);
      {      
          $ids = [];
          $contacOp = CustomFieldsFunction::compareCustomFieldsFromOtherProperties($otherProperties, $entity, $tenancyId);
-
+      
          foreach($contacOp as $k => $v){
              foreach($bases as $base){
                  $baseName = strtolower($base['app_name']);
                  switch ($k) {
-                    case "bicorp_api_id_cliente_erp_{$baseName}_out":
-                        $ids[$baseName] = $v ?? null;
-                        break;
+                     case "bicorp_api_id_cliente_erp_{$baseName}_out":
+                         $ids[$baseName] = $v ?? null;
+                         break;
+                     case "bicorp_api_id_cliente_erp_{$baseName}_out":
+                         $ids[$baseName] = $v ?? null;
+                         break;
+                     case "bicorp_api_id_cliente_erp_{$baseName}_out":
+                         $ids[$baseName] = $v ?? null;
+                         break;          
                  }
              }
          }
-
+         
          return $ids;
      }
  
@@ -274,13 +227,11 @@ print_r($json);
          if(!isset($order->baseFaturamento) || !is_array($order->baseFaturamento) || empty($order->baseFaturamento)){
              throw new WebhookReadErrorException('Erro ao montar pedido para enviar ao Omie: Base de Faturamento Inexistente.', 500);
          }
-         //  print_r($order);
+        //  print_r($order);
         //  exit;
          $baseFaturamentoTitle = mb_strtolower($order->baseFaturamento['Name']);
          $order->idClienteOmie = $order->ids[mb_strtolower($baseFaturamentoTitle)] ?? null;
          
-         $baseFaturamentoTitle = $order->baseFaturamento['Name'];
-         $order->idClienteOmie = $order->ids[strtolower($baseFaturamentoTitle)] ?? null;
  
          if (!isset($order->idClienteOmie) || $order->idClienteOmie === null) {
              throw new WebhookReadErrorException('Erro ao montar pedido para enviar ao Omie: Não foi encontrado Id do Omie para  o aplicativo de destino escolhido para faturar o pedido [ '. $baseFaturamentoTitle .' ].');
@@ -295,17 +246,12 @@ print_r($json);
          $orderCustomFields = CustomFieldsFunction::getCustomFieldsByEntity($entity);
          foreach($orderCustomFields as $ocf){
              if($ocf['SendExternalKey'] == 'bicorp_api_base_faturamento_out'){
-                 if($ocf['TypeId'] === 1){
-                     throw new WebhookReadErrorException('base de faturamento não pde ser uma string neste momento', 500);
-                }else{
-                    
-                    foreach($ocf['Options'] as $opt){
-                        if($opt['Id'] == $customFields['bicorp_api_base_faturamento_out']){
-                            $bf['Name'] = $opt['Name'];
-                            $bf['Id'] = $opt['Id'];
-                        }  
-                    }
-                }
+                 foreach($ocf['Options'] as $opt){
+                     if($opt['Id'] == $customFields['bicorp_api_base_faturamento_out']){
+                         $bf['Name'] = $opt['Name'];
+                         $bf['Id'] = $opt['Id'];
+                     }  
+                 }
              }
          }
  
@@ -351,7 +297,7 @@ print_r($json);
          return $erp;
      }
  
-    private static function setAdditionalOrderProperties(object $order, array $orderArray, array $customFields):void
+    private static function setAdditionalOrderProperties(object $order, array $orderArray, array $customFields, object $ploomesServices):void
      {
          
         $order->orderNumber = $orderArray['OrderNumber']; // numero da venda
@@ -360,17 +306,28 @@ print_r($json);
         $order->createDate = $orderArray['CreateDate']; // data de criação da order
         $order->ownerId = $orderArray['OwnerId']; // Responsável
         $order->amount = $orderArray['Amount']; // Valor
-
          //previsão de faturamento
         $order->previsaoFaturamento = (isset($customFields['bicorp_api_previsao_faturamento_out']) && !empty($customFields['bicorp_api_previsao_faturamento_out']))? $customFields['bicorp_api_previsao_faturamento_out'] : date('Y-m-d');
-
         //código da categoria de vendas
-        $order->codigoCategoriaVenda = (isset($customFields['bicorp_api_codigo_categoria_venda_out']) && !empty($customFields['bicorp_api_codigo_categoria_venda_out'])) ? $customFields['bicorp_api_codigo_categoria_venda_out'] : "1.01.03";
+        $codigoCategoria = (isset($customFields['bicorp_api_codigo_categoria_venda_out']) && !empty($customFields['bicorp_api_codigo_categoria_venda_out'])) ? $customFields['bicorp_api_codigo_categoria_venda_out'] : false;
+        $categoria = (isset($customFields['bicorp_api_lista_categoria_venda_out']) && !empty($customFields['bicorp_api_lista_categoria_venda_out'])) ? $customFields['bicorp_api_lista_categoria_venda_out'] : false;
+        
+        if($categoria){
+            $option = $ploomesServices->getOptionsFieldById($categoria);
+            $catParts = explode(' - ', $option['Name']);
+            $order->codigoCategoriaVenda = $catParts[0];
+        }elseif($codigoCategoria){
+            print 'codCategoria';
+            $order->codigoCategoriaVenda = $codigoCategoria;
+        }else{
+            $order->codigoCategoriaVenda = "1.01.03";
+        }
+   
 
         //previsão de entrega
         $order->previsaoEntrega = (isset($customFields['bicorp_api_previsao_entrega_out']) && !empty($customFields['bicorp_api_previsao_entrega_out'])) ? $customFields['bicorp_api_previsao_entrega_out'] : null;
 
-        //template id (tipo de venda produtos ou serviços ou servicos-recorrencia) **Obrigatório
+        //template id (tipo de venda produtos ou serviços) **Obrigatório
         $order->templateId = (isset($customFields['bicorp_api_tipo_venda_tratado_out']) && !empty($customFields['bicorp_api_tipo_venda_tratado_out']))? $customFields['bicorp_api_tipo_venda_tratado_out'] : 'produtos';
 
         //recurrence (tipo de venda de serviço é recorrente)
@@ -392,23 +349,14 @@ print_r($json);
         $order->cidadeServico = (isset($customFields['bicorp_api_order_cidade_servico_out']) && !empty($customFields['bicorp_api_order_cidade_servico_out']))? $customFields['bicorp_api_order_cidade_servico_out'] : null;
 
         //tipo faturamento (tipo de faturamento Mensal/trimestral/semestral)
-        $tipoFaturamentoTratado = (isset($customFields['bicorp_api_order_tipo_faturamento_tratado_out']) && !empty($customFields['bicorp_api_order_tipo_faturamento_tratado_out']))? $customFields['bicorp_api_order_tipo_faturamento_tratado_out'] : null;
+        $tipoFaturamento = (isset($customFields['bicorp_api_order_tipo_faturamento_out']) && !empty($customFields['bicorp_api_order_tipo_faturamento_out']))? $customFields['bicorp_api_order_tipo_faturamento_out'] : null;
 
-        if(!isset($tipoFaturamentoTratado) || $tipoFaturamentoTratado === null){
-
-            //tipo faturamento (tipo de faturamento Mensal/trimestral/semestral)
-            $tipoFaturamento = (isset($customFields['bicorp_api_order_tipo_faturamento_out']) && !empty($customFields['bicorp_api_order_tipo_faturamento_out'])) ? $customFields['bicorp_api_order_tipo_faturamento_out'] : null;
-    
-            if($tipoFaturamento){
-            $tFat =  explode(' - ',$tipoFaturamento);
-            $order->tipoFaturamento = $tFat[0];
-            }else{
-            $order->tipoFaturamento = null;
-            }     
+        if($tipoFaturamento){
+        $tFat =  explode(' - ',$tipoFaturamento);
+        $order->tipoFaturamento = $tFat[0];
         }else{
-            $order->tipoFaturamento = $tipoFaturamentoTratado;
-        }
-
+        $order->tipoFaturamento = null;
+        }     
                 
         //inicio vigência do contrato
         $dStart =(isset($customFields['bicorp_api_order_inicio_vigencia_out']) && !empty($customFields['bicorp_api_order_inicio_vigencia_out']))? new DateTime($customFields['bicorp_api_order_inicio_vigencia_out']) : new DateTime();//$m[] = 'Erro: não foi possível identificar o tipo de venda (Produtos ou serviços)';
@@ -434,13 +382,50 @@ print_r($json);
     
         //projeto
         $order->projeto = $customFields['bicorp_api_projeto_out'] ?? null;
-
+        
+        if(isset($customFields['bicorp_api_venda_workshop_out'])){
+            
+            $dataWorkshop = $customFields['bicorp_api_data_workshop_out'];
+            $speaker = $customFields['bicorp_api_speaker_workshop_out'];
+            $vendedorAdicional = $customFields['bicorp_api_vendedor_adicional_out'];
+            
+            $order->notes = "{$order->description}\r\n Data do Workshop: {$dataWorkshop}\r\n Speaker do Workshop: {$speaker}\r\n Vendedor Adicional: $vendedorAdicional"; 
+            
+        }else{
         //observações da nota
-        $order->notes = (isset($customFields['bicorp_api_dados_adicionais_nota_fiscal_out']) ? htmlspecialchars_decode(strip_tags($customFields['bicorp_api_dados_adicionais_nota_fiscal_out'])): null);  
-
-
-        $order->idParcelamento = $customFields['bicorp_api_codigo_condicao_pagamento_out'] ?? null;
-
+        $order->notes = (isset($customFields['bicorp_api_dados_adicionais_nota_fiscal_out']) ? htmlspecialchars_decode(strip_tags($customFields['bicorp_api_dados_adicionais_nota_fiscal_out'])): null); 
+        }
+        
+        $codigoParcelamento = (isset($customFields['bicorp_api_codigo_condicao_pagamento_out']) && !empty($customFields['bicorp_api_codigo_condicao_pagamento_out'])) ? $customFields['bicorp_api_codigo_condicao_pagamento_out'] : false;
+        
+        $listaParcela = (isset($customFields['bicorp_api_lista_parcelas_omie_out']) && !empty($customFields['bicorp_api_lista_parcelas_omie_out'])) ? $customFields['bicorp_api_lista_parcelas_omie_out'] : false;
+        
+        
+        if($listaParcela){
+            $option = $ploomesServices->getOptionsFieldById($listaParcela);
+            $parts = explode(' - ', $option['Name']);
+            $order->idParcelamento = $parts[0];
+        }elseif($codigoParcelamento){
+          
+            $order->idParcelamento = $codigoParcelamento;
+        }else{
+            $order->idParcelamento = "000";
+        }
+        
+        $codigoMeioPagamento = (isset($customFields['bicorp_api_codigo_meio_pagamento_out']) && !empty($customFields['bicorp_api_codigo_meio_pagamento_out'])) ? $customFields['bicorp_api_codigo_meio_pagamento_out'] : false;
+        
+        $listaMeiosPagamento= (isset($customFields['bicorp_api_lista_meio_pagamento_out']) && !empty($customFields['bicorp_api_lista_meio_pagamento_out'])) ? $customFields['bicorp_api_lista_meio_pagamento_out'] : false;
+        
+        if($listaMeiosPagamento){
+            $option = $ploomesServices->getOptionsFieldById($listaMeiosPagamento);
+            $parts = explode(' - ', $option['Name']);
+            $order->idMeioPagamento = $parts[0];
+        }elseif($codigoParcelamento){
+            $order->idMeioPagamento = $codigoParcelamento;
+        }else{
+            $order->idMeioPagamento = "15";
+        }
+        
         // Endereço de entrega
         // CNPJ/CPF do recebedor
         $order->docRecebedorEnderecoEntrega = $customFields['bicorp_api_entrega_doc_recebedor_venda_out'] ?? null;
@@ -525,16 +510,9 @@ print_r($json);
  
      private static function isService(object $order):bool
      {
-         $type = strtolower($order->templateId);   
+         $type = strtolower($order->templateId);       
          //verifica se é um serviço
          return ($type === 'servicos') ? true : false;
-     }
-
-    private static function isServiceRecurrence(object $order):bool
-     {
-         $type = strtolower($order->templateId);   
-         //verifica se é um serviço
-         return ($type === 'servicos-recorrencia') ? true : false;
      }
  
      private static function createRequestNewOrder(object $erp, object $order, string $jsonPedido, object $formatter, object $ploomesServices, array $arrayIsServices):array
@@ -545,10 +523,7 @@ print_r($json);
             $venda = 'Contrato de Serviço';
         }elseif($arrayIsServices['isService'] && !$arrayIsServices['isRecurrence'] ){
             $venda = 'Ordem de Serviço';
-        }elseif($arrayIsServices['isServiceAndRecurrence']){
-            $venda = 'Ordem de Serviço com Contrato Recorrente';
-        }
-        else{
+        }else{
             $venda = 'Venda de Produto';
         }
  
@@ -574,17 +549,17 @@ print_r($json);
  
              $deleteProject = self::deleteProjectErp($formatter, $erp, $order);
              
-            //  //monta a mensagem para atualizar o card do ploomes
-            //  $msg=[
-            //      'DealId' => $order->dealId,
-            //      'Content' => 'Pedido não pode ser criado no OMIE ERP. '.$incluiPedidoErp['faultstring'],
-            //      'Title' => 'Erro na integração'
-            //  ];
+             //monta a mensagem para atualizar o card do ploomes
+             $msg=[
+                 'DealId' => $order->dealId,
+                 'Content' => 'Pedido não pode ser criado no OMIE ERP. '.$incluiPedidoErp['faultstring'],
+                 'Title' => 'Erro na integração'
+             ];
          
-            //  //cria uma interação no card
-            //  ($ploomesServices->createPloomesIteraction(json_encode($msg)))?$message['deal']['interactionMessage'] = 'Erro na integração: '.$order->id.' card nº: '.$order->dealId.' e client id: '.$order->contactId.' - '.$incluiPedidoErp['faultstring']. 'Mensagem enviada com sucesso em: '.self::$current : throw new WebhookReadErrorException('Não foi possível gravar a mensagem na venda',500);
+             //cria uma interação no card
+             ($ploomesServices->createPloomesIteraction(json_encode($msg)))?$message['deal']['interactionMessage'] = 'Erro na integração: '.$order->id.' card nº: '.$order->dealId.' e client id: '.$order->contactId.' - '.$incluiPedidoErp['faultstring']. 'Mensagem enviada com sucesso em: '.self::$current : throw new WebhookReadErrorException('Não foi possível gravar a mensagem na venda',500);
  
-             $message['winDeal']['error'] ='Não foi possível gravar o pedido no Omie! '. $incluiPedidoErp['faultstring'] . $deleteProject;
+             $message['winDeal']['error'] ='Não foi possível gravar o peddido no Omie! '. $incluiPedidoErp['faultstring'] . $deleteProject;
             
          }  
          return $message;
@@ -607,8 +582,8 @@ print_r($json);
  
         return $del;
      }
-
-     public static function alterOrderStage(object $ploomesServices, array $alterOrder){
+     
+      public static function alterOrderStage(object $ploomesServices, array $alterOrder){
         //muda a etapa da venda específica para NF-Emitida stage Id 40042597
         $allStages = $ploomesServices->getOrderStages();
 
