@@ -45,6 +45,7 @@ Class CustomFieldsFunction{
         $custom = $ploomesServices->getContactCustomFields();
         $customFields = self::divideCustomForEntity($custom, $ploomesServices);
 
+
         self::$customFields = $customFields;
 
         // salvar no cache
@@ -61,6 +62,7 @@ Class CustomFieldsFunction{
         $products = []; //id = 10 name = produto
 
         foreach($customFields as $custom){
+
         
             switch($custom['Entity']['Id']){
 
@@ -172,7 +174,7 @@ Class CustomFieldsFunction{
     }
 
     public static function getCustomFieldsByEntity($entity) {
-        
+                
         return self::$customFields[$entity];
     }
 
@@ -219,13 +221,14 @@ Class CustomFieldsFunction{
             $customFields = $_SESSION['contact_custom_fields'][$id];
             
         }
+        //  print_r($customFields);exit;
         //  print_r($customFields);
         // Criar um índice associativo para facilitar a busca
         $customFieldMap = [];
-        foreach ($customFields[$entity] as $field) {
-            
+        foreach ($customFields[$entity] as $field) {           
             $customFieldMap[$field['Key']] = $field['SendExternalKey'];
         }
+        // print_r($customFieldMap);exit;
         // print_r($customFieldMap);
         // Mapear os valores de OtherProperties com os nomes dos campos
         foreach ($otherProperties as $property) {
@@ -235,6 +238,8 @@ Class CustomFieldsFunction{
                 $array[$customFieldMap[$fieldKey]] =  $property['StringValue'] ?? $property['BigStringValue'] ?? $property['IntegerValue'] ?? $property['DecimalValue'] ?? $property['DateTimeValue'] ?? $property['BoolValue'] ;
             }
         }
+
+       
         
         return $array;
 
