@@ -25,9 +25,9 @@ class RequestMiddleware extends Middleware {
             }else{
                 // Obtém o subdomínio da requisição
                 $host = $_SERVER['HTTP_HOST'] ?? '';
-                $subdomain = explode('.', $host)[0]; // Supondo que seja algo como "cliente.dominio.com"
+               // $subdomain = explode('.', $host)[0]; // Supondo que seja algo como "cliente.dominio.com"
                 // Busca o cliente no banco de dados pelo subdominio, quando vem dos erps/crms
-               // $subdomain = strtolower('juan');
+               $subdomain = strtolower('newclient');
               
                 $user = ClientHandler::getClientBySubdomain($subdomain);
     

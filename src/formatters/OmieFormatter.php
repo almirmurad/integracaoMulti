@@ -73,7 +73,7 @@ Class OmieFormatter implements ErpFormattersInterface{
 
     public function createOrder(object $order, object $omie):string
     {        
-
+        // print_r($order);exit;
         //separa e monta os arrays de produtos e serviços
         // cabecalho
         $cabecalho = [];//cabeçalho do pedido (array)
@@ -84,6 +84,8 @@ Class OmieFormatter implements ErpFormattersInterface{
         $cabecalho['numero_pedido'] = $order->id;//string
         $cabecalho['codigo_parcela'] = $order->idParcelamento ?? '000';//string'qtde_parcela'=>2
         $cabecalho['origem_pedido'] = 'API';//string
+        $cabecalho['codigo_cenario_impostos'] = $order->codCenarioFiscal ?? null;//5329821555;//cenario de fiscal (impostos)
+        
     
         //frete
         $frete = [];//array com infos do frete, por exemplo, modailidade;
@@ -363,6 +365,30 @@ Class OmieFormatter implements ErpFormattersInterface{
         }
 
         return $createOrder;
+
+    }
+
+    public function buscaVendaOmie(object $omie, int $id)
+    {
+        // $url = 'https://app.omie.com.br/api/v1/produtos/pedido/';
+        // $param = [
+        //     "codigo_pedido"=>$id
+        // ];
+
+
+        // $array = [
+        //     'app_key' => $omie->appKey,
+        //     'app_secret' => $omie->appSecret,
+        //     'call' => 'ConsultarPedido',
+        //     'param'=> [$param],
+        // ];
+        
+        // $json = json_encode($array, JSON_UNESCAPED_UNICODE);
+
+        
+        return $this->omieServices->consultaPedidoErp($omie, $id);
+
+
 
     }
 

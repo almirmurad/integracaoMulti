@@ -611,8 +611,7 @@ Class CustomFieldsFunction{
     
         return $mapped;
     }
-
-       
+    
 
  
 

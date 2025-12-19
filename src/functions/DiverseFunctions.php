@@ -208,10 +208,18 @@ class DiverseFunctions{
     //CONVERTE PARA DATA EM PORTUGUÊS
     public static function convertDate($date)
     {
-        $dateIni = explode('T', $date);
-        $datePt = explode('-', $dateIni[0]);
-        $datePtFn = implode("/", array_reverse($datePt)); // . " às " . $dateIni[1];
-        return $datePtFn;
+        if($date === null || empty($date) || !isset($date)){return null;}
+        if(strpos('T', $date)){
+            $dateIni = explode('T', $date);
+            $datePt = explode('-', $dateIni[0]);
+            $datePtFn = implode("/", array_reverse($datePt)); // . " às " . $dateIni[1];
+            return $datePtFn;
+        }else{
+           
+            $datePt = explode('-', $date);
+            $datePtFn = implode("/", array_reverse($datePt)); // . " às " . $dateIni[1];
+            return $datePtFn;
+        }
     }
 
     public static function convertDateHora($date)

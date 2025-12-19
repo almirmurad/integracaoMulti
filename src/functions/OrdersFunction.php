@@ -67,11 +67,6 @@ class OrdersFunction{
         
         //observações da nota
         $order->description = (isset($orderArray['Description']) ? htmlspecialchars_decode(strip_tags($orderArray['Description'])): null);  
-        
-        
-        
-        
-
         //SendExternalKey do id dos itens no omie registrados no ploomes *** Obrigatório
         $idItemErp = self::setIdItemErp($erp);    
         
@@ -134,51 +129,70 @@ class OrdersFunction{
 
     //processa o pedido do ERP para o CRM
     public static function processOrderErpToCrm($args, $ploomesServices, $formatter, $action):array
-    {        
+    {   
+        $decoded = $args['body'];
+       
         $message = [];
         $current = date('d/m/Y H:i:s');
         
+         //pega as informações dos aplicativos
+        $bases = $args['Tenancy']['erp_bases'];
+        
+        $totalBases = count($bases);
+        $erp = [];
+        if($totalBases > 1){
+            //codigo para buscar a base, pssivelmente utilizar o appKey do webhook
+            foreach($bases as $base){
+                if($base['app_key'] === $decoded['appKey']){
+                    $erp = $base;
+                    break;
+                }
+            }
+        }else{
+          
+            $erp = $bases[0];
+        }       
+
 
         if($action['action'] === 'venEtapaAlterada'){
            
-            $decoded = $args['body'];
+            
             $message[] = self::alterOrderStage($ploomesServices, $decoded);
-            
-
-            return $message;
-
+                       
         }
 
-        if($idContact !== null || $action['action'] !== 'create')
-        {
-            if($ploomesServices->updatePloomesContact($json, $idContact)){
+        return $message;
 
-                $message['success'] = 'Integração concluída com sucesso! Cliente Ploomes id: '.$idContact.' alterado no Ploomes CRM com sucesso em: '.$current;
+        // if($idContact !== null || $action['action'] !== 'create')
+        // {
+        //     if($ploomesServices->updatePloomesContact($json, $idContact)){
 
-                return $message;
+        //         $message['success'] = 'Integração concluída com sucesso! Cliente Ploomes id: '.$idContact.' alterado no Ploomes CRM com sucesso em: '.$current;
+
+        //         return $message;
             
-                // $msg=[
-                //     'ContactId' => $idContact,
-                //     'Content' => 'Cliente '.$contact->nomeFantasia.' alterado no Omie ERP na base: '.$contact->baseFaturamentoTitle.' via Bicorp Integração',
-                //     'Title' => 'Cliente Alterado'
-                // ];
+        //         // $msg=[
+        //         //     'ContactId' => $idContact,
+        //         //     'Content' => 'Cliente '.$contact->nomeFantasia.' alterado no Omie ERP na base: '.$contact->baseFaturamentoTitle.' via Bicorp Integração',
+        //         //     'Title' => 'Cliente Alterado'
+        //         // ];
                 
-                // //cria uma interação no card
-                // ($ploomesServices->createPloomesIteraction(json_encode($msg)))?$message = 'Integração concluída com sucesso! Cliente Ploomes id: '.$idContact.' alterado no Ploomes CRM ('.$contact->baseFaturamentoTitle.') e mensagem enviada com sucesso em: '.$current : $message = 'Integração concluída com sucesso! Cliente Ploomes id: '.$idContact.' alterado no PLoomes CRM, porém não foi possível gravar a mensagem no card do cliente do Ploomes: '.$current;
-            }
+        //         // //cria uma interação no card
+        //         // ($ploomesServices->createPloomesIteraction(json_encode($msg)))?$message = 'Integração concluída com sucesso! Cliente Ploomes id: '.$idContact.' alterado no Ploomes CRM ('.$contact->baseFaturamentoTitle.') e mensagem enviada com sucesso em: '.$current : $message = 'Integração concluída com sucesso! Cliente Ploomes id: '.$idContact.' alterado no PLoomes CRM, porém não foi possível gravar a mensagem no card do cliente do Ploomes: '.$current;
+        //     }
 
-            throw new WebhookReadErrorException('Erro ao alterar o cliente Ploomes id: '.$idContact.' em: '.$current, 500);    
-        }
-        else
-        {
+        //     throw new WebhookReadErrorException('Erro ao alterar o cliente Ploomes id: '.$idContact.' em: '.$current, 500);    
+        // }
+        // else
+        // {
 
-            if($ploomesServices->createPloomesContact($json)){
-                $message['success'] = 'Cliente '.$contact->nomeFantasia.' Cadastrado no Ploomes CRM com sucesso! Data: '.$current;
-                return $message;
-            }
+        //     if($ploomesServices->createPloomesContact($json)){
+        //         $message['success'] = 'Cliente '.$contact->nomeFantasia.' Cadastrado no Ploomes CRM com sucesso! Data: '.$current;
+        //         return $message;
+        //     }
             
-            throw new WebhookReadErrorException('Erro ao cadastrar o cliente Ploomes id: '.$idContact.' em: '.$current, 500);
-        }
+        //     throw new WebhookReadErrorException('Erro ao cadastrar o cliente Ploomes id: '.$idContact.' em: '.$current, 500);
+        // }
     }
  
 
@@ -317,7 +331,7 @@ class OrdersFunction{
             $catParts = explode(' - ', $option['Name']);
             $order->codigoCategoriaVenda = $catParts[0];
         }elseif($codigoCategoria){
-            print 'codCategoria';
+       
             $order->codigoCategoriaVenda = $codigoCategoria;
         }else{
             $order->codigoCategoriaVenda = "1.01.03";
@@ -387,14 +401,16 @@ class OrdersFunction{
             
             $dataWorkshop = $customFields['bicorp_api_data_workshop_out'];
             $speaker = $customFields['bicorp_api_speaker_workshop_out'];
-            $vendedorAdicional = $customFields['bicorp_api_vendedor_adicional_out'];
             
-            $order->notes = "{$order->description}\r\n Data do Workshop: {$dataWorkshop}\r\n Speaker do Workshop: {$speaker}\r\n Vendedor Adicional: $vendedorAdicional"; 
+            $vendedorAdicional = $ploomesServices->getUserById($customFields['bicorp_api_vendedor_adicional_out']);
+
+            $order->description = "Informações do Workshop: \r\n Data do Workshop: {$dataWorkshop}\r\n Speaker do Workshop: {$speaker}\r\n Vendedor Adicional: {$vendedorAdicional['Name']}\r\nObservações da venda:\r\n{$order->description}"; 
+            $order->codCenarioFiscal = null;//5329821555;null é o padrão, pensar em colocar esta informação no banco de dados
             
-        }else{
+        }
+
         //observações da nota
         $order->notes = (isset($customFields['bicorp_api_dados_adicionais_nota_fiscal_out']) ? htmlspecialchars_decode(strip_tags($customFields['bicorp_api_dados_adicionais_nota_fiscal_out'])): null); 
-        }
         
         $codigoParcelamento = (isset($customFields['bicorp_api_codigo_condicao_pagamento_out']) && !empty($customFields['bicorp_api_codigo_condicao_pagamento_out'])) ? $customFields['bicorp_api_codigo_condicao_pagamento_out'] : false;
         
@@ -420,8 +436,8 @@ class OrdersFunction{
             $option = $ploomesServices->getOptionsFieldById($listaMeiosPagamento);
             $parts = explode(' - ', $option['Name']);
             $order->idMeioPagamento = $parts[0];
-        }elseif($codigoParcelamento){
-            $order->idMeioPagamento = $codigoParcelamento;
+        }elseif($codigoMeioPagamento){
+            $order->idMeioPagamento = $codigoMeioPagamento;
         }else{
             $order->idMeioPagamento = "15";
         }
@@ -530,13 +546,49 @@ class OrdersFunction{
          //verifica se criou o pedido no ERP
          if($incluiPedidoErp['create']) 
          {
+            //consultar o pedido para trazer todas as informações do Omie para atualizar no Ploomes
+            $vendaIncluida = $formatter->buscaVendaOmie($erp, $incluiPedidoErp['codigo_pedido']);
+
+            //inserir o código da venda no Ploomes
+            $alterOrder = [];
+            $alterOrder['ContactId'] = $order->contactId;
+            $fields = [
+                [
+                    'SendExternalKey'=>'bicorp_api_num_pedido_venda_externo_out',
+                    'Value' =>intval($incluiPedidoErp['num_pedido']) ?? null,
+                ],
+                [
+                    'SendExternalKey'=>'bicorp_api_codigo_cenario_imposto_out',
+                    'Value' =>$vendaIncluida['pedido_venda_produto']['cabecalho']['codigo_cenario_impostos']  ?? null,
+
+                ],
+                [
+                    'SendExternalKey'=>'bicorp_api_id_pedido_venda_produto_out',
+                    'Value' =>$vendaIncluida['pedido_venda_produto']['cabecalho']['codigo_pedido']  ?? null,
+
+                ],
+                [
+                    'SendExternalKey'=>'bicorp_api_estagio_pedido_venda_produto_out',
+                    'Value' =>$vendaIncluida['pedido_venda_produto']['cabecalho']['etapa']  ?? null,
+                ],
+               
+            ];
+            
+            $op = self::createPloomesCustomFields($fields,$ploomesServices);
+            if(!empty($op)){
+                $alterOrder['OtherProperties'] = $op;
+                $orderJson = json_encode($alterOrder); 
+                $ploomesServices->alterPloomesOrder($orderJson, $order->id);
+            }
+            
              $message['winDeal']['interactionMessage'] = 'Integração concluída com sucesso!<br> Pedido Ploomes: '.$order->id.' card nº: '.$order->dealId.' e client id: '.$order->contactId.' gravados no Omie ERP com o numero: '.intval($incluiPedidoErp['num_pedido']).' e mensagem enviada com sucesso em: '.self::$current;
  
              //monta a mensagem para atualizar o card do ploomes
              $msg=[
                  'DealId' => $order->dealId,
                  'Content' => $venda . ' ('.intval($incluiPedidoErp['num_pedido']).') criada no OMIE via API BICORP na base '.$erp->baseFaturamentoTitle.'.',
-                 'Title' => 'Pedido Criado'
+                 'Title' => 'Pedido Criado',
+                 'ContactId'=>$order->contactId
              ];
  
              //cria uma interação no card
@@ -553,7 +605,8 @@ class OrdersFunction{
              $msg=[
                  'DealId' => $order->dealId,
                  'Content' => 'Pedido não pode ser criado no OMIE ERP. '.$incluiPedidoErp['faultstring'],
-                 'Title' => 'Erro na integração'
+                 'Title' => 'Erro na integração',
+                 'ContactId'=>$order->contactId
              ];
          
              //cria uma interação no card
@@ -609,9 +662,70 @@ class OrdersFunction{
             throw new WebhookReadErrorException("Erro ao alterar o estágio da venda numero do Omie {$alterOrder['event']['numeroPedido']} e Id do Ploomes {$idPedidoPloomes}");
         }
 
+        //muda a etapa da venda do omie na venda do Ploomes
+        $alterStageOrder = [];
+        
+        $fields = [
+            [
+                'SendExternalKey'=>'bicorp_api_estagio_pedido_venda_produto_out',
+                'Value' =>$alterOrder['event']['etapa']  ?? null,
+
+            ],
+            
+        ];
+
+        $op = self::createPloomesCustomFields($fields,$ploomesServices);
+        if($op){
+            $alterStageOrder['OtherProperties'] = $op;
+            $orderJson = json_encode($alterStageOrder); 
+            $ploomesServices->alterPloomesOrder($orderJson, $idPedidoPloomes);
+        }
+        
+
+
         $message = "Etapa da venda número do Omie {$alterOrder['event']['numeroPedido']} e Id do Ploomes {$idPedidoPloomes}, alterado para {$alterOrder['event']['etapaDescr']}, com sucesso!";
 
         return $message;
+     }
+
+     public static function createPloomesCustomFields($fields, $ploomesServices)
+     {
+        $op =[];
+         foreach($fields as $field){
+            $array = [];
+            $pCustom = $ploomesServices->getCustomFieldBySendExternalKey($field['SendExternalKey']);
+            if(!$pCustom){
+                continue;
+            }
+            $array['FieldKey'] = $pCustom['Key'];
+            
+            switch($pCustom['Type']['NativeType']){
+                case 'Integer':
+                    $type = 'IntegerValue';
+                    break;
+                case 'String':
+                    $type = 'StringValue';
+                    break;
+                case 'Bool':
+                    $type = 'BoolValue';
+                    break;
+                case 'BigString':
+                    $type = 'BigStringValue';
+                    break;
+                case 'Decimal':
+                    $type = 'DecimalValue';
+                    break;
+                case 'DateTime':
+                    $type = 'DateTimeValue';
+                    break;
+            }
+
+            $array[$type] = $field['Value'];
+            $op[] = $array;
+
+        }
+
+        return $op;
      }
 
     

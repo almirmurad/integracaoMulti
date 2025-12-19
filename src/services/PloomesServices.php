@@ -116,6 +116,35 @@ class PloomesServices implements PloomesManagerInterface{
         
         return $response;
     }
+
+        //ENCONTRA O EMAIL DO VENDEDOR NO PLOOMES
+    public function getUserById(int $id):array
+    {
+        $curl = curl_init();
+
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => $this->baseApi . 'Users?$filter=Id+eq+' . $id . '',
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => strtoupper($this->method[0]),
+            CURLOPT_HTTPHEADER => $this->headers
+        ));
+
+        $responseMail = curl_exec($curl);
+
+        curl_close($curl);
+
+        $responseMail = json_decode($responseMail, true);
+
+        $response = $responseMail['value'][0] ?? false;
+        
+        return $response;
+    }
+
     //ENCONTRA O ID DO VENDEDOR NO PLOOMES
     public function ownerId(object $deal):string | null
     {
@@ -364,6 +393,36 @@ class PloomesServices implements PloomesManagerInterface{
         curl_close($curl);
 
        return ($response['value'][0]['StageId'] === $stage['StageId']) ? true :  false;
+    }
+
+    public function alterPloomesOrder(string $json, int $orderId)
+    {
+       
+        $curl = curl_init();
+
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => $this->baseApi . 'Orders('.$orderId.')',
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => strtoupper($this->method[2]),
+            CURLOPT_POSTFIELDS =>$json,
+            CURLOPT_HTTPHEADER => $this->headers
+        ));
+
+        $response = curl_exec($curl);
+        $response =json_decode($response, true);
+        
+        curl_close($curl);
+
+
+
+       return ($response['value'][0]['Id']) ? true :  false;
+
+
     }
     
     //encontra cliente no ploomes pelo Nome
@@ -1084,6 +1143,41 @@ class PloomesServices implements PloomesManagerInterface{
 
         return ($response !== null) ? false : true;
        
+    }
+
+    
+    public function getCustomFieldBySendExternalKey($externalKey):array|bool
+    {
+        ///Fields?$filter=Dynamic+eq+true+and+SendExternalKey+eq+'bicorp_api_inscricao_estadual_out'&$expand=Type($select=NativeType)&$select=Name,Key,Type,SendExternalKey
+        $filter = "Fields?\$filter=Dynamic+eq+true+and+SendExternalKey+eq+'{$externalKey}'";
+        $expand = "&\$expand=Type(\$select=NativeType)";
+        $uri = $this->baseApi . $filter . $expand;
+        // print $uri;
+        // exit;
+
+        $curl = curl_init();
+
+        curl_setopt_array($curl, array(
+            CURLOPT_URL =>$uri,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => strtoupper($this->method[0]),
+            CURLOPT_HTTPHEADER => $this->headers
+            
+        ));
+        
+        $response = json_decode(curl_exec($curl), true);
+      
+        curl_close($curl);
+
+       
+
+        return (!isset($response['value'][0])) ? false : $response['value'][0];
+
     }
 
     //encontra todos os campos customizáveis de contacts

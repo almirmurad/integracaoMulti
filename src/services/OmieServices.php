@@ -458,6 +458,7 @@ class OmieServices implements ErpManagerInterface{
     // busca o pedido através do Id do OMIE
     public function consultaPedidoErp(object $omie, int $idPedido)
     {
+        
         $array = [
                     'app_key'=>$omie->appKey,
                     'app_secret'=>$omie->appSecret,
