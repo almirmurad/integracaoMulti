@@ -128,7 +128,7 @@ class OrdersFunction{
     }
 
     //processa o pedido do ERP para o CRM
-    public static function processOrderErpToCrm($args, $ploomesServices, $formatter, $action):array
+    public static function processOrderErpToCrm($args, $ploomesServices, $formatter, $action):array|string
     {   
         $decoded = $args['body'];
        
@@ -157,8 +157,8 @@ class OrdersFunction{
         if($action['action'] === 'venEtapaAlterada'){
            
             
-            $message[] = self::alterOrderStage($ploomesServices, $decoded);
-                       
+            $message = self::alterOrderStage($ploomesServices, $decoded);
+                                   
         }
 
         return $message;
@@ -683,9 +683,9 @@ class OrdersFunction{
         
 
 
-        $message = "Etapa da venda número do Omie {$alterOrder['event']['numeroPedido']} e Id do Ploomes {$idPedidoPloomes}, alterado para {$alterOrder['event']['etapaDescr']}, com sucesso!";
+        $m = "Etapa da venda número do Omie {$alterOrder['event']['numeroPedido']} e Id do Ploomes {$idPedidoPloomes}, alterado para {$alterOrder['event']['etapaDescr']}, com sucesso!";
 
-        return $message;
+        return $m;
      }
 
      public static function createPloomesCustomFields($fields, $ploomesServices)
