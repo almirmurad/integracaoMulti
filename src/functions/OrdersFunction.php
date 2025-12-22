@@ -810,37 +810,6 @@ print_r($json);
         return $op;
      }
 
-     public static function alterOrderStage(object $ploomesServices, array $alterOrder){
-        //muda a etapa da venda específica para NF-Emitida stage Id 40042597
-        $allStages = $ploomesServices->getOrderStages();
-
-        foreach($allStages as $stage){
-            if(mb_strtolower($stage['Name']) === mb_strtolower($alterOrder['event']['etapaDescr'])){
-                $dataStage = [
-                    'Id'=> $stage['Id'],
-                    'Name' => $stage['Name']
-                ];
-            }
-        }
-
-        $array = [
-            'StageId'=>$dataStage['Id']
-        ];
-
-        $json = json_encode($array);
-
-        $id = explode('/',$alterOrder['event']['codIntPedido']);
-        $idPedidoPloomes = $id[1];    
-        $alterStageOrderPloomes = $ploomesServices->alterStageOrder($json, $idPedidoPloomes);
-        if(!$alterStageOrderPloomes){
-            throw new WebhookReadErrorException("Erro ao alterar o estágio da venda numero do Omie {$alterOrder['event']['numeroPedido']} e Id do Ploomes {$idPedidoPloomes}");
-        }
-
-        $message = "Etapa da venda número do Omie {$alterOrder['event']['numeroPedido']} e Id do Ploomes {$idPedidoPloomes}, alterado para {$alterOrder['event']['etapaDescr']}, com sucesso!";
-
-        return $message;
-     }
-
-    
+      
 
 }
