@@ -190,8 +190,18 @@ return [
             'callback' => 'DealController@processPloomesDeal', //nova interação
             'middlewares' => [RequestMiddleware::class, LoadCustomFieldsMiddleware::class]
         ],
-
-
-
+        //Orders
+        // '/erpOrder'=>[
+        //     'callback' => 'OrderController@erpOrder', //Nova venda no omie
+        //     'middlewares' => [RequestMiddleware::class,]
+        // ],
+        '/ploomesDocument'=>[
+            'callback' => 'DocumentController@ploomesDocument', //novo pedido no ploomes
+            'middlewares' => [RequestMiddleware::class,]
+        ],
+        '/processNewDocument'=>[
+            'callback' => 'DocumentController@processNewDocument', //inicia processo
+            'middlewares' => [RequestMiddleware::class, LoadCustomFieldsMiddleware::class]
+        ],
     ]
 ];

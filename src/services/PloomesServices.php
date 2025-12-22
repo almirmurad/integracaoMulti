@@ -169,6 +169,33 @@ class PloomesServices implements PloomesManagerInterface{
         return $response['value'][0]['Id'] ?? null;
     }
 
+       //encontra a venda no ploomes
+    public function requestDocument(object $order):array|null
+    {
+        $id = $order->id ?? $order->lastOrderId;
+        $curl = curl_init();
+        
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => $this->baseApi . 'Documents?$filter=Id+eq+'. $id .'&$expand=Sections($expand=Products($select=Product,Discount,Quantity,UnitPrice,Id,Ordination;$expand=Product($select=Code,Id;$expand=Group,Parts))),Owner,Contact($expand=OtherProperties),OtherProperties,Products($select=Product,Discount,Quantity,UnitPrice,Id,Ordination;$expand=Product($select=Code,Id;$expand=Group,Parts,OtherProperties))&$orderby=Id',
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => strtoupper($this->method['0']),
+            CURLOPT_HTTPHEADER => $this->headers
+        ));
+        
+        $response = json_decode(curl_exec($curl),true);
+
+        curl_close($curl);
+        $order = (empty($response['value'][0])) ? Null : $response['value'][0]; 
+        
+        return $order;
+      
+    }
+
     //encontra a venda no ploomes
     public function requestOrder(object $order):array|null
     {

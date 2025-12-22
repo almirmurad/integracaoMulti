@@ -7,17 +7,6 @@ Class CustomFieldsFunction{
     
     private static $customFields = [];
 
-    // public static function loadCustomField($ploomesBase){
-    //     $ploomesServices = new PloomesServices($ploomesBase);
-    //     if(empty(self::$customFields)){
-    //         $customFields =[];
-    //         //pega todos os campos personalizados
-    //         $custom = $ploomesServices->getContactCustomFields();
-    //         //cria um array separado por entidade
-    //         $customFields = self::divideCustomForEntity($custom, $ploomesServices);
-    //         self::$customFields = $customFields;
-    //     }
-    // }
     public static function loadCustomField($ploomesBase, $cacheTtl = 86400){
         // $cacheTtl = 86400 (1 dia) 3600 (1hora)
         // cada tenancy/ploomesBase terá seu próprio cache
@@ -60,6 +49,7 @@ Class CustomFieldsFunction{
         $quotes = []; //id = 7 name = Proposta
         $quoteSection = []; //id = 8 name = Bloco 
         $products = []; //id = 10 name = produto
+        $documents = []; //id = 66 name = documento
 
         foreach($customFields as $custom){
 
@@ -158,6 +148,21 @@ Class CustomFieldsFunction{
                         $contacts['Options'] = $opt['Options'];
                     }
                     $cf[$custom['Entity']['Name']][] = $products;
+                break;
+                case 66:
+                    $documents['Id'] = $custom['Id'];
+                    $documents['Name'] = $custom['Name'];
+                    $documents['Key'] = $custom['Key'];
+                    $documents['SendExternalKey'] = $custom['SendExternalKey'];
+                    $documents['Type'] = $custom['Type']['NativeType'];
+                    $documents['Entity'] = $custom['Entity']['Name'];
+                    $documents['TypeId'] = $custom['TypeId'];
+                    $documents['Options'] = null;
+                    if($documents['TypeId'] == 7 && !empty($custom['OptionsTableId']) ){
+                        $opt = $ploomesServices->getOptionsTableById($custom['OptionsTableId']);
+                        $contacts['Options'] = $opt['Options'];
+                    }
+                    $cf[$custom['Entity']['Name']][] = $documents;
                 break;
             }
             

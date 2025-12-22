@@ -37,6 +37,9 @@ class DiverseFunctions{
                     case 'Order':
                          $type = 'order';
                          break;
+                    case 'Documents':
+                         $type = 'documents';
+                         break;
                 }
 
                 if($_REQUEST['request'] === 'processNewTransferChat' || $_REQUEST['request'] === 'transferChat' || $_REQUEST['request'] === 'finishDeal')
