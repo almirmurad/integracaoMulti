@@ -38,7 +38,8 @@ Class OmieFormatter implements ErpFormattersInterface{
     //order
     public function distinctProductsServicesFromOmieOrders(array $orderArray, array $arrayIsServices, string $idItemOmie, object $order):array
     { 
-        
+        // print_r($orderArray);
+        // exit;
         $productsOrder = [];
         $contentServices = [];
           //separa e monta os arrays de produtos e serviços
@@ -56,8 +57,9 @@ Class OmieFormatter implements ErpFormattersInterface{
             }
 
             //verifica se é venda de serviço 
-            if($arrayIsServices['isService']){
-                
+            if($arrayIsServices['isService'] || $arrayIsServices['isRecurrence']){
+                // print'aqui';
+                // exit;
                //retorna o modelo de serviço para o erp de destino 
                $contentServices[] = $this->getOrdersServicesItens($prdItem, $opItem[$idItemOmie], $order, $arrayIsServices['isRecurrence']);
             
@@ -67,6 +69,10 @@ Class OmieFormatter implements ErpFormattersInterface{
                
             }
         }
+
+        // print_r($contentServices);
+        // print_r($productsOrder);
+        // exit;
 
         return ['products'=>$productsOrder, 'services'=>$contentServices];
     }
@@ -151,34 +157,56 @@ Class OmieFormatter implements ErpFormattersInterface{
 
     public function createContract(object $order, object $omie):string
     {        
+        // print 'aqui em contract';
+        // exit;
+        // print_r($order);
+        // exit;
         // cabecalho
         $cabecalho = [];//cabeçalho do pedido (array)
         $cabecalho['cCodIntCtr'] = 'VEN_CONT/'.$order->id;//string
         $cabecalho['nCodCli'] = $order->idClienteOmie;//int
         $cabecalho['cNumCtr'] = $order->numContrato;//string
-        $cabecalho['cCodSit'] = $order->sitContrato;//string'qtde_parcela'=>2
+        $cabecalho['cCodSit'] = $order->sitContrato ?? 10;//string'qtde_parcela'=>2
         $cabecalho['dVigInicial'] = $order->inicioVigencia;//string
         $cabecalho['dVigFinal'] = $order->fimVigencia;//string
         $cabecalho['nDiaFat'] = $order->diaFaturamento;//string
         $cabecalho['cTipoFat'] = $order->tipoFaturamento;//string
-    
+        
         //departamentos
+        //precisamos entender se o depto vai vir um só ou mais de um, se vier mais de um precisa fazer o calculo para gerar os valores para inserir 
         $departamentos = [];//array com infos do frete, por exemplo, modailidade;
+        if(isset($order->codigoDepartamento) && !empty($order->codigoDepartamento)){
+           // $depto = $this->omieServices->buscaDeptoByCode($omie, $order->codigoDepartamento);
+            $arrayDepto = [
+                'cCodDep'=>$order->codigoDepartamento,
+                'nPerDep'=>100,
+                'nValDep'=>$order->amount,
+                // 'nValorFixo'=>'S'
+            ];
+            
+            // cCodDepto	string40	ID do Departamento.
+            // nPerc	decimal	Percentual de Rateio.
+            // nValor	decimal	Valor do Rateio.
+            // nValorFixo	string1	Indica que o valor foi fixado na distribuição do rateio.
+            // Depar
+            $departamentos[] = $arrayDepto;
 
+        } 
+        
         $emailCliente = [];
-        $emailCliente['cEnviarBoleto'] = '';
-        $emailCliente['cEnviarLinkNfse'] = '';
-        $emailCliente['cEnviarRecibo'] = '';
-        $emailCliente['cUtilizarEmails'] = '';
+        $emailCliente['cEnviarBoleto'] = $order->enviaBoleto;
+        $emailCliente['cEnviarLinkNfse'] = 'S';
+        // $emailCliente['cEnviarRecibo'] = 'S';
+        $emailCliente['cUtilizarEmails'] = $order->emailNF;
        
         //informações adicionais
         $infAdic = []; //informações adicionais por exemplo codigo_categoria = 1.01.02, codigo_conta_corrente = 123456789
         $infAdic['cCidPrestServ'] = $order->cidadeServico;//int
         $infAdic['cCodART'] = '';//string
-        $infAdic['cCodCateg'] = '1.01.02';//string
+        $infAdic['cCodCateg'] = $order->codigoCategoriaVenda ??  '1.01.02';//string
         $infAdic['cCodObra'] = '';
         $infAdic['cContato'] = '';
-        $infAdic['cDadosAdicNF']= '';
+        $infAdic['cDadosAdicNF']= $order->observacoesOS;
         $infAdic['nCodCC']= $omie->ncc;
         $infAdic['nCodProj'] = $order->codProjeto;
         $infAdic['nCodVend']= $order->codVendedorErp;
@@ -238,9 +266,9 @@ Class OmieFormatter implements ErpFormattersInterface{
             'cDiaIni'=>0,
             'cPostergar'=>'',
             'cProxMes'=>'',
-            'cTpVenc'=>'001',
-            'nDiaFixo'=>0,
-            'nDias'=>5,
+            'cTpVenc'=>$order->codTipoVencimento ?? '001',
+            'nDiaFixo'=>$order->diaFixoVencCont,
+            'nDias'=>$order->numDiasVencimCont,
         ];
     
         $newContract = [];//array que engloba tudo
@@ -252,6 +280,7 @@ Class OmieFormatter implements ErpFormattersInterface{
         $newContract['observacoes'] = $observacoes;
         $newContract['vencTextos'] = $vencTextos;
         $newContract['produtosUtilizados'] = $pu;
+
         //$newContract['lista_parcelas'] = $lista_parcelas;
         //$newContract['observacoes'] = $observacoes;
     
@@ -267,7 +296,7 @@ Class OmieFormatter implements ErpFormattersInterface{
                 'call' => 'UpsertContrato',
                 'param'=> [$newContract],
             ];
-    
+
             return json_encode($array, JSON_UNESCAPED_UNICODE);       
 
         }else{
@@ -282,29 +311,67 @@ Class OmieFormatter implements ErpFormattersInterface{
         $cabecalho['nCodCli'] = $os->idClienteOmie;//int
         $cabecalho['cCodIntOS'] = 'VEN_SRV/'.$os->id;//string
         $cabecalho['dDtPrevisao'] = DiverseFunctions::convertDate($os->previsaoFaturamento);//string
-        $cabecalho['cEtapa'] = '10';//string
+        $cabecalho['cEtapa'] = $os->codigoEtapa ?? '10';//string
         $cabecalho['cCodParc'] =  $os->idParcelamento ?? '000';//string'qtde_parcela'=>2
         $cabecalho['nQtdeParc'] = 3;//string'qtde_parcela'=>2
         $cabecalho['nCodVend'] = $os->codVendedorErp;//string'qtde_parcela'=>2
+        $observacoes = [];
+        $observacoes['cObsOS'] = $os->observacoesOS ?? null;
+
+        $emailNF=[];
+        $emailNF['cEnvBoleto'] = $os->enviaBoleto;
+        $emailNF['cEnvLink'] = 'S';
+        $emailNF['cEnviarPara'] = $os->emailNF;
+
 
         $InformacoesAdicionais = []; //informações adicionais por exemplo codigo_categoria = 1.01.02 p/ serviços
-        $InformacoesAdicionais['cCodCateg'] = '1.01.02';//string
+        $InformacoesAdicionais['cCodCateg'] = $os->codigoCategoriaVenda ?? '1.01.02';//string
         $InformacoesAdicionais['nCodCC'] = $omie->ncc;//int
-        $InformacoesAdicionais['cDadosAdicNF'] = $os->notes;//string
+        $InformacoesAdicionais['cDadosAdicNF'] = $os->notes;//string 
         $InformacoesAdicionais['cNumPedido']=$os->numPedidoCliente ?? "0";
+        $InformacoesAdicionais['cNumContrato']= $os->numContrato ?? "0";
+        
         $InformacoesAdicionais['nCodProj']= $os->codProjeto ?? null;
         $InformacoesAdicionais['cCidPrestServ']= $os->cidadeServico ?? null;
         $prodUti = [];
         $services = [];
-         
+//  print $os->codigoDepartamento;
+        //departamentos
+        //precisamos entender se o depto vai vir um só ou mais de um, se vier mais de um precisa fazer o calculo para gerar os valores para inserir 
+        $departamentos = [];//array com infos do frete, por exemplo, modailidade;
+        if(isset($os->codigoDepartamento) && !empty($os->codigoDepartamento)){
+            // $depto = $this->omieServices->buscaDeptoByCode($omie, $os->codigoDepartamento);
+            // print_r($depto);
+            // exit;
+            $arrayDepto = [
+                'cCodDepto'=>$os->codigoDepartamento,
+                'nPerc'=>100,
+                'nValor'=>$os->amount,
+                'nValorFixo'=>'S'
+            ];
+            
+            // cCodDepto	string40	ID do Departamento.
+            // nPerc	decimal	Percentual de Rateio.
+            // nValor	decimal	Valor do Rateio.
+            // nValorFixo	string1	Indica que o valor foi fixado na distribuição do rateio.
+            // Depar
+            $departamentos[] = $arrayDepto;
+        }  
+        
+        // print_r($departamentos);
+        // exit;
+    
         foreach($os->contentOrder as $service){
-            foreach($service['pu'] as $prdUtl){
-                $prodUti[] = $prdUtl;
+            if(isset($service['pu'])){
+
+                foreach($service['pu'] as $prdUtl){
+                    $prodUti[] = $prdUtl;
+                }
+                unset($service['pu']);
             }
-            unset($service['pu']);
             $services[] = $service;           
         }
-     
+  
         $pu = [];
 
         $pu['cAcaoProdUtilizados'] = 'EST';
@@ -312,9 +379,13 @@ Class OmieFormatter implements ErpFormattersInterface{
     
         $newOS = [];//array que engloba tudo
         $newOS['cabecalho'] = $cabecalho;
+        $newOS['departamentos'] = $departamentos;
+        $newOS['Email'] = $emailNF;
         $newOS['InformacoesAdicionais'] = $InformacoesAdicionais;
         $newOS['servicosPrestados'] = $services;
         $newOS['produtosUtilizados'] = $pu;
+        $newOS['observacoes'] = $observacoes;
+
 
         if( !empty($newOS['cabecalho']) || !empty($newOS['InformacoesAdicionais']) ||
             !empty($newOS['servicosPrestados']))
@@ -327,6 +398,8 @@ Class OmieFormatter implements ErpFormattersInterface{
                 'param'=> [$newOS],
             ];
 
+            // print_r(json_encode($array, JSON_UNESCAPED_UNICODE));
+            // exit;
             return json_encode($array, JSON_UNESCAPED_UNICODE);  
 
         }
@@ -346,6 +419,8 @@ Class OmieFormatter implements ErpFormattersInterface{
             $url = 'https://app.omie.com.br/api/v1/servicos/contrato/';
         }elseif($arrayIsServices['isService'] && !$arrayIsServices['isRecurrence'] ){
             $url ='https://app.omie.com.br/api/v1/servicos/os/';
+        }elseif($arrayIsServices['isRecurrence']){
+            $url = 'https://app.omie.com.br/api/v1/servicos/contrato/';
         }else{
             $url = 'https://app.omie.com.br/api/v1/produtos/pedido/';
         }
@@ -368,25 +443,48 @@ Class OmieFormatter implements ErpFormattersInterface{
 
     }
 
-    public function buscaVendaOmie(object $omie, int $id)
+    public function buscaVendaOmie(object $omie, int $id, string $tipoVenda)
     {
-        // $url = 'https://app.omie.com.br/api/v1/produtos/pedido/';
-        // $param = [
-        //     "codigo_pedido"=>$id
-        // ];
 
+      
+        if(mb_strtolower($tipoVenda) === 'ordem-servico'){
 
-        // $array = [
-        //     'app_key' => $omie->appKey,
-        //     'app_secret' => $omie->appSecret,
-        //     'call' => 'ConsultarPedido',
-        //     'param'=> [$param],
-        // ];
+            $url = 'https://app.omie.com.br/api/v1/servicos/os/';
+            $call = 'ConsultarOS';
+            $param = [
+                "nCodOS"=>$id
+            ];
+        }elseif(mb_strtolower($tipoVenda) === 'contrato'){
+
+            $url = 'https://app.omie.com.br/api/v1/servicos/contrato/';
+            $call = 'ConsultarContrato';
+            $param = [
+                "contratoChave"=>[
+                    'nCodCtr'=>$id
+                ]
+            ];
+
+        }else{
+
+            $url = 'https://app.omie.com.br/api/v1/produtos/pedido/';
+            $call = 'ConsultarPedido';
+
+            $param = [
+                "codigo_pedido"=>$id
+            ];
+        }
+
+        $array = [
+            'app_key' => $omie->appKey,
+            'app_secret' => $omie->appSecret,
+            'call' => $call,
+            'param'=> [$param],
+        ];
         
-        // $json = json_encode($array, JSON_UNESCAPED_UNICODE);
+        $json = json_encode($array, JSON_UNESCAPED_UNICODE);
 
         
-        return $this->omieServices->consultaPedidoErp($omie, $id);
+        return $this->omieServices->consultaVendaERP($json, $url);
 
 
 
@@ -401,8 +499,11 @@ Class OmieFormatter implements ErpFormattersInterface{
         $service = [];
         $produtosUtilizados = [];
 
+        //  print_r($prdItem);
+        // exit;
+
         //verifica se tem serviço com produto junto
-        if($prdItem['Product']['Group']['Name'] !== 'Serviços'){
+        if($prdItem['Product']['Group']['Family']['Name'] !== 'Serviços'){
                      
             //monts o produtos utilizados (pu)
             $pu['nCodProdutoPU'] = $idItemOmie;
@@ -435,6 +536,9 @@ Class OmieFormatter implements ErpFormattersInterface{
             
             $serviceOrder = $service;
         }
+
+        // print_r($serviceOrder);
+        // exit;
 
         return $serviceOrder;
 
@@ -2527,5 +2631,37 @@ Class OmieFormatter implements ErpFormattersInterface{
         }
 
         return $message;
+    }
+
+    public function getDeptoByName(object $omie, string $deptoName)
+    {
+        $url = "https://app.omie.com.br/api/v1/geral/departamentos/";
+        $call = "ListarDepartamentos";
+//         {
+//     "app_key": "{{appk-rhoma}}",
+//     "app_secret": "{{secrets-rhoma}}",
+//     "call": "ListarDepartamentos",
+//     "param": [
+//         {
+//             "pagina": 1,
+//             "registros_por_pagina": 50
+//         }
+//     ]
+// }
+    $array = [
+        'app_key'=> $omie->appKey,
+        'app_secret'=>$omie->appSecret,
+        'call'=>$call,
+        'param'=>[
+            [
+                'pagina'=>1,
+                'registros_por_pagina'=>50
+            ]
+        ]
+            ];
+    $json = json_encode($array);   
+    
+    return $this->omieServices->listDeptos($json, $url);
+
     }
 }

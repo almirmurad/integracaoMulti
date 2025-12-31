@@ -212,13 +212,18 @@ class DiverseFunctions{
     public static function convertDate($date)
     {
         if($date === null || empty($date) || !isset($date)){return null;}
-        if(strpos('T', $date)){
+        // print $date;
+        // // exit;
+        // var_dump(mb_strpos($date,'T'));
+        // exit;
+        if(strpos($date,'T')){
+            
             $dateIni = explode('T', $date);
             $datePt = explode('-', $dateIni[0]);
             $datePtFn = implode("/", array_reverse($datePt)); // . " às " . $dateIni[1];
             return $datePtFn;
         }else{
-           
+          
             $datePt = explode('-', $date);
             $datePtFn = implode("/", array_reverse($datePt)); // . " às " . $dateIni[1];
             return $datePtFn;

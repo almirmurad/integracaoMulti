@@ -51,13 +51,14 @@ Class CustomFieldsFunction{
         $products = []; //id = 10 name = produto
         $documents = []; //id = 66 name = documento
 
-        foreach($customFields as $custom){
+        // print_r($customFields);
+        // exit;
 
-        
+        foreach($customFields as $custom){
             switch($custom['Entity']['Id']){
 
                 case 1:
-                    $contacts['Id'] = $custom['Id'];
+                    $contacts['Id'] = $custom['Entity']['Id'];
                     $contacts['Name'] = $custom['Name'];
                     $contacts['Key'] = $custom['Key'];
                     $contacts['SendExternalKey'] = $custom['SendExternalKey'];
@@ -72,7 +73,7 @@ Class CustomFieldsFunction{
                     $cf[$custom['Entity']['Name']][] = $contacts;
                     break;
                 case 2:
-                    $deals['Id'] = $custom['Id'];
+                    $deals['Id'] = $custom['Entity']['Id'];
                     $deals['Name'] = $custom['Name'];
                     $deals['Key'] = $custom['Key'];
                     $deals['SendExternalKey'] = $custom['SendExternalKey'];
@@ -87,7 +88,7 @@ Class CustomFieldsFunction{
                     $cf[$custom['Entity']['Name']][] = $deals;
                     break;
                 case 4:
-                    $orders['Id'] = $custom['Id'];
+                    $orders['Id'] = $custom['Entity']['Id'];
                     $orders['Name'] = $custom['Name'];
                     $orders['Key'] = $custom['Key'];
                     $orders['SendExternalKey'] = $custom['SendExternalKey'];
@@ -104,7 +105,7 @@ Class CustomFieldsFunction{
                     $cf[$custom['Entity']['Name']][] = $orders;
                     break;
                 case 7:
-                    $quotes['Id'] = $custom['Id'];
+                    $quotes['Id'] = $custom['Entity']['Id'];
                     $quotes['Name'] = $custom['Name'];
                     $quotes['Key'] = $custom['Key'];
                     $quotes['SendExternalKey'] = $custom['SendExternalKey'];
@@ -120,7 +121,7 @@ Class CustomFieldsFunction{
 
                     break;
                 case 8:
-                    $quoteSection['Id'] = $custom['Id'];
+                    $quoteSection['Id'] = $custom['Entity']['Id'];
                     $quoteSection['Name'] = $custom['Name'];
                     $quoteSection['Key'] = $custom['Key'];
                     $quoteSection['SendExternalKey'] = $custom['SendExternalKey'];
@@ -135,7 +136,7 @@ Class CustomFieldsFunction{
                     $cf[$custom['Entity']['Name']][] = $quoteSection;
                     break;
                 case 10:
-                    $products['Id'] = $custom['Id'];
+                    $products['Id'] = $custom['Entity']['Id'];
                     $products['Name'] = $custom['Name'];
                     $products['Key'] = $custom['Key'];
                     $products['SendExternalKey'] = $custom['SendExternalKey'];
@@ -150,7 +151,8 @@ Class CustomFieldsFunction{
                     $cf[$custom['Entity']['Name']][] = $products;
                 break;
                 case 66:
-                    $documents['Id'] = $custom['Id'];
+                          
+                    $documents['Id'] = $custom['Entity']['Id'];
                     $documents['Name'] = $custom['Name'];
                     $documents['Key'] = $custom['Key'];
                     $documents['SendExternalKey'] = $custom['SendExternalKey'];
@@ -158,9 +160,12 @@ Class CustomFieldsFunction{
                     $documents['Entity'] = $custom['Entity']['Name'];
                     $documents['TypeId'] = $custom['TypeId'];
                     $documents['Options'] = null;
+                    $documents['OptionsTableId'] = $custom['OptionsTableId'];
+                    
                     if($documents['TypeId'] == 7 && !empty($custom['OptionsTableId']) ){
+                        
                         $opt = $ploomesServices->getOptionsTableById($custom['OptionsTableId']);
-                        $contacts['Options'] = $opt['Options'];
+                        $documents['Options'] = $opt['Options'];
                     }
                     $cf[$custom['Entity']['Name']][] = $documents;
                 break;

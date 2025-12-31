@@ -455,6 +455,36 @@ class OmieServices implements ErpManagerInterface{
         return json_decode($response, true);
     }
 
+        // busca o pedido através do Id do OMIE
+    public function consultaVendaERP(string $json, string $url)
+    {
+
+       
+        $curl = curl_init();
+
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => $url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => 'POST',
+            CURLOPT_POSTFIELDS => $json,
+            CURLOPT_HTTPHEADER => array(
+                'Content-Type: application/json'
+            ),
+        ));
+
+        $response = curl_exec($curl);
+
+        curl_close($curl);
+        
+        return json_decode($response, true);
+
+    } 
+
     // busca o pedido através do Id do OMIE
     public function consultaPedidoErp(object $omie, int $idPedido)
     {
@@ -627,6 +657,82 @@ class OmieServices implements ErpManagerInterface{
         $nfe = json_decode($response, true);
 
         return ($nfe['nfseEncontradas'][0]['Cabecalho']['cStatusNFSe'] === "F") ? $nfe['nfseEncontradas'][0]['Cabecalho']['nNumeroNFSe'] : false; 
+        
+    }
+
+    
+     //busca departamento pelo ID
+    public function buscaDeptoByCode(object $omie, int $codDepto):array
+    { 
+        // print_r($contact);
+        // exit;
+        $array = [
+            'app_key' => $omie->appKey ?? $this->appKey,
+            'app_secret' => $omie->appSecret ?? $this->appSecret,
+            'call' => 'ConsultarDepartamento',
+            'param' => [
+                [
+                    'codigo'=>$codDepto
+                    ]
+                    ]
+                ];
+                
+        $json = json_encode($array);
+
+        $curl = curl_init();
+
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => 'https://app.omie.com.br/api/v1/geral/departamentos/',
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => 'POST',
+            CURLOPT_POSTFIELDS => $json,
+            CURLOPT_HTTPHEADER => array(
+                'Content-Type: application/json'
+            ),
+        ));
+
+        $response = curl_exec($curl);
+
+        curl_close($curl);
+
+        return json_decode($response, true);
+        
+        
+    }
+
+         //busca departamento pelo ID
+    public function listDeptos(string $json, string $url):array|bool
+    { 
+        
+
+        $curl = curl_init();
+
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => $url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => 'POST',
+            CURLOPT_POSTFIELDS => $json,
+            CURLOPT_HTTPHEADER => array(
+                'Content-Type: application/json'
+            ),
+        ));
+
+        $response = curl_exec($curl);
+
+        curl_close($curl);
+
+        return json_decode($response, true) ?? false;
+        
         
     }
 

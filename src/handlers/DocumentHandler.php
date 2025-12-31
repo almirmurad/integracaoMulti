@@ -68,6 +68,21 @@ class DocumentHandler
         
     } 
 
+    public function detectFunnel($args){
+        $order = new stdClass();
+
+        // print_r($args['body']);
+        // exit;
+        $order->id = $args['body']['New']['Id'];
+        $funnel = $this->ploomesServices->requestDocument($order);
+
+        if(mb_strtolower($funnel['Deal']['Pipeline']['Name']) !== mb_strtolower('Gestão de Contratos')){
+            throw new WebhookReadErrorException('Documento não foi gerado no documento de contrato');
+        }
+        return true;
+
+    }
+
     public function detectLoop($args)
     {
        return $this->formatter->detectLoop($args);

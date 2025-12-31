@@ -55,6 +55,8 @@ class DocumentController extends Controller {
 
             $documentHandler = $this->getDocumentHandler($args);
 
+            $documentHandler->detectFunnel($args);
+
             $response = $documentHandler->saveDealHook($json, $idUser);
                         
             // $rk = origem.entidade.ação

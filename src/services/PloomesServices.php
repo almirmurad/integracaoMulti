@@ -176,7 +176,7 @@ class PloomesServices implements PloomesManagerInterface{
         $curl = curl_init();
         
         curl_setopt_array($curl, array(
-            CURLOPT_URL => $this->baseApi . 'Documents?$filter=Id+eq+'. $id .'&$expand=Sections($expand=Products($select=Product,Discount,Quantity,UnitPrice,Id,Ordination;$expand=Product($select=Code,Id;$expand=Group,Parts))),Owner,Contact($expand=OtherProperties),OtherProperties,Products($select=Product,Discount,Quantity,UnitPrice,Id,Ordination;$expand=Product($select=Code,Id;$expand=Group,Parts,OtherProperties))&$orderby=Id',
+            CURLOPT_URL => $this->baseApi . 'Documents?$filter=Id+eq+'. $id .'&$expand=Deal($expand=Pipeline),Sections($expand=Products($select=Product,Discount,Quantity,UnitPrice,Id,Ordination;$expand=Product($select=Code,Id;$expand=Group($expand=Family),Parts,OtherProperties))),Owner,Contact($expand=OtherProperties),OtherProperties,Products($select=Product,Discount,Quantity,UnitPrice,Id,Ordination;$expand=Product($select=Code,Id;$expand=Group($expand=Family),Parts,OtherProperties))&$orderby=Id',
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_ENCODING => '',
             CURLOPT_MAXREDIRS => 10,
@@ -203,7 +203,7 @@ class PloomesServices implements PloomesManagerInterface{
         $curl = curl_init();
         
         curl_setopt_array($curl, array(
-            CURLOPT_URL => $this->baseApi . 'Orders?$filter=Id+eq+'. $id .'&$expand=Sections($expand=Products($select=Product,Discount,Quantity,UnitPrice,Id,Ordination;$expand=Product($select=Code,Id;$expand=Group,Parts))),Owner,Contact($expand=OtherProperties),OtherProperties,Products($select=Product,Discount,Quantity,UnitPrice,Id,Ordination;$expand=Product($select=Code,Id;$expand=Group,Parts,OtherProperties))&$orderby=Id',
+            CURLOPT_URL => $this->baseApi . 'Orders?$filter=Id+eq+'. $id .'&$expand=Sections($expand=Products($select=Product,Discount,Quantity,UnitPrice,Id,Ordination;$expand=Product($select=Code,Id;$expand=Group,Parts,OtherProperties))),Owner,Contact($expand=OtherProperties),OtherProperties,Products($select=Product,Discount,Quantity,UnitPrice,Id,Ordination;$expand=Product($select=Code,Id;$expand=Group,Parts,OtherProperties))&$orderby=Id',
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_ENCODING => '',
             CURLOPT_MAXREDIRS => 10,
@@ -446,6 +446,34 @@ class PloomesServices implements PloomesManagerInterface{
         curl_close($curl);
 
 
+
+       return ($response['value'][0]['Id']) ? true :  false;
+
+
+    }
+
+        public function alterPloomesDocument(string $json, int $orderId)
+    {
+       
+        $curl = curl_init();
+
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => $this->baseApi . 'Documents('.$orderId.')?$expand=OtherProperties',
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => strtoupper($this->method[2]),
+            CURLOPT_POSTFIELDS =>$json,
+            CURLOPT_HTTPHEADER => $this->headers
+        ));
+
+        $response = curl_exec($curl);
+        $response =json_decode($response, true);
+        
+        curl_close($curl);
 
        return ($response['value'][0]['Id']) ? true :  false;
 
