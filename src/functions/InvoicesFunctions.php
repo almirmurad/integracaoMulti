@@ -78,10 +78,12 @@ class InvoicesFunctions{
     // }
 
     //processa o contato do ERP para o CRM
-    public static function processInvoiceErpToCrm($args, $ploomesServices, $formatter, $action, $invoicing):array
+    public static function processInvoiceErpToCrm($args, $ploomesServices, $formatter, $action):string
     {    
         $message = [];
         $current = date('d/m/Y H:i:s');
+        $invoicing = $formatter->createInvoiceObject($args);
+        $alterDocumentPloomes = [];
         
         //identificar se é OS ou Contrato
         if(!isset($invoicing->idPedidoInt) || empty($invoicing->idPedidoInt)){
@@ -184,32 +186,55 @@ class InvoicesFunctions{
             $partsIdPloomes = explode('/',$invoicing->idPedidoInt);
             $idPloomes = $partsIdPloomes[1];
 
+            switch($action['action']){
 
-         
-             //criar o objeto do ploomes com os dados do documento para atualizar no Ploomes
-            $alterDocumentPloomes = [];
-        
-            $fields = [
-                [
-                    'SendExternalKey'=>'bicorp_api_num_os_externo_out',
-                    'Value' => intval($invoicing->numOs) ?? null,
-                ],
-                [
-                    'SendExternalKey'=>'bicorp_api_num_nf_out',
-                    'Value' => intval($invoicing->numNfse) ?? null,
-                ],
-                [
-                    'SendExternalKey'=>'bicorp_api_data_nf_out',
-                    'Value' => $invoicing->dataEmissao ?? null,
-                ],
-                [
-                    'SendExternalKey'=>'bicorp_api_valor_nf_out',
-                    'Value' => $invoicing->valor ?? null,
-                ],
-            ];
+                case 'nfeAutorizada':
+                    return 'NF-e ('. intval($invoicing->numNfe) .') emitida no ERP na base: '.$invoicing->baseFaturamento; 
+                     
+                break;
 
+                case 'nfseAutorizada':
+                    
+                    //criar o objeto com os dados do documento para atualizar no Ploomes
+                    $fields = [
+                        [
+                            'SendExternalKey'=>'bicorp_api_num_os_externo_out',
+                            'Value' => intval($invoicing->numOs) ?? null,
+                        ],
+                        [
+                            'SendExternalKey'=>'bicorp_api_num_nf_out',
+                            'Value' => intval($invoicing->numNfse) ?? null,
+                        ],
+                        [
+                            'SendExternalKey'=>'bicorp_api_data_nf_out',
+                            'Value' => $invoicing->dataEmissao ?? null,
+                        ],
+                        [
+                            'SendExternalKey'=>'bicorp_api_valor_nf_out',
+                            'Value' => $invoicing->valor ?? null,
+                        ],
+                        [
+                            'SendExternalKey'=>'bicorp_api_status_nfse_out',
+                            'Value' => $invoicing->status ?? null,
+                        ],
+                    ];
+                    
+                break;
+                
+                case 'nfseCancelada':
+                    //criar o objeto com os dados do documento para atualizar no Ploomes
+                    $fields = [
+                        [
+                            'SendExternalKey'=>'bicorp_api_status_nfse_out',
+                            'Value' => $invoicing->status ?? null,
+                        ],
+                    ];
+                break;
+            
+            }
+            
             $op = CustomFieldsFunction::createPloomesCustomFields($fields,$ploomesServices);
-        
+
             if($op){
                 $alterDocumentPloomes['OtherProperties'] = $op;
                 $documentJson = json_encode($alterDocumentPloomes);
@@ -219,9 +244,11 @@ class InvoicesFunctions{
                 if($alter){
                     $number = intval($invoicing->numNfse);
                     //retorno sucesso
-                    $message['success'] = "NFS-e ({$number}) emitida no ERP na base: {$invoicing->baseFaturamento} em: {$current}";
+                    $content = "NFS-e ({$number}) {$invoicing->acao} no ERP na base: {$invoicing->baseFaturamento} em: {$current}";
+
+                    $message = self::sendInteractionPloomes($invoicing, $ploomesServices, $content, $current);
                 }else{
-                    throw new WebhookReadErrorException('Erro ao montar os dados da NF para retornar ao Ploomes', 500);
+                    throw new WebhookReadErrorException('Erro ao montar os dados da NF para retornar ao Ploomes. Não foi encontrado o Documento/Venda referente.', 500);
                 }
             }
 
@@ -279,6 +306,44 @@ class InvoicesFunctions{
     //         throw new WebhookReadErrorException('Nem todos os clientes foram cadastrados, houveram falhas as gravar clientes: '.$m, 500);
     //     }
     // }
+
+    public static function sendInteractionPloomes($invoicing, $ploomesServices, $content, $current=null){
+
+        if (!empty($invoicing->cnpjDestinatario))
+        {
+            //busca o contact_id artravés do cnpj do cliente do ERP mas antes precisa tirar pontos e barra 
+            $cnpjCpf = DiverseFunctions::limpa_cpf_cnpj($invoicing->cnpjDestinatario);
+            $contactId = $ploomesServices->consultaClientePloomesCnpj($cnpjCpf);
+
+            if(!isset($contactId)){
+                throw new WebhookReadErrorException('Não foi possível encontrar o cliente no Ploomes - '.$current,500);                
+            }
+
+            $frase = 'Interação de nota fiscal adicionada no cliente '. $contactId .' em: '.$current;
+            //monta a mensagem para retornar ao ploomes
+            $msg = [
+                'ContactId'=>  $contactId,
+                'TypeId'=> 1,
+                'Title'=> 'Nota Fiscal emitida',
+                'Content'=> $content,
+            ];
+
+            $interaction = $ploomesServices->createPloomesIteraction(json_encode($msg));
+
+            if(!$interaction){
+
+                throw new WebhookReadErrorException('Não foi possível adicionar a interação de nota fiscal emitida no card, possívelmente a venda foi criada direto no omie - '.$current,1025);
+
+            }
+
+            return $frase;
+        }
+        else{
+            //RETORNA excessão caso não tenha o cliente
+            throw new WebhookReadErrorException('CNPJ do cliente não encontrado.', 500);
+        }
+
+    }
 
     //muda etapa da venda após nota ser emitida
     public static function alterStageInvoiceIssue($invoicing, $ploomesServices)

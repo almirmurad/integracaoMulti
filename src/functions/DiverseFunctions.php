@@ -86,6 +86,7 @@ class DiverseFunctions{
                     'Financas.ContaReceber.BaixaRealizada' => 'rBaixa-realizada',
                     'NFe.NotaAutorizada' => 'nfeAutorizada',
                     'NFSe.NotaAutorizada' => 'nfseAutorizada',
+                    'NFSe.NotaCancelada'=> 'nfseCancelada',
                     'ContratoServico.Faturado' => 'csFaturado',
                     'OrdemServico.Faturada' => 'osFaturada',
                     'VendaProduto.Faturada' => 'venFaturada',

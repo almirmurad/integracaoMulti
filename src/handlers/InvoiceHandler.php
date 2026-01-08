@@ -48,66 +48,16 @@ class InvoiceHandler
         $action = DiverseFunctions::findAction($args);
         $current = $this->current;
         // Array de retorno
-        $message = [];
-
-        $invoicing = $this->formatter->createInvoiceObject($args);
+        $message = [];      
         
         if(empty($action['action'])){
             throw new WebhookReadErrorException('Não foi possível ler o Webhook ou não existe nota fiscal emitida! - '. $current,1020);
         } 
 
-        if($action['action'] === 'nfeAutorizada')
-        { 
-            $content ='NF-e ('. intval($invoicing->numNfe) .') emitida no ERP na base: '.$invoicing->baseFaturamento; 
-        }
-        elseif($action['action'] === 'nfseAutorizada')
-        {     
-            
-            
-            //pegar as informações da nfse
-            //pegar as informações da OS ou Contrato
-            //identificar se é OS ou Contrato
-            $resp = InvoicesFunctions::processInvoiceErpToCrm($args, $this->ploomesServices, $this->formatter, $action, $invoicing);
+        $message['success'] = InvoicesFunctions::processInvoiceErpToCrm($args, $this->ploomesServices, $this->formatter, $action);
 
-            $content = $resp['success'];
-         
-        }
-        
-        if (!empty($invoicing->cnpjDestinatario))
-        {
-            //busca o contact_id artravés do cnpj do cliente do ERP mas antes precisa tirar pontos e barra 
-            $cnpjCpf = DiverseFunctions::limpa_cpf_cnpj($invoicing->cnpjDestinatario);
-            $contactId = $this->ploomesServices->consultaClientePloomesCnpj($cnpjCpf);
-
-            if(!isset($contactId)){
-                throw new WebhookReadErrorException('Não foi possível encontrar o cliente no Ploomes - '.$current,500);                
-            }
-
-            $frase = 'Interação de nota fiscal adicionada no cliente '. $contactId .' em: '.$current;
-            //monta a mensagem para retornar ao ploomes
-            $msg = [
-                'ContactId'=>  $contactId,
-                'TypeId'=> 1,
-                'Title'=> 'Nota Fiscal emitida',
-                'Content'=> $content,
-            ];
-           
-            //Cria interação no card específico 
-            ($this->ploomesServices->createPloomesIteraction(json_encode($msg)))? $message['success'] = $frase : throw new WebhookReadErrorException('Não foi possível adicionar a interação de nota fiscal emitida no card, possívelmente a venda foi criada direto no omie - '.$current,1025);
-
-            // EM documento não tem estágio de venda
-            // $alterStage = InvoicesFunctions::alterStageInvoiceIssue($invoicing, $this->ploomesServices);
-            // if(!$alterStage)
-            // {
-            //    throw new WebhookReadErrorException('Nota emitida, interação enviada, mas não foi possível alterar o estágio da venda - '.$current, 500);
-            // }     
-        }
-        else{
-            //RETORNA excessão caso não tenha o cliente
-            throw new WebhookReadErrorException('CNPJ do cliente não encontrado.', 500);
-        }
-        
         return $message;
+        
     }
 
 }

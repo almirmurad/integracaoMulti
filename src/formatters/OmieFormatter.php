@@ -2363,6 +2363,7 @@ Class OmieFormatter implements ErpFormattersInterface{
         $invoicing->authorEmail = $decoded['author']['email'];//email de quem faturou
         $invoicing->appKey = $decoded['appKey'];//id do app que faturou (base de faturamento)
         $invoicing->acao = $decoded['event']['acao']; // etapa do processo 60 = faturado
+        $invoicing->status = ($invoicing->acao === 'autorizada') ? '🟢' : '🔴';
         $invoicing->ambiente = $decoded['event']['ambiente'] ?? null; // descrição da etapa 
         $invoicing->cidade = $decoded['event']['cidade'] ?? null; // cidade da prestação de serviço NFSe 
         $invoicing->codVerificacao = $decoded['event']['cod_verif'] ?? null; // cidade da prestação de serviço NFSe 
