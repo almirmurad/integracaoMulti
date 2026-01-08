@@ -85,110 +85,107 @@ class InvoicingController extends Controller {
         
     }
 
-        //processa contatos e clientes do ploomes ou do Omie
-        public function processNewInvoice($args)
-        {
-                
-            $message = [];
-            // processa o webhook 
-            try{
-                
-                $invoiceHandler = $this->getInvoiceHandler($args);
-                
-                $response = $invoiceHandler->startProcess($args);
-    
-                $message =[
-                    'status_code' => 200,
-                    'status_message' => $response['success'],
-                ];
-            
-                //grava log
-                ob_start();
-                print_r($message);
-                $input = ob_get_contents();
-                ob_end_clean();
-                file_put_contents('./assets/logInvoice.log', $input . PHP_EOL, FILE_APPEND);
-            
-            }catch(WebhookReadErrorException $e){   
-            }
-            finally{
-                if(isset($e)){
-                    ob_start();
-                    var_dump($e->getMessage());
-                    $input = ob_get_contents();
-                    ob_end_clean();
-                    file_put_contents('./assets/logInvoice.log', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
-                    //print $e->getMessage();
-                    
-                    $message =[
-                        'status_code' => 500,
-                        'status_message' => $e->getMessage(),
-                    ];
-                   
-                    // return print 'ERROR: '.$message['status_code'].' MENSAGEM: '.$message['status_message'];
-                     $m = json_encode($message);
-                     return print_r($m);
-                }
-                
-                //return print 'SUCCESS: '.$message['status_code'].' MENSAGEM: '.$message['status_message'];
-                $m = json_encode($message);
-                return print_r($m);
-                   
-            }
-    
-        } 
-
-    // public function deletedInvoice()
+    // public function erpOrderInvoiced($args)
     // {
+    //     $idUser = $args['Tenancy']['tenancies']['user_id'];
+    //     $json = json_encode($args['body']);
 
-    //     $json = file_get_contents('php://input');
-           
+    //     $message = [];
+        
     //     try{
-    //         $invoiceHandler = new InvoiceHandler($this->ploomesServices, $this->omieServices, $this->databaseServices);
-    //         $response = $invoiceHandler->isDeletedInvoice($json);
             
-    //         // if ($response) {
-    //         //     echo"<pre>";
-    //         //     json_encode($response);
-    //         //     //print_r($response);
-    //         //     //grava log
-    //         //     //$decoded = json_decode($response, true);
-    //         //     ob_start();
-    //         //     var_dump($response);
-    //         //     $input = ob_get_contents();
-    //         //     ob_end_clean();
-    //         //     file_put_contents('./assets/log.log', $input . PHP_EOL, FILE_APPEND);
-    //         //     exit;        
-    //         //     // return print_r($response);    
-    //         // }
-    //     }catch(WebhookReadErrorException $e){
-    //             // echo '<pre>';
-    //             // print $e->getMessage();
+    //         $invoiceHandler = $this->getInvoiceHandler($args);
+    //         $response = $invoiceHandler->saveInvoiceHook($json, $idUser);
+
+    //         // $rk = origem.entidade.ação
+    //         $rk = array('Erp','Invoices');
+    //         // $this->rabbitMQServices->publicarMensagem('invoices_exc', $rk, 'erp_invoices',  $json);
+
+    //         if ($response > 0) {
+                
+    //             $message =[
+    //                 'status_code' => 200,
+    //                 'status_message' => 'SUCCESS: '. $response['msg'],
+    //             ];
+                
     //         }
-    //     catch(NotaFiscalNaoCadastradaException $e){
-    //         // echo '<pre>';
-    //         // print $e->getMessage();       
-    //     }
-    //     catch(NotaFiscalNaoCanceladaException $e){
-    //         // echo '<pre>';
-    //         // print $e->getMessage();
-    //     }catch(PDOException $e){
-    //         // echo '<pre>';
-    //         // print $e->getMessage();
+
+    //     }catch(WebhookReadErrorException $e){
     //     }
     //     finally{
     //         if(isset($e)){
+
+    //             $message =[
+    //                 'status_code' => 500,
+    //                 'status_message' => $e->getMessage(),
+    //             ];
+
     //             ob_start();
     //             var_dump($e->getMessage());
     //             $input = ob_get_contents();
     //             ob_end_clean();
-    //             file_put_contents('./assets/log.log', $input . PHP_EOL, FILE_APPEND);
-                
-    //             return print $e->getMessage();
-    //         }    
-    //         return print_r($response);       
-    //     }
+    //             file_put_contents('./assets/log.log', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
 
+    //             return print 'ERROR:'. $message['status_code'].'. MESSAGE: ' .$message['status_message'];
+    //         }
+    //         return print $message['status_message'];
+    //     }
+        
     // }
+
+    
+
+    //processa contatos e clientes do ploomes ou do Omie
+    public function processNewInvoice($args)
+    {
+            
+        $message = [];
+        // processa o webhook 
+        try{
+            
+            $invoiceHandler = $this->getInvoiceHandler($args);
+            
+            $response = $invoiceHandler->startProcess($args);
+
+            $message =[
+                'status_code' => 200,
+                'status_message' => $response['success'],
+            ];
+        
+            //grava log
+            ob_start();
+            print_r($message);
+            $input = ob_get_contents();
+            ob_end_clean();
+            file_put_contents('./assets/logInvoice.log', $input . PHP_EOL, FILE_APPEND);
+        
+        }catch(WebhookReadErrorException $e){   
+        }
+        finally{
+            if(isset($e)){
+                ob_start();
+                var_dump($e->getMessage());
+                $input = ob_get_contents();
+                ob_end_clean();
+                file_put_contents('./assets/logInvoice.log', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
+                //print $e->getMessage();
+                
+                $message =[
+                    'status_code' => 500,
+                    'status_message' => $e->getMessage(),
+                ];
+                
+                // return print 'ERROR: '.$message['status_code'].' MENSAGEM: '.$message['status_message'];
+                    $m = json_encode($message);
+                    return print_r($m);
+            }
+            
+            //return print 'SUCCESS: '.$message['status_code'].' MENSAGEM: '.$message['status_message'];
+            $m = json_encode($message);
+            return print_r($m);
+                
+        }
+
+    } 
 
 }

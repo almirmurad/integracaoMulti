@@ -475,7 +475,7 @@ class PloomesServices implements PloomesManagerInterface{
         
         curl_close($curl);
 
-       return ($response['value'][0]['Id']) ? true :  false;
+       return ($response['value'][0]['Id']) ? true : false;
 
 
     }

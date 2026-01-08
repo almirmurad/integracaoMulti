@@ -124,6 +124,11 @@ return [
             'callback' => 'OrderController@processNewOrder', //inicia processo
             'middlewares' => [RequestMiddleware::class, LoadCustomFieldsMiddleware::class]
         ],
+        //pedido faturado ERP X Ploomes
+        '/erpOrderInvoiced'=>[
+            'callback' => 'InvoicingController@invoiceIssue', //inicia processo
+            'middlewares' => [RequestMiddleware::class]
+        ],
         //Invoices NFE
         '/invoiceIssue'=>[
             'callback' => 'InvoicingController@invoiceIssue', //nota fiscal emitida

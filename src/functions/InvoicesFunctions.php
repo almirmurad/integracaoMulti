@@ -231,6 +231,8 @@ class InvoicesFunctions{
                         ],
                     ];
                 break;
+
+
             
             }
             
@@ -264,58 +266,211 @@ class InvoicesFunctions{
        
     }
 
-    //Trata a respostas para devolver ao controller
-    // public static function response($action, $contact, $messages)
-    // {
-    //     $totalSuccess = (isset ($messages['success'])) ? count($messages['success']) : 0;// verifica a quantidade de sucesso 
-    //     $totalError = (isset ($messages['error'])) ? count($messages['error']) : 0;// verifica a quantidade de erro 
-       
-    //     //Quando a origem é ERP x CRM então apenas uma base para uma base
-    //     if($action['origem'] === 'ERPToCRM'){
+    public static function processOrderInvoicedErpToCrm($args, $ploomesServices, $formatter, $action):string
+    {    
+        $message = [];
+        $current = date('d/m/Y H:i:s');
+        $OrderInvoiced = $formatter->createOrderInvoicedObject($args);
+        $alter = false;
+        $alterDocumentPloomes = [];
+        
+        //identificar se é OS ou Contrato
+        if(!isset($OrderInvoiced->idPedidoInt) || empty($OrderInvoiced->idPedidoInt)){
+            
+            $html = '';
+            $table = '<table border="1px" style= "width=100%; border-collapse: collapse;">';
+            $table .= '<tr>';
+            $table .= '<th style="width: 15%; border-collapse: collapse; padding:2px; text-align:center"> Data Emissão';
+            $table .= '</th>';
+            $table .= '<th style="width: 15%; border-collapse: collapse; padding:2px; text-align:center"> Núm. Contrato / Num. O.S.';
+            $table .= '</th>';
+            $table .= '<th style="width: 15%; border-collapse: collapse; padding:2px; text-align:center"> Num. NFSe / Valor';
+            $table .= '</th>';
+            $table .= '<th style="width: 55%; border-collapse: collapse; padding:2px; text-align:center"> Link XML';
+            $table .= '</th>';
+            $table .= '</tr>';
+            foreach($OrderInvoiced->todas as $nfeContrato){
+               
+                $table .= '<tr>';
+                if($nfeContrato['OrdemServico']['cNumeroContrato'] === $OrderInvoiced->nContrato){
+                    
+                    $table .= '<td style="width: 15%; border-collapse: collapse; padding:2px; text-align:center">'
+                        .$nfeContrato['Emissao']['cDataEmissao'].' '.$nfeContrato['Emissao']['cHoraEmissao'];
+                    $table .= '</td>';
 
-    //         if(!empty($messages['error'])){
-    //             throw new WebhookReadErrorException($messages['error'], 500);
-    //         }
-    
-    //         return $messages;//card processado cliente criado no Omie retorna mensagem winDeal para salvar no log
-    //     }        
-    //     //sucesso absoluto contato cadastrado em todas as bases que estavam marcadas para integrar
-    //     if($totalSuccess == $contact->totalTenanties)//card processado cliente criado no Omie retorna mensagem winDeal para salvar no log
-    //     {    
-    //         $messages['success'] = 'Sucesso: ação executada em todos os clientes';
-    //         return $messages;
-    //     }
-    //     elseif($totalError == $contact->totalTenanties)//falha absoluta erro no cadastramento do contato em todas as bases
-    //     {
-    //         // $status = 4; //falhou
-    //         // $alterStatus = $this->databaseServices->alterStatusWebhook($webhook['id'], $status);
-    //         $m = '';
-    //         foreach($messages['error'] as $error){
-    //             foreach($error as $e){
-    //                 $m .= $e .  "\r\n";
-    //             }
-    //         }
+                    $table .= '<td style="width: 15%; border-collapse: collapse; padding:2px; text-align:center">'
+                        .$nfeContrato['OrdemServico']['cNumeroContrato'].' / '.$nfeContrato['OrdemServico']['nNumeroOS'];
+                    $table .= '</td>';
+
+                    $table .= '<td style="width: 15%; border-collapse: collapse; padding:2px; text-align:center">'
+                        .$nfeContrato['Cabecalho']['nNumeroNFSe'].' / '.$nfeContrato['Cabecalho']['nValorNFSe'];
+                    $table .= '</td>';
+
+                    $table .= 
+                        "<td style='width: 55%; border-collapse: collapse; padding:2px; text-align:center'> <a href='{$OrderInvoiced->nfseXml}'>{$OrderInvoiced->nfseXml} </a>";
+                    $table .= '</td>';
+
+                }
+                $table .= '</tr>';
+                
+            }
             
-    //         throw new WebhookReadErrorException('Erro ao gravar cliente(s): '.$m, 500);
-    //     }
-    //     else//parcial cadastrou eum alguma(s) bases e em outara(s) não
-    //     {
-    //         // $status = 5; 
-    //         // $alterStatus = $this->databaseServices->alterStatusWebhook($webhook['id'], $status);
-    //         $m = '';
-    //         foreach($messages['error'] as $error){
-    //             foreach($error as $e){
-    //                 $m .= $e .  "\r\n";
-    //             }
-    //         }
             
-    //         throw new WebhookReadErrorException('Nem todos os clientes foram cadastrados, houveram falhas as gravar clientes: '.$m, 500);
-    //     }
-    // }
+            //se contrato montar tabela de notas emitidas durante a vigência do contrato
+            $table .= '</table>';
+
+            $html = $table;
+
+            //identificar a referencia no Ploomes
+            $idPloomes = $formatter->getIdPloomesBysContractNumber($OrderInvoiced->nContrato);
+
+             //criar o objeto do ploomes com os dados do documento para atualizar no Ploomes
+            $alterDocumentPloomes = [];
+        
+            $fields = [
+                [
+                    'SendExternalKey'=>'bicorp_api_tabela_faturamento_contrato_out',
+                    'Value' => $html  ?? null,
+                ],
+                [
+                    'SendExternalKey'=>'bicorp_api_num_os_externo_out',
+                    'Value' => $nfeContrato['OrdemServico']['nNumeroOS'] ?? null,
+                ],
+                [
+                    'SendExternalKey'=>'bicorp_api_num_nf_out',
+                    'Value' => $nfeContrato['Cabecalho']['nNumeroNFSe'] ?? null,
+                ],
+                [
+                    'SendExternalKey'=>'bicorp_api_data_nf_out',
+                    'Value' => $nfeContrato['Emissao']['cDataEmissao'] ?? null,
+                ],
+                [
+                    'SendExternalKey'=>'bicorp_api_valor_nf_out',
+                    'Value' => $nfeContrato['Cabecalho']['nValorNFSe'] ?? null,
+                ],
+                
+                
+            ];
+
+            $op = CustomFieldsFunction::createPloomesCustomFields($fields,$ploomesServices);
+        
+            if($op){
+                $alterDocumentPloomes['OtherProperties'] = $op;
+                $documentJson = json_encode($alterDocumentPloomes); 
+                //atualizar o documento no Ploomes
+                $alter = $ploomesServices->alterPloomesDocument($documentJson, $idPloomes);
+
+                if($alter){
+                    $number = intval($OrderInvoiced->numNfse);
+                    //retorno sucesso
+                    $message['success'] = "NFS-e ({$number}) emitida no ERP na base: {$OrderInvoiced->baseFaturamento} em: {$current}";
+                }else{
+                    throw new WebhookReadErrorException('Erro ao montar os dados da NF para retornar ao Ploomes', 500);
+                }
+            }
+            
+        }else{
+       
+            //identificar a referencia no Ploomes
+            $partsIdPloomes = explode('/',$OrderInvoiced->idPedidoInt);
+            $idPloomes = $partsIdPloomes[1];
+
+            switch($action['action']){
+
+                case 'venFaturada':
+                    return 'NF-e ('. intval($OrderInvoiced->numNfe) .') emitida no ERP na base: '.$OrderInvoiced->baseFaturamento; 
+                     
+                break;
+
+                case 'osFaturada':
+                    
+                    //criar o objeto com os dados do documento para atualizar no Ploomes
+                    $fields = [
+                        [
+                            'SendExternalKey'=>'bicorp_api_data_faturamento_out',
+                            'Value' => $OrderInvoiced->dataFaturamento ?? null,
+                        ],
+                        [
+                            'SendExternalKey'=>'bicorp_api_num_recibo_out',
+                            'Value' => intval($OrderInvoiced->numReceipt) ?? null,
+                        ],
+                        [
+                            'SendExternalKey'=>'bicorp_api_num_os_externo_out',
+                            'Value' => intval($OrderInvoiced->numOS) ?? null,
+                        ],
+                        [
+                            'SendExternalKey'=>'bicorp_api_valor_faturamento_out',
+                            'Value' => $OrderInvoiced->amountOS ?? null,
+                        ],
+                        [
+                            'SendExternalKey'=>'bicorp_api_status_faturamento_out',
+                            'Value' => $OrderInvoiced->status ?? null,
+                        ],
+                    ];
+                    
+                break;
+                
+                // case 'nfseCancelada':
+                //     //criar o objeto com os dados do documento para atualizar no Ploomes
+                //     $fields = [
+                //         [
+                //             'SendExternalKey'=>'bicorp_api_status_nfse_out',
+                //             'Value' => $OrderInvoiced->status ?? null,
+                //         ],
+                //     ];
+                // break;
+
+
+            
+            }
+            
+            $op = CustomFieldsFunction::createPloomesCustomFields($fields,$ploomesServices);
+          
+            if($op){
+                $alterDocumentPloomes['OtherProperties'] = $op;
+                $documentJson = json_encode($alterDocumentPloomes);
+                //atualizar o documento no Ploomes
+                
+                if($ploomesServices->alterPloomesDocument($documentJson, $idPloomes)){
+       
+                    $alter = true;
+                }elseif($ploomesServices->alterPloomesOrder($documentJson, $idPloomes)){
+
+                    $alter = true;
+                    self::alterStageInvoiceIssue($OrderInvoiced,$ploomesServices);
+                }else{
+  
+                    $alter = false;
+                }
+
+
+                if($alter){
+                    if(isset($OrderInvoiced->idPedido) && !empty($OrderInvoiced->idPedido)){
+                        $number = intval($OrderInvoiced->idPedido);
+                        $type ='Venda';
+                    }else{
+
+                        $number = intval($OrderInvoiced->numOS);
+                        $type ='OS';
+                    }
+                    //retorno sucesso
+                    $content = "{$type} ({$number}) faturado no ERP na base: {$OrderInvoiced->baseFaturamento} em: {$current}";
+
+                    $message = self::sendInteractionPloomes($OrderInvoiced, $ploomesServices, $content, $current);
+                }else{
+                    throw new WebhookReadErrorException('Erro ao montar os dados da NF para retornar ao Ploomes. Não foi encontrado o Documento/Venda referente.', 500);
+                }
+            }
+
+        }
+        //retorno sucesso
+        return $message;
+       
+    }
 
     public static function sendInteractionPloomes($invoicing, $ploomesServices, $content, $current=null)
     {
-        $numCnpjCpf = $invoicing->cnpjDestinatario ?? $invoicing->cpfDestinatario;
+        $numCnpjCpf = $invoicing->cnpjDestinatario ?? $invoicing->cpfDestinatario ?? $invoicing->docDestinatario;
    
         if (!empty($numCnpjCpf))
         {

@@ -2414,6 +2414,67 @@ Class OmieFormatter implements ErpFormattersInterface{
         return $invoicing;
 
     }
+    //REcibo de venda
+        public function createOrderInvoicedObject($args):object
+    {
+        $decoded = $args['body'];//decodifica o json em array
+        $receipt = new stdClass();//monta objeto da nota fiscal
+
+        $omieApp = $this->omieServices->getOmieApp();
+   
+        $omie = new stdClass();
+        $omie->appKey = $omieApp['app_key'];
+        $omie->appSecret = $omieApp['app_secret'];
+
+        $receipt->authorId = $decoded['author']['userId'];//Id de quem faturou
+        $receipt->authorName = $decoded['author']['name'];//nome de quem faturou
+        $receipt->authorEmail = $decoded['author']['email'];//email de quem faturou
+        $receipt->appKey = $decoded['appKey'];//id do app que faturou (base de faturamento)
+        $receipt->faturada = $decoded['event']['faturada']; // etapa do processo 60 = faturado
+        $receipt->status = ($receipt->faturada === 'S') ? '🟢' : '🔴';
+        $receipt->dataFaturamento = $this->current ?? null; // descrição da etapa 
+        $receipt->dataPrevisaoFaturamento = $decoded['event']['dataPrevisao'] ?? null; // data do faturamento
+        $receipt->etapa = $decoded['event']['etapa'] ?? null; // hora do faturamento
+        $receipt->clientId = $decoded['event']['idCliente'] ?? null; // Id do Cliente Omie
+        $receipt->idOS = $decoded['event']['idOrdemServico'] ?? null; // Inscrição Municipal da empresa NFSe
+        $receipt->idPedido = $decoded['event']['idPedido'] ?? null;
+        $receipt->numOS = $decoded['event']['numeroOrdemServico'] ?? null; // Valor Faturado
+
+        $receipt->numReceipt = $decoded['event']['numeroRecibo'] ?? null; // Valor Faturado
+        $receipt->amountOS = $decoded['event']['valorOrdemServico']; // Valor Faturado
+        $receipt->numPedidoCliente = $decoded['event']['numeroPedidoCliente']; // Valor Faturado
+                   
+        $omieApp = $this->omieServices->getOmieApp();
+   
+        $omie = new stdClass();
+        $omie->appKey = $omieApp['app_key'];
+        $omie->appSecret = $omieApp['app_secret'];
+
+        $client = new stdClass();
+        $client->codigoClienteOmie = $decoded['event']['idCliente'];
+
+        $receipt->client = $this->omieServices->getClientById($client);
+        $receipt->docDestinatario = $receipt->client['cnpj_cpf'] ?? null;
+
+
+        if($receipt->idPedido !== null){
+            //consulta pedido de venda para pegar o id de integração 
+            $receipt->pedido = $this->omieServices->consultaPedidoErp($omie, $receipt->idPedido);
+        }else{
+            $receipt->os = $this->omieServices->consultaOSErp($omie, $receipt->idOS);
+
+            if(isset($receipt->os['InformacoesAdicionais']) && !empty($receipt->os['InformacoesAdicionais'])){
+          
+                $receipt->nContrato = $receipt->os['InformacoesAdicionais']['cNumContrato']; //$this->omieServices->consultaContrato($omie, $nContrato);
+            }
+        }
+
+        $receipt->idPedidoInt = $receipt->pedido['pedido_venda_produto']['cabecalho']['codigo_pedido_integracao'] ?? $receipt->os['Cabecalho']['cCodIntOS'];
+        $receipt->baseFaturamento = $omieApp['app_name'];
+
+        return $receipt;
+
+    }
 
     public function getProductStructureERP($args):array|null
     {

@@ -52,9 +52,24 @@ class InvoiceHandler
         
         if(empty($action['action'])){
             throw new WebhookReadErrorException('Não foi possível ler o Webhook ou não existe nota fiscal emitida! - '. $current,1020);
-        } 
+        }
+        
+        if(
+            $action['action'] === 'csFaturado' || 
+            $action['action'] === 'osFaturada' || 
+            $action['action'] === 'venFaturada'
+            ){
+            
+            $message['success'] = InvoicesFunctions::processOrderInvoicedErpToCrm($args, $this->ploomesServices, $this->formatter, $action);
 
-        $message['success'] = InvoicesFunctions::processInvoiceErpToCrm($args, $this->ploomesServices, $this->formatter, $action);
+
+        }else{
+
+            $message['success'] = InvoicesFunctions::processInvoiceErpToCrm($args, $this->ploomesServices, $this->formatter, $action);
+        }
+
+
+
 
         return $message;
         
