@@ -2356,7 +2356,6 @@ Class OmieFormatter implements ErpFormattersInterface{
             $nfse = $this->omieServices->consultaNotaServico($omie, $decoded['event']['id_os']);            
 
         }
-
         
         $invoicing->authorId = $decoded['author']['userId'];//Id de quem faturou
         $invoicing->authorName = $decoded['author']['name'];//nome de quem faturou
@@ -2369,7 +2368,6 @@ Class OmieFormatter implements ErpFormattersInterface{
         $invoicing->codVerificacao = $decoded['event']['cod_verif'] ?? null; // cidade da prestação de serviço NFSe 
         $invoicing->danfe = $decoded['event']['danfe'] ?? null; // descrição da etapa 
         $invoicing->dataEmissao = $decoded['event']['data_emis'] ?? null; // data do faturamento
-        $invoicing->empresaCnpj = $decoded['event']['empresa_cnpj'] ?? null; // hora do faturamento
         $invoicing->empresaCnpj = $decoded['event']['empresa_cnpj'] ?? null; // hora do faturamento
         $invoicing->empresaIe = $decoded['event']['empresa_ie'] ?? null; // Id do Cliente Omie
         $invoicing->empresaIm = $decoded['event']['empresa_im'] ?? null; // Inscrição Municipal da empresa NFSe
@@ -2389,7 +2387,8 @@ Class OmieFormatter implements ErpFormattersInterface{
         $invoicing->serie = $decoded['event']['serie'] ?? $decoded['event']['serie_nfs']; // Valor Faturado
         $invoicing->todas = $nfse['nfseEncontradas'] ?? 'pegar os dados da nfe';
         $invoicing->valor = $nfse['nfseEncontradas'][0]['Cabecalho']['nValorNFSe'] ?? 'pegar os dados da nfe';
-        $invoicing->cnpjDestinatario = $nfse['nfseEncontradas'][0]['Cabecalho']['cCNPJDestinatario'] ?? 'pegar os dados da nfe';
+        $invoicing->cnpjDestinatario = $nfse['nfseEncontradas'][0]['Cabecalho']['cCNPJDestinatario'] ?? $nfse['nfeEncontradas'][0]['Cabecalho']['cCNPJDestinatario'] ?? null;
+        $invoicing->cpfDestinatario = $nfse['nfseEncontradas'][0]['Cabecalho']['cCPFDestinatario'] ?? $nfse['nfeEncontradas'][0]['Cabecalho']['cCPFDestinatario'] ?? null;
            
         $omieApp = $this->omieServices->getOmieApp();
    

@@ -83,6 +83,7 @@ class InvoicesFunctions{
         $message = [];
         $current = date('d/m/Y H:i:s');
         $invoicing = $formatter->createInvoiceObject($args);
+        $alter = false;
         $alterDocumentPloomes = [];
         
         //identificar se é OS ou Contrato
@@ -239,7 +240,12 @@ class InvoicesFunctions{
                 $alterDocumentPloomes['OtherProperties'] = $op;
                 $documentJson = json_encode($alterDocumentPloomes);
                 //atualizar o documento no Ploomes
-                $alter = $ploomesServices->alterPloomesDocument($documentJson, $idPloomes);
+
+                if($ploomesServices->alterPloomesDocument($documentJson, $idPloomes)){
+                    $alter = true;
+                }else{
+                    $alter = $ploomesServices->alterPloomesOrder($documentJson, $idPloomes);
+                }
 
                 if($alter){
                     $number = intval($invoicing->numNfse);
@@ -307,12 +313,15 @@ class InvoicesFunctions{
     //     }
     // }
 
-    public static function sendInteractionPloomes($invoicing, $ploomesServices, $content, $current=null){
-
-        if (!empty($invoicing->cnpjDestinatario))
+    public static function sendInteractionPloomes($invoicing, $ploomesServices, $content, $current=null)
+    {
+        $numCnpjCpf = $invoicing->cnpjDestinatario ?? $invoicing->cpfDestinatario;
+   
+        if (!empty($numCnpjCpf))
         {
             //busca o contact_id artravés do cnpj do cliente do ERP mas antes precisa tirar pontos e barra 
-            $cnpjCpf = DiverseFunctions::limpa_cpf_cnpj($invoicing->cnpjDestinatario);
+            $cnpjCpf = DiverseFunctions::limpa_cpf_cnpj($numCnpjCpf);
+            
             $contactId = $ploomesServices->consultaClientePloomesCnpj($cnpjCpf);
 
             if(!isset($contactId)){
