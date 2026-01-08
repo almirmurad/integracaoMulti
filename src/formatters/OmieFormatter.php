@@ -318,6 +318,12 @@ Class OmieFormatter implements ErpFormattersInterface{
         $observacoes = [];
         $observacoes['cObsOS'] = $os->observacoesOS ?? null;
 
+        $parcelas = [];
+        $parcelas['dDtVenc'] = DiverseFunctions::convertDate($os->dataVencParc) ?? '20/01/2026';
+        $parcelas['nParcela'] = 1;
+        $parcelas['nValor'] = $os->amount;
+        $parcelas['nPercentual'] = 100;
+
         $emailNF=[];
         $emailNF['cEnvBoleto'] = $os->enviaBoleto;
         $emailNF['cEnvLink'] = 'S';
@@ -383,6 +389,7 @@ Class OmieFormatter implements ErpFormattersInterface{
         $newOS['Email'] = $emailNF;
         $newOS['InformacoesAdicionais'] = $InformacoesAdicionais;
         $newOS['servicosPrestados'] = $services;
+        $newOS['Parcelas'] = $parcelas;
         $newOS['produtosUtilizados'] = $pu;
         $newOS['observacoes'] = $observacoes;
 
@@ -487,6 +494,31 @@ Class OmieFormatter implements ErpFormattersInterface{
         return $this->omieServices->consultaVendaERP($json, $url);
 
 
+
+    }
+
+    public function getIdPloomesBysContractNumber($nContrato){
+
+        $omieApp = $this->omieServices->getOmieApp();
+
+        $contratos = $this->omieServices->listarContratos((object) $omieApp);
+
+        
+
+        $contrato = [];
+        foreach($contratos['contratoCadastro'] as $contrato){
+
+            if($contrato['cabecalho']['cNumCtr'] === $nContrato){
+                $cContratoIntegracao = $contrato['cabecalho']['cCodIntCtr'];
+
+                $idPloomes = explode('/', $cContratoIntegracao); 
+
+                return $idPloomes[1];
+            }
+
+        }
+
+        throw new WebhookReadErrorException('Não foi encontrado o Id do contrato do Ploomes no contrato do Omie, através do Número do contrato informado', 500);
 
     }
 
@@ -1910,13 +1942,13 @@ Class OmieFormatter implements ErpFormattersInterface{
             $createFamily = $ploomesServices->createNewFamily($nameFamily);
             $service->idFamily =  $createFamily['Id'];
         }        
-        // $verifyGroup = $ploomesServices->getGroupByName($nFamily);
-        // if(isset($verifyGroup['Id'])){
-        //     $service->idGroup =  $verifyGroup['Id'];
-        // }else{
-        //     $createGroup = $ploomesServices->createNewGroup($nameFamily, $service->idFamily);
-        //     $service->idGroup =  $createGroup['Id'];
-        // }
+        $verifyGroup = $ploomesServices->getGroupByName($nFamily);
+        if(isset($verifyGroup['Id'])){
+            $service->idGroup =  $verifyGroup['Id'];
+        }else{
+            $createGroup = $ploomesServices->createNewGroup($nameFamily, $service->idFamily);
+            $service->idGroup =  $createGroup['Id'];
+        }
        
         $service->messageId = $array['messageId'];
         $service->topic = $array['topic'];
@@ -1976,7 +2008,11 @@ Class OmieFormatter implements ErpFormattersInterface{
         //cria o produto formato ploomes 
         $data = [];
         $data['Name'] = $service->descricao;
-       
+        if(isset($service->idGroup)){
+            
+            $data['GroupId'] =  $service->idGroup;
+        }
+        
         $data['FamilyId'] = $service->idFamily;
         $data['Code'] = $service->codigo;
         //$data['ImageUrl'] = $service->endereco ?? null;
@@ -2303,9 +2339,25 @@ Class OmieFormatter implements ErpFormattersInterface{
 
     public function createInvoiceObject($args):object
     {
-
         $decoded = $args['body'];//decodifica o json em array
         $invoicing = new stdClass();//monta objeto da nota fiscal
+
+        $omieApp = $this->omieServices->getOmieApp();
+   
+        $omie = new stdClass();
+        $omie->appKey = $omieApp['app_key'];
+        $omie->appSecret = $omieApp['app_secret'];
+
+        if(isset($decoded['event']['id_pedido']) && $decoded['event']['id_pedido'] !== null){
+            //consulta pedido de venda para pegar o id de integração 
+            $nfe = $this->omieServices->consultaPedidoErp($omie, $decoded['event']['id_pedido']);
+        }else{
+            
+            $nfse = $this->omieServices->consultaNotaServico($omie, $decoded['event']['id_os']);            
+
+        }
+
+        
         $invoicing->authorId = $decoded['author']['userId'];//Id de quem faturou
         $invoicing->authorName = $decoded['author']['name'];//nome de quem faturou
         $invoicing->authorEmail = $decoded['author']['email'];//email de quem faturou
@@ -2316,6 +2368,7 @@ Class OmieFormatter implements ErpFormattersInterface{
         $invoicing->codVerificacao = $decoded['event']['cod_verif'] ?? null; // cidade da prestação de serviço NFSe 
         $invoicing->danfe = $decoded['event']['danfe'] ?? null; // descrição da etapa 
         $invoicing->dataEmissao = $decoded['event']['data_emis'] ?? null; // data do faturamento
+        $invoicing->empresaCnpj = $decoded['event']['empresa_cnpj'] ?? null; // hora do faturamento
         $invoicing->empresaCnpj = $decoded['event']['empresa_cnpj'] ?? null; // hora do faturamento
         $invoicing->empresaIe = $decoded['event']['empresa_ie'] ?? null; // Id do Cliente Omie
         $invoicing->empresaIm = $decoded['event']['empresa_im'] ?? null; // Inscrição Municipal da empresa NFSe
@@ -2333,18 +2386,29 @@ Class OmieFormatter implements ErpFormattersInterface{
         $invoicing->numOs = $decoded['event']['numero_os'] ?? null; // numero OS
         $invoicing->numRps = $decoded['event']['numero_rps'] ?? null; // numero RPS
         $invoicing->serie = $decoded['event']['serie'] ?? $decoded['event']['serie_nfs']; // Valor Faturado
-        
+        $invoicing->todas = $nfse['nfseEncontradas'] ?? 'pegar os dados da nfe';
+        $invoicing->valor = $nfse['nfseEncontradas'][0]['Cabecalho']['nValorNFSe'] ?? 'pegar os dados da nfe';
+        $invoicing->cnpjDestinatario = $nfse['nfseEncontradas'][0]['Cabecalho']['cCNPJDestinatario'] ?? 'pegar os dados da nfe';
+           
         $omieApp = $this->omieServices->getOmieApp();
+   
         $omie = new stdClass();
         $omie->appKey = $omieApp['app_key'];
         $omie->appSecret = $omieApp['app_secret'];
+
         if($invoicing->idPedido !== null){
             //consulta pedido de venda para pegar o id de integração 
-            $pedido = $this->omieServices->consultaPedidoErp($omie, $invoicing->idPedido);
+            $invoicing->pedido = $this->omieServices->consultaPedidoErp($omie, $invoicing->idPedido);
         }else{
-            $pedido = $this->omieServices->consultaOSErp($omie, $invoicing->idOs);
+            $invoicing->os = $this->omieServices->consultaOSErp($omie, $invoicing->idOs);
+
+            if(isset($invoicing->os['InformacoesAdicionais']) && !empty($invoicing->os['InformacoesAdicionais'])){
+          
+                $invoicing->nContrato = $invoicing->os['InformacoesAdicionais']['cNumContrato']; //$this->omieServices->consultaContrato($omie, $nContrato);
+            }
         }
-        $invoicing->idPedidoInt = $pedido['pedido_venda_produto']['cabecalho']['codigo_pedido_integracao'] ?? $pedido['Cabecalho']['cCodIntOS'];
+
+        $invoicing->idPedidoInt = $invoicing->pedido['pedido_venda_produto']['cabecalho']['codigo_pedido_integracao'] ?? $invoicing->os['Cabecalho']['cCodIntOS'];
         $invoicing->baseFaturamento = $omieApp['app_name'];
         
         return $invoicing;
@@ -2633,7 +2697,7 @@ Class OmieFormatter implements ErpFormattersInterface{
         return $message;
     }
 
-    public function getDeptoByName(object $omie, string $deptoName)
+    public function getDeptoByName(object $omie)
     {
         $url = "https://app.omie.com.br/api/v1/geral/departamentos/";
         $call = "ListarDepartamentos";

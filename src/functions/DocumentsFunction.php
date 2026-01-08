@@ -47,7 +47,7 @@ class DocumentsFunction{
         if(empty($customFields)) {
             throw new WebhookReadErrorException('Erro ao montar pedido pra enviar ao omie: Não foram encontrados campos personalizados do Ploomes', 500);
         }
-      
+
         //pega os campos customizáveis da entidade venda e os campos customizados da venda atual compara pra pegar as opções de base de faturamento e seu nome
         $bf = self::setBaseFaturamento($entity, $customFields);
         $bf['erp_name'] = $args['Tenancy']['tenancies']['erp_name'];
@@ -56,15 +56,18 @@ class DocumentsFunction{
         ($bf) ? $order->baseFaturamento = $bf : throw new WebhookReadErrorException('Erro ao montar pedido pra enviar ao omie: não foi encontrada a empresa de faturamento do pedido', 500);
         //seta o id do cliente do omie para a base de faturamento de destino
         self::setIdClienteErp($order);
-        
+      
         
         //Monta Os detalhes do Omie ***Obrigatório (Monta o Objeto do ERP de destino)
         $erp = self::createErpObjectSetDetailsOrder($bases, $bf);
         
-        //busca o código do vendedor pelo email do ploomes, se não encotrar retorna nulo
-        $order->codVendedorErp = self::getIdVendedorErpFromMail($erp, $orderArray['Owner']['Email'], $formatter); 
-        // print_r($order);
-        // exit;
+        if(isset($orderArray['Owner']) && !empty($orderArray['Owner'])) {
+            //busca o código do vendedor pelo email do ploomes, se não encotrar retorna nulo
+            $order->codVendedorErp = self::getIdVendedorErpFromMail($erp, $orderArray['Owner']['Email'], $formatter);
+        } else{
+            $order->codVendedorErp = null;
+        }
+         
         
         //observações da nota
         $order->description = (isset($orderArray['Description']) ? htmlspecialchars_decode(strip_tags($orderArray['Description'])): null);  
@@ -75,10 +78,7 @@ class DocumentsFunction{
         
         //seta informações adicionais(pega as informações como modalidade de frete, projeto etc de other properties pela sendExternalKey)
         self::setAdditionalOrderProperties($order, $orderArray, $customFields, $ploomesServices, $formatter, $erp);   
-        
-        // print_r($order);
-        // exit;
-        
+               
         $arrayIsServices =[];
         //tipo da venda (is service) ***Obrigatótio
         $arrayIsServices['isService'] = self::isService($order);
@@ -430,14 +430,27 @@ print_r($json);
             $option = $ploomesServices->getOptionsFieldById($departamento);
             // $option['Name'] = "Instalação e Manutenção";
             if(mb_strpos($option['Name'], ' - ') > 0){
-                $catParts = explode(' - ', $option['Name']);
-                $order->codigoDepartamento = $catParts[0];
+                $deptoParts = explode(' - ', $option['Name']);
+               
+                //busca o array de depto. no Omie
+                $deptos = $formatter->getDeptoByName($erp);
+              
+                foreach($deptos['departamentos'] as $depto){
+
+                    $descCompleta = explode(' - ', $depto['descricao']);
+                    $descricao = $descCompleta[1];
+
+                    if(mb_strtolower($descricao) === mb_strtolower($deptoParts[1])){
+                        $order->codigoDepartamento = $depto['codigo'];
+                        break;
+                    }
+                }
+
             }else{
                 
                 //busca o array de depto. no Omie
-                $deptos = $formatter->getDeptoByName($erp, $option['Name']);
+                $deptos = $formatter->getDeptoByName($erp);
               
-
                 foreach($deptos['departamentos'] as $depto){
 
                     $descCompleta = explode(' - ', $depto['descricao']);
@@ -566,7 +579,6 @@ print_r($json);
         
         $listaParcela = (isset($customFields['bicorp_api_lista_parcelas_omie_out']) && !empty($customFields['bicorp_api_lista_parcelas_omie_out'])) ? $customFields['bicorp_api_lista_parcelas_omie_out'] : false;
         
-        
         if($listaParcela){
             $option = $ploomesServices->getOptionsFieldById($listaParcela);
             $parts = explode(' - ', $option['Name']);
@@ -577,6 +589,10 @@ print_r($json);
         }else{
             $order->idParcelamento = "000";
         }
+
+        $dVencParc = (isset($customFields['bicorp_api_data_vencimento_parcela_out']) && !empty($customFields['bicorp_api_data_vencimento_parcela_out']))? new DateTime($customFields['bicorp_api_data_vencimento_parcela_out']) : new DateTime();
+
+        $order->dataVencParc = $dVencParc->format('d/m/Y');
         
         $codigoMeioPagamento = (isset($customFields['bicorp_api_codigo_meio_pagamento_out']) && !empty($customFields['bicorp_api_codigo_meio_pagamento_out'])) ? $customFields['bicorp_api_codigo_meio_pagamento_out'] : false;
         
@@ -642,9 +658,6 @@ print_r($json);
         }else{
             $order->diaFixoVencCont = (isset($customFields['bicorp_api_dia_fixo_vencimento_contrato_out']) && !empty($customFields['bicorp_api_dia_fixo_vencimento_contrato_out'])) ? $customFields['bicorp_api_dia_fixo_vencimento_contrato_out'] : false;
         }
-
-
-
 
         if(!empty($m)){
             throw new WebhookReadErrorException($m[0], 500);

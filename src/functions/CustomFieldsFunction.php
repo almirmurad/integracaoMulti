@@ -268,7 +268,7 @@ Class CustomFieldsFunction{
         foreach($data as $k => $value){
             
             foreach($custom as $field){
-                if($field['SendExternalKey'] == 'bicorp_api_'.$k.'_out'){
+                if($field['SendExternalKey'] == 'bicorp_api_'.mb_strtolower($k).'_out'){
                     switch($field['Type']){
                         case 'Integer':
                             $type = 'IntegerValue';
@@ -626,6 +626,47 @@ Class CustomFieldsFunction{
     
         return $mapped;
     }
+
+
+    public static function createPloomesCustomFields($fields, $ploomesServices)
+     {
+        $op =[];
+         foreach($fields as $field){
+            $array = [];
+            $pCustom = $ploomesServices->getCustomFieldBySendExternalKey($field['SendExternalKey']);
+            if(!$pCustom){
+                continue;
+            }
+            $array['FieldKey'] = $pCustom['Key'];
+            
+            switch($pCustom['Type']['NativeType']){
+                case 'Integer':
+                    $type = 'IntegerValue';
+                    break;
+                case 'String':
+                    $type = 'StringValue';
+                    break;
+                case 'Bool':
+                    $type = 'BoolValue';
+                    break;
+                case 'BigString':
+                    $type = 'BigStringValue';
+                    break;
+                case 'Decimal':
+                    $type = 'DecimalValue';
+                    break;
+                case 'DateTime':
+                    $type = 'DateTimeValue';
+                    break;
+            }
+
+            $array[$type] = $field['Value'];
+            $op[] = $array;
+
+        }
+
+        return $op;
+     }
     
 
  

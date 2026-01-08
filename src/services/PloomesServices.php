@@ -1258,6 +1258,9 @@ class PloomesServices implements PloomesManagerInterface{
         
         curl_close($curl);
 
+        // print_r($response);
+        // exit;
+
         return $response['value'];
 
     }

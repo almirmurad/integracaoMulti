@@ -33,7 +33,7 @@ class DocumentController extends Controller {
         $vhost = $args['Tenancy']['vhost'][0];
         $this->ploomesServices = new PloomesServices($ploomesBase);
         $this->databaseServices = new DatabaseServices();
-        $this->rabbitMQServices = new RabbitMQServices($vhost);
+        // $this->rabbitMQServices = new RabbitMQServices($vhost);
     }
 
     private function getDocumentHandler($args): DocumentHandler
@@ -61,7 +61,7 @@ class DocumentController extends Controller {
                         
             // $rk = origem.entidade.ação
             $rk = array('Ploomes','Documents');
-            $this->rabbitMQServices->publicarMensagem('documents_exc', $rk, 'ploomes_documents',  $json);
+            // $this->rabbitMQServices->publicarMensagem('documents_exc', $rk, 'ploomes_documents',  $json);
 
             if ($response > 0) {
 
@@ -159,7 +159,7 @@ class DocumentController extends Controller {
                         
             // $rk = origem.entidade.ação
             $rk = array('Erp','Orders');
-            $this->rabbitMQServices->publicarMensagem('orders_exc', $rk, 'erp_orders',  $json);
+            // $this->rabbitMQServices->publicarMensagem('orders_exc', $rk, 'erp_orders',  $json);
 
             if ($response > 0) {
 

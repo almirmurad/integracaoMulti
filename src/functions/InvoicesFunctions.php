@@ -78,116 +78,207 @@ class InvoicesFunctions{
     // }
 
     //processa o contato do ERP para o CRM
-    public static function processInvoiceErpToCrm($args, $ploomesServices, $formatter, $action):array
+    public static function processInvoiceErpToCrm($args, $ploomesServices, $formatter, $action, $invoicing):array
     {    
-        
-        // print_r($action);
-        // exit;
-        $formatter->detectLoop($args);
         $message = [];
         $current = date('d/m/Y H:i:s');
-        //pega o cnpj do contat
-        $contactFinancial = $formatter->createObjectCrmContactFinancialFromErpData($args, $ploomesServices);
-        $dFinanceiro = $formatter->getFinHistory($contactFinancial);
-        $contactFinancial->tabela_financeiro = $dFinanceiro['table'];
-        $contactFinancial->status_financeiro = ucfirst($dFinanceiro['status']);
         
-        $json = $formatter->createPloomesContactFinancialFromErpObject($contactFinancial, $ploomesServices);      
-
-        $idContact = $ploomesServices->consultaClientePloomesCnpj(DiverseFunctions::limpa_cpf_cnpj($contactFinancial->cnpjCpf));
-
-        if($idContact !== null || $action['action'] !== 'create')
-        {
-            $contactUpdated = $ploomesServices->updatePloomesContact($json, $idContact);
-            if($contactUpdated !== null){
-                
-                if(isset($contactFinancial->contato))
-                {
-                    $contactFinancial->companyId = $contactUpdated['Contacts'][0]['Id'];
-                    
-                    $arrayPersonsJson = $formatter->createPersonArrays($contactFinancial);
-                    $createPersonsIds = [];
-                    foreach($arrayPersonsJson as $personJson){
-                        $idPerson = $ploomesServices->updatePloomesContact($personJson, $contactFinancial->companyId);
-                        $createPersonsIds[] = $idPerson;
-                    }
-
-                    if(count($createPersonsIds) > 0){
-                        $message['success'] = 'Cliente '.$contactFinancial->nomeFantasia.' Alterado no Ploomes CRM com sucesso! Foram alterados também '. count($createPersonsIds) .' contatos para este cliente. Data: '.$current;
-                    }else{
-                        $message['success'] = 'Cliente '.$contactFinancial->nomeFantasia.' Alterado no Ploomes CRM com sucesso! Porém não foi possível alterar seu(s) contatos. Data: '.$current;
-                    }
-
-                }else{
-                    $message['success'] = 'Cliente '.$contactFinancial->nomeFantasia.' Alterado no Ploomes CRM com sucesso! Porém não haviam contatos cadastrados ERP. Data: '.$current;
-                }
-               
-                return $message;
+        //identificar se é OS ou Contrato
+        if(!isset($invoicing->idPedidoInt) || empty($invoicing->idPedidoInt)){
             
-                // $msg=[
-                //     'ContactId' => $idContact,
-                //     'Content' => 'Cliente '.$contactFinancial->nomeFantasia.' alterado no Omie ERP na base: '.$contactFinancial->baseFaturamentoTitle.' via Bicorp Integração',
-                //     'Title' => 'Cliente Alterado'
-                // ];
+            $html = '';
+            $table = '<table border="1px" style= "width=100%; border-collapse: collapse;">';
+            $table .= '<tr>';
+            $table .= '<th style="width: 15%; border-collapse: collapse; padding:2px; text-align:center"> Data Emissão';
+            $table .= '</th>';
+            $table .= '<th style="width: 15%; border-collapse: collapse; padding:2px; text-align:center"> Núm. Contrato / Num. O.S.';
+            $table .= '</th>';
+            $table .= '<th style="width: 15%; border-collapse: collapse; padding:2px; text-align:center"> Num. NFSe / Valor';
+            $table .= '</th>';
+            $table .= '<th style="width: 55%; border-collapse: collapse; padding:2px; text-align:center"> Link XML';
+            $table .= '</th>';
+            $table .= '</tr>';
+            foreach($invoicing->todas as $nfeContrato){
+               
+                $table .= '<tr>';
+                if($nfeContrato['OrdemServico']['cNumeroContrato'] === $invoicing->nContrato){
+                    
+                    $table .= '<td style="width: 15%; border-collapse: collapse; padding:2px; text-align:center">'
+                        .$nfeContrato['Emissao']['cDataEmissao'].' '.$nfeContrato['Emissao']['cHoraEmissao'];
+                    $table .= '</td>';
+
+                    $table .= '<td style="width: 15%; border-collapse: collapse; padding:2px; text-align:center">'
+                        .$nfeContrato['OrdemServico']['cNumeroContrato'].' / '.$nfeContrato['OrdemServico']['nNumeroOS'];
+                    $table .= '</td>';
+
+                    $table .= '<td style="width: 15%; border-collapse: collapse; padding:2px; text-align:center">'
+                        .$nfeContrato['Cabecalho']['nNumeroNFSe'].' / '.$nfeContrato['Cabecalho']['nValorNFSe'];
+                    $table .= '</td>';
+
+                    $table .= 
+                        "<td style='width: 55%; border-collapse: collapse; padding:2px; text-align:center'> <a href='{$invoicing->nfseXml}'>{$invoicing->nfseXml} </a>";
+                    $table .= '</td>';
+
+                }
+                $table .= '</tr>';
                 
-                // //cria uma interação no card
-                // ($ploomesServices->createPloomesIteraction(json_encode($msg)))?$message = 'Integração concluída com sucesso! Cliente Ploomes id: '.$idContact.' alterado no Ploomes CRM ('.$contactFinancial->baseFaturamentoTitle.') e mensagem enviada com sucesso em: '.$current : $message = 'Integração concluída com sucesso! Cliente Ploomes id: '.$idContact.' alterado no PLoomes CRM, porém não foi possível gravar a mensagem no card do cliente do Ploomes: '.$current;
+            }
+            
+            
+            //se contrato montar tabela de notas emitidas durante a vigência do contrato
+            $table .= '</table>';
+
+            $html = $table;
+
+            //identificar a referencia no Ploomes
+            $idPloomes = $formatter->getIdPloomesBysContractNumber($invoicing->nContrato);
+
+             //criar o objeto do ploomes com os dados do documento para atualizar no Ploomes
+            $alterDocumentPloomes = [];
+        
+            $fields = [
+                [
+                    'SendExternalKey'=>'bicorp_api_tabela_faturamento_contrato_out',
+                    'Value' => $html  ?? null,
+                ],
+                [
+                    'SendExternalKey'=>'bicorp_api_num_os_externo_out',
+                    'Value' => $nfeContrato['OrdemServico']['nNumeroOS'] ?? null,
+                ],
+                [
+                    'SendExternalKey'=>'bicorp_api_num_nf_out',
+                    'Value' => $nfeContrato['Cabecalho']['nNumeroNFSe'] ?? null,
+                ],
+                [
+                    'SendExternalKey'=>'bicorp_api_data_nf_out',
+                    'Value' => $nfeContrato['Emissao']['cDataEmissao'] ?? null,
+                ],
+                [
+                    'SendExternalKey'=>'bicorp_api_valor_nf_out',
+                    'Value' => $nfeContrato['Cabecalho']['nValorNFSe'] ?? null,
+                ],
+                
+                
+            ];
+
+            $op = CustomFieldsFunction::createPloomesCustomFields($fields,$ploomesServices);
+        
+            if($op){
+                $alterDocumentPloomes['OtherProperties'] = $op;
+                $documentJson = json_encode($alterDocumentPloomes); 
+                //atualizar o documento no Ploomes
+                $alter = $ploomesServices->alterPloomesDocument($documentJson, $idPloomes);
+
+                if($alter){
+                    $number = intval($invoicing->numNfse);
+                    //retorno sucesso
+                    $message['success'] = "NFS-e ({$number}) emitida no ERP na base: {$invoicing->baseFaturamento} em: {$current}";
+                }else{
+                    throw new WebhookReadErrorException('Erro ao montar os dados da NF para retornar ao Ploomes', 500);
+                }
+            }
+            
+        }else{
+       
+            //identificar a referencia no Ploomes
+            $partsIdPloomes = explode('/',$invoicing->idPedidoInt);
+            $idPloomes = $partsIdPloomes[1];
+
+
+         
+             //criar o objeto do ploomes com os dados do documento para atualizar no Ploomes
+            $alterDocumentPloomes = [];
+        
+            $fields = [
+                [
+                    'SendExternalKey'=>'bicorp_api_num_os_externo_out',
+                    'Value' => intval($invoicing->numOs) ?? null,
+                ],
+                [
+                    'SendExternalKey'=>'bicorp_api_num_nf_out',
+                    'Value' => intval($invoicing->numNfse) ?? null,
+                ],
+                [
+                    'SendExternalKey'=>'bicorp_api_data_nf_out',
+                    'Value' => $invoicing->dataEmissao ?? null,
+                ],
+                [
+                    'SendExternalKey'=>'bicorp_api_valor_nf_out',
+                    'Value' => $invoicing->valor ?? null,
+                ],
+            ];
+
+            $op = CustomFieldsFunction::createPloomesCustomFields($fields,$ploomesServices);
+        
+            if($op){
+                $alterDocumentPloomes['OtherProperties'] = $op;
+                $documentJson = json_encode($alterDocumentPloomes);
+                //atualizar o documento no Ploomes
+                $alter = $ploomesServices->alterPloomesDocument($documentJson, $idPloomes);
+
+                if($alter){
+                    $number = intval($invoicing->numNfse);
+                    //retorno sucesso
+                    $message['success'] = "NFS-e ({$number}) emitida no ERP na base: {$invoicing->baseFaturamento} em: {$current}";
+                }else{
+                    throw new WebhookReadErrorException('Erro ao montar os dados da NF para retornar ao Ploomes', 500);
+                }
             }
 
-            throw new WebhookReadErrorException('Erro ao alterar o cliente Ploomes id: '.$idContact.' em: '.$current, 500);    
         }
-        throw new WebhookReadErrorException('Erro ao alterar o cliente Ploomes id: '.$idContact.' cliente, não encontrado em: '.$current, 500);
+        //retorno sucesso
+        return $message;
        
     }
 
     //Trata a respostas para devolver ao controller
-    public static function response($action, $contact, $messages)
-    {
-        $totalSuccess = (isset ($messages['success'])) ? count($messages['success']) : 0;// verifica a quantidade de sucesso 
-        $totalError = (isset ($messages['error'])) ? count($messages['error']) : 0;// verifica a quantidade de erro 
+    // public static function response($action, $contact, $messages)
+    // {
+    //     $totalSuccess = (isset ($messages['success'])) ? count($messages['success']) : 0;// verifica a quantidade de sucesso 
+    //     $totalError = (isset ($messages['error'])) ? count($messages['error']) : 0;// verifica a quantidade de erro 
        
-        //Quando a origem é ERP x CRM então apenas uma base para uma base
-        if($action['origem'] === 'ERPToCRM'){
+    //     //Quando a origem é ERP x CRM então apenas uma base para uma base
+    //     if($action['origem'] === 'ERPToCRM'){
 
-            if(!empty($messages['error'])){
-                throw new WebhookReadErrorException($messages['error'], 500);
-            }
+    //         if(!empty($messages['error'])){
+    //             throw new WebhookReadErrorException($messages['error'], 500);
+    //         }
     
-            return $messages;//card processado cliente criado no Omie retorna mensagem winDeal para salvar no log
-        }        
-        //sucesso absoluto contato cadastrado em todas as bases que estavam marcadas para integrar
-        if($totalSuccess == $contact->totalTenanties)//card processado cliente criado no Omie retorna mensagem winDeal para salvar no log
-        {    
-            $messages['success'] = 'Sucesso: ação executada em todos os clientes';
-            return $messages;
-        }
-        elseif($totalError == $contact->totalTenanties)//falha absoluta erro no cadastramento do contato em todas as bases
-        {
-            // $status = 4; //falhou
-            // $alterStatus = $this->databaseServices->alterStatusWebhook($webhook['id'], $status);
-            $m = '';
-            foreach($messages['error'] as $error){
-                foreach($error as $e){
-                    $m .= $e .  "\r\n";
-                }
-            }
+    //         return $messages;//card processado cliente criado no Omie retorna mensagem winDeal para salvar no log
+    //     }        
+    //     //sucesso absoluto contato cadastrado em todas as bases que estavam marcadas para integrar
+    //     if($totalSuccess == $contact->totalTenanties)//card processado cliente criado no Omie retorna mensagem winDeal para salvar no log
+    //     {    
+    //         $messages['success'] = 'Sucesso: ação executada em todos os clientes';
+    //         return $messages;
+    //     }
+    //     elseif($totalError == $contact->totalTenanties)//falha absoluta erro no cadastramento do contato em todas as bases
+    //     {
+    //         // $status = 4; //falhou
+    //         // $alterStatus = $this->databaseServices->alterStatusWebhook($webhook['id'], $status);
+    //         $m = '';
+    //         foreach($messages['error'] as $error){
+    //             foreach($error as $e){
+    //                 $m .= $e .  "\r\n";
+    //             }
+    //         }
             
-            throw new WebhookReadErrorException('Erro ao gravar cliente(s): '.$m, 500);
-        }
-        else//parcial cadastrou eum alguma(s) bases e em outara(s) não
-        {
-            // $status = 5; 
-            // $alterStatus = $this->databaseServices->alterStatusWebhook($webhook['id'], $status);
-            $m = '';
-            foreach($messages['error'] as $error){
-                foreach($error as $e){
-                    $m .= $e .  "\r\n";
-                }
-            }
+    //         throw new WebhookReadErrorException('Erro ao gravar cliente(s): '.$m, 500);
+    //     }
+    //     else//parcial cadastrou eum alguma(s) bases e em outara(s) não
+    //     {
+    //         // $status = 5; 
+    //         // $alterStatus = $this->databaseServices->alterStatusWebhook($webhook['id'], $status);
+    //         $m = '';
+    //         foreach($messages['error'] as $error){
+    //             foreach($error as $e){
+    //                 $m .= $e .  "\r\n";
+    //             }
+    //         }
             
-            throw new WebhookReadErrorException('Nem todos os clientes foram cadastrados, houveram falhas as gravar clientes: '.$m, 500);
-        }
-    }
+    //         throw new WebhookReadErrorException('Nem todos os clientes foram cadastrados, houveram falhas as gravar clientes: '.$m, 500);
+    //     }
+    // }
 
     //muda etapa da venda após nota ser emitida
     public static function alterStageInvoiceIssue($invoicing, $ploomesServices)
@@ -202,6 +293,8 @@ class InvoicesFunctions{
                     'Id'=> $stage['Id'],
                     'Name' => $stage['Name']
                 ];
+            }else{
+                return false;
             }
         }
 

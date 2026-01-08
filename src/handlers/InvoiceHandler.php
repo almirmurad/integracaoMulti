@@ -61,14 +61,22 @@ class InvoiceHandler
             $content ='NF-e ('. intval($invoicing->numNfe) .') emitida no ERP na base: '.$invoicing->baseFaturamento; 
         }
         elseif($action['action'] === 'nfseAutorizada')
-        {            
-            $content ='NFS-e ('. intval($invoicing->numNfse) .') emitida no ERP na base: '.$invoicing->baseFaturamento;
+        {     
+            
+            
+            //pegar as informações da nfse
+            //pegar as informações da OS ou Contrato
+            //identificar se é OS ou Contrato
+            $resp = InvoicesFunctions::processInvoiceErpToCrm($args, $this->ploomesServices, $this->formatter, $action, $invoicing);
+
+            $content = $resp['success'];
+         
         }
         
-        if (!empty($invoicing->empresaCnpj))
+        if (!empty($invoicing->cnpjDestinatario))
         {
             //busca o contact_id artravés do cnpj do cliente do ERP mas antes precisa tirar pontos e barra 
-            $cnpjCpf = DiverseFunctions::limpa_cpf_cnpj($invoicing->empresaCnpj);
+            $cnpjCpf = DiverseFunctions::limpa_cpf_cnpj($invoicing->cnpjDestinatario);
             $contactId = $this->ploomesServices->consultaClientePloomesCnpj($cnpjCpf);
 
             if(!isset($contactId)){
@@ -87,11 +95,12 @@ class InvoiceHandler
             //Cria interação no card específico 
             ($this->ploomesServices->createPloomesIteraction(json_encode($msg)))? $message['success'] = $frase : throw new WebhookReadErrorException('Não foi possível adicionar a interação de nota fiscal emitida no card, possívelmente a venda foi criada direto no omie - '.$current,1025);
 
-            $alterStage = InvoicesFunctions::alterStageInvoiceIssue($invoicing, $this->ploomesServices);
-            if(!$alterStage)
-            {
-               throw new WebhookReadErrorException('Não foi possível alterar o estágio da venda - '.$current, 500);
-            }     
+            // EM documento não tem estágio de venda
+            // $alterStage = InvoicesFunctions::alterStageInvoiceIssue($invoicing, $this->ploomesServices);
+            // if(!$alterStage)
+            // {
+            //    throw new WebhookReadErrorException('Nota emitida, interação enviada, mas não foi possível alterar o estágio da venda - '.$current, 500);
+            // }     
         }
         else{
             //RETORNA excessão caso não tenha o cliente

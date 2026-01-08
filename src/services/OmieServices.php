@@ -568,6 +568,89 @@ class OmieServices implements ErpManagerInterface{
 
     } 
 
+            // busca o contrato através do Id do OMIE
+    public function consultaContrato(object $omie, int $idContrato)
+    {
+
+        $array = [
+                    'app_key'=>$omie->appKey,
+                    'app_secret'=>$omie->appSecret,
+                    'call'=>'ConsultarContrato',
+                    'param'=>[
+                            [
+                                'cNumCtr'=>$idContrato
+                            ]
+                        ]
+                ];
+
+        $json = json_encode($array);
+        
+        $curl = curl_init();
+
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => 'https://app.omie.com.br/api/v1/servicos/contrato/',
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => 'POST',
+            CURLOPT_POSTFIELDS => $json,
+            CURLOPT_HTTPHEADER => array(
+                'Content-Type: application/json'
+            ),
+        ));
+
+        $response = curl_exec($curl);
+
+        curl_close($curl);
+
+        return json_decode($response, true);
+
+    } 
+
+    public function listarContratos( $omie)
+    {
+
+        $array = [
+                    'app_key'=>$omie->app_key,
+                    'app_secret'=>$omie->app_secret,
+                    'call'=>'ListarContratos',
+                    'param'=>[
+                            [
+                                "apenas_importado_api" => "S"
+                            ]
+                        ]
+                ];
+
+        $json = json_encode($array);
+        
+        $curl = curl_init();
+
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => 'https://app.omie.com.br/api/v1/servicos/contrato/',
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => 'POST',
+            CURLOPT_POSTFIELDS => $json,
+            CURLOPT_HTTPHEADER => array(
+                'Content-Type: application/json'
+            ),
+        ));
+
+        $response = curl_exec($curl);
+
+        curl_close($curl);
+
+        return json_decode($response, true);
+
+    }
+
     //consulta nota fiscal no omie
     public function consultaNotaErp(object $omie, int $idPedido)
     {
@@ -654,9 +737,12 @@ class OmieServices implements ErpManagerInterface{
 
         curl_close($curl);
         
-        $nfe = json_decode($response, true);
+        return json_decode($response, true);
 
-        return ($nfe['nfseEncontradas'][0]['Cabecalho']['cStatusNFSe'] === "F") ? $nfe['nfseEncontradas'][0]['Cabecalho']['nNumeroNFSe'] : false; 
+        // print_r($nfe);
+        // exit;
+
+        // return ($nfe['nfseEncontradas'][0]['Cabecalho']['cStatusNFSe'] === "F") ? $nfe['nfseEncontradas'][0]['Cabecalho']['nNumeroNFSe'] : false; 
         
     }
 

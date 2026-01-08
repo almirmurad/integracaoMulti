@@ -719,7 +719,7 @@ print_r($json);
      }
      
       public static function alterOrderStage(object $ploomesServices, array $alterOrder){
-        //muda a etapa da venda específica para NF-Emitida stage Id 40042597
+        //muda a etapa da venda específica para NF-Emitida stage Id 40042597 quando a etapa da venda é alterada no ERP
         $allStages = $ploomesServices->getOrderStages();
 
         foreach($allStages as $stage){

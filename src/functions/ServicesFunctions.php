@@ -14,8 +14,11 @@ class ServicesFunctions{
         $current = date('d/m/Y H:i:s');
         
         $service = $formatter->createObjectCrmServiceFromErpData($args, $ploomesServices);
-        $json = $formatter->createCrmServiceFromErpObject($service, $ploomesServices);
         $pService = $ploomesServices->getProductByCode($service->codigo);
+        if($action['action'] === 'update' || isset($pService['Id'])){
+            unset($service->idGroup);
+        }
+        $json = $formatter->createCrmServiceFromErpObject($service, $ploomesServices);
         
         if($action['action'] === 'update' || isset($pService['Id']))
         {
