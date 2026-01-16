@@ -452,7 +452,6 @@ Class OmieFormatter implements ErpFormattersInterface{
 
     public function buscaVendaOmie(object $omie, int $id, string $tipoVenda)
     {
-
       
         if(mb_strtolower($tipoVenda) === 'ordem-servico'){
 
@@ -905,6 +904,11 @@ Class OmieFormatter implements ErpFormattersInterface{
                     if(strtolower($pTag['Name']) === strtolower($t['tag'])){
                         $tag['TagId'] = $pTag['Id'];
                         $tag['Tag']['Name'] = $pTag['Name'];
+                    }else{
+                        $tagName = $t['tag'];
+                        $hexa = '#' . str_pad(rand(0, 999999), 6, '0', STR_PAD_LEFT);
+                        $tag['TagId'] = $ploomesServices->insertTag($tagName, 1, $hexa);
+                        $tag['Tag']['Name'] = $tagName;
                     }
                 }                
         
@@ -2410,7 +2414,7 @@ Class OmieFormatter implements ErpFormattersInterface{
 
         $invoicing->idPedidoInt = $invoicing->pedido['pedido_venda_produto']['cabecalho']['codigo_pedido_integracao'] ?? $invoicing->os['Cabecalho']['cCodIntOS'];
         $invoicing->baseFaturamento = $omieApp['app_name'];
-        
+       
         return $invoicing;
 
     }
@@ -2419,9 +2423,9 @@ Class OmieFormatter implements ErpFormattersInterface{
     {
         $decoded = $args['body'];//decodifica o json em array
         $receipt = new stdClass();//monta objeto da nota fiscal
-
+    
         $omieApp = $this->omieServices->getOmieApp();
-   
+
         $omie = new stdClass();
         $omie->appKey = $omieApp['app_key'];
         $omie->appSecret = $omieApp['app_secret'];
@@ -2442,7 +2446,7 @@ Class OmieFormatter implements ErpFormattersInterface{
 
         $receipt->numReceipt = $decoded['event']['numeroRecibo'] ?? null; // Valor Faturado
         $receipt->amountOS = $decoded['event']['valorOrdemServico']; // Valor Faturado
-        $receipt->numPedidoCliente = $decoded['event']['numeroPedidoCliente']; // Valor Faturado
+        $receipt->numPedidoCliente = $decoded['event']['numeroPedidoCliente'] ?? null; // Valor Faturado
                    
         $omieApp = $this->omieServices->getOmieApp();
    
@@ -2471,6 +2475,8 @@ Class OmieFormatter implements ErpFormattersInterface{
 
         $receipt->idPedidoInt = $receipt->pedido['pedido_venda_produto']['cabecalho']['codigo_pedido_integracao'] ?? $receipt->os['Cabecalho']['cCodIntOS'];
         $receipt->baseFaturamento = $omieApp['app_name'];
+
+        
 
         return $receipt;
 
@@ -2787,6 +2793,72 @@ Class OmieFormatter implements ErpFormattersInterface{
     $json = json_encode($array);   
     
     return $this->omieServices->listDeptos($json, $url);
+
+    }
+
+    public function getIdParcelamentoByName($descParcela, $omie){
+
+        $url = "https://app.omie.com.br/api/v1/geral/parcelas/";
+        $call = "ListarParcelas";
+
+        $array = [
+            'app_key'=> $omie->appKey,
+            'app_secret'=>$omie->appSecret,
+            'call'=>$call,
+            'param'=>[
+                [
+                    'pagina'=>1,
+                    'registros_por_pagina'=>500
+                ]
+            ]
+        ];
+
+        $json = json_encode($array);   
+    
+        $parcelas = $this->omieServices->listaParcelas($json, $url);
+
+        $codigo = null;
+        foreach($parcelas['cadastros'] as $parcela){
+
+            if(mb_strtolower($parcela['cDescricao']) == mb_strtolower($descParcela)){
+                $codigo = $parcela['nCodigo'];
+                break;
+            }
+            
+        }
+
+        if(isset($codigo) && $codigo !== null){
+            return $codigo;
+        }else
+        {
+            $url = "https://app.omie.com.br/api/v1/geral/parcelas/";
+            $call = "IncluirParcela";
+
+            $array = [
+                'app_key'=> $omie->appKey,
+                'app_secret'=>$omie->appSecret,
+                'call'=>$call,
+                'param'=>[
+                    [
+                        'cParcela'=>$descParcela
+                    ]
+                ]
+            ];
+
+            $json = json_encode($array);
+
+            $incluirParcela = $this->omieServices->incluirParcela($json, $url);
+
+            if($incluirParcela['cCodStatus'] > 0){
+
+                // throw new WebhookReadErrorException('erro ao incluir parcela no omie'.$incluirParcela['cDesStatus'], 500);
+
+                return 000; //se der erro retorna a vista
+                
+            }else{
+                return $incluirParcela['cCodParcela'];
+            }
+        }
 
     }
 }

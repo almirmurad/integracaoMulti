@@ -1,6 +1,7 @@
 <?php
 namespace src\functions;
 
+use DateTime;
 use src\contracts\ErpFormattersInterface;
 use src\exceptions\WebhookReadErrorException;
 use src\services\PloomesServices;
@@ -85,9 +86,13 @@ class InvoicesFunctions{
         $invoicing = $formatter->createInvoiceObject($args);
         $alter = false;
         $alterDocumentPloomes = [];
+           
+
+        // print_r($invoicing);
+        // exit;
         
         //identificar se é OS ou Contrato
-        if(!isset($invoicing->idPedidoInt) || empty($invoicing->idPedidoInt)){
+        if(!isset($invoicing->idPedidoInt) || empty($invoicing->idPedidoInt)){ 
             
             $html = '';
             $table = '<table border="1px" style= "width=100%; border-collapse: collapse;">';
@@ -105,6 +110,7 @@ class InvoicesFunctions{
                
                 $table .= '<tr>';
                 if($nfeContrato['OrdemServico']['cNumeroContrato'] === $invoicing->nContrato){
+
                     
                     $table .= '<td style="width: 15%; border-collapse: collapse; padding:2px; text-align:center">'
                         .$nfeContrato['Emissao']['cDataEmissao'].' '.$nfeContrato['Emissao']['cHoraEmissao'];
@@ -138,6 +144,8 @@ class InvoicesFunctions{
 
              //criar o objeto do ploomes com os dados do documento para atualizar no Ploomes
             $alterDocumentPloomes = [];
+            $date = DateTime::createFromFormat('d/m/Y', $nfeContrato['Emissao']['cDataEmissao']);
+            $dEmissaoPloomes = $date->format('Y-m-d');
         
             $fields = [
                 [
@@ -154,7 +162,7 @@ class InvoicesFunctions{
                 ],
                 [
                     'SendExternalKey'=>'bicorp_api_data_nf_out',
-                    'Value' => $nfeContrato['Emissao']['cDataEmissao'] ?? null,
+                    'Value' => $dEmissaoPloomes ?? null,
                 ],
                 [
                     'SendExternalKey'=>'bicorp_api_valor_nf_out',
@@ -182,7 +190,11 @@ class InvoicesFunctions{
             }
             
         }else{
-       
+          
+            $date = DateTime::createFromFormat('d/m/Y', DiverseFunctions::convertDate($invoicing->dataEmissao));
+            $dEmissaoPloomes = $date->format('Y-m-d');
+            
+            
             //identificar a referencia no Ploomes
             $partsIdPloomes = explode('/',$invoicing->idPedidoInt);
             $idPloomes = $partsIdPloomes[1];
@@ -191,6 +203,29 @@ class InvoicesFunctions{
 
                 case 'nfeAutorizada':
                     return 'NF-e ('. intval($invoicing->numNfe) .') emitida no ERP na base: '.$invoicing->baseFaturamento; 
+
+                    $fields = [
+                        [
+                            'SendExternalKey'=>'bicorp_api_num_os_externo_out',
+                            'Value' => intval($invoicing->numOs) ?? null,
+                        ],
+                        [
+                            'SendExternalKey'=>'bicorp_api_num_nfe_out',
+                            'Value' => intval($invoicing->numNfse) ?? null,
+                        ],
+                        [
+                            'SendExternalKey'=>'bicorp_api_data_nfe_out',
+                            'Value' => $invoicing->dataEmissao ?? null,
+                        ],
+                        [
+                            'SendExternalKey'=>'bicorp_api_valor_nfe_out',
+                            'Value' => $invoicing->valor ?? null,
+                        ],
+                        [
+                            'SendExternalKey'=>'bicorp_api_status_nfse_out',
+                            'Value' => $invoicing->status ?? null,
+                        ],
+                    ];
                      
                 break;
 
@@ -208,7 +243,7 @@ class InvoicesFunctions{
                         ],
                         [
                             'SendExternalKey'=>'bicorp_api_data_nf_out',
-                            'Value' => $invoicing->dataEmissao ?? null,
+                            'Value' => $dEmissaoPloomes ?? null,
                         ],
                         [
                             'SendExternalKey'=>'bicorp_api_valor_nf_out',
@@ -274,125 +309,67 @@ class InvoicesFunctions{
         $alter = false;
         $alterDocumentPloomes = [];
         
-        //identificar se é OS ou Contrato
-        if(!isset($OrderInvoiced->idPedidoInt) || empty($OrderInvoiced->idPedidoInt)){
+
+
+            $date = DateTime::createFromFormat('d/m/Y H:i:s', $OrderInvoiced->dataFaturamento);
+            $dFaturamentoPloomes = $date->format('Y-m-d');
             
-            $html = '';
-            $table = '<table border="1px" style= "width=100%; border-collapse: collapse;">';
-            $table .= '<tr>';
-            $table .= '<th style="width: 15%; border-collapse: collapse; padding:2px; text-align:center"> Data Emissão';
-            $table .= '</th>';
-            $table .= '<th style="width: 15%; border-collapse: collapse; padding:2px; text-align:center"> Núm. Contrato / Num. O.S.';
-            $table .= '</th>';
-            $table .= '<th style="width: 15%; border-collapse: collapse; padding:2px; text-align:center"> Num. NFSe / Valor';
-            $table .= '</th>';
-            $table .= '<th style="width: 55%; border-collapse: collapse; padding:2px; text-align:center"> Link XML';
-            $table .= '</th>';
-            $table .= '</tr>';
-            foreach($OrderInvoiced->todas as $nfeContrato){
-               
-                $table .= '<tr>';
-                if($nfeContrato['OrdemServico']['cNumeroContrato'] === $OrderInvoiced->nContrato){
-                    
-                    $table .= '<td style="width: 15%; border-collapse: collapse; padding:2px; text-align:center">'
-                        .$nfeContrato['Emissao']['cDataEmissao'].' '.$nfeContrato['Emissao']['cHoraEmissao'];
-                    $table .= '</td>';
-
-                    $table .= '<td style="width: 15%; border-collapse: collapse; padding:2px; text-align:center">'
-                        .$nfeContrato['OrdemServico']['cNumeroContrato'].' / '.$nfeContrato['OrdemServico']['nNumeroOS'];
-                    $table .= '</td>';
-
-                    $table .= '<td style="width: 15%; border-collapse: collapse; padding:2px; text-align:center">'
-                        .$nfeContrato['Cabecalho']['nNumeroNFSe'].' / '.$nfeContrato['Cabecalho']['nValorNFSe'];
-                    $table .= '</td>';
-
-                    $table .= 
-                        "<td style='width: 55%; border-collapse: collapse; padding:2px; text-align:center'> <a href='{$OrderInvoiced->nfseXml}'>{$OrderInvoiced->nfseXml} </a>";
-                    $table .= '</td>';
-
-                }
-                $table .= '</tr>';
-                
-            }
-            
-            
-            //se contrato montar tabela de notas emitidas durante a vigência do contrato
-            $table .= '</table>';
-
-            $html = $table;
-
-            //identificar a referencia no Ploomes
-            $idPloomes = $formatter->getIdPloomesBysContractNumber($OrderInvoiced->nContrato);
-
-             //criar o objeto do ploomes com os dados do documento para atualizar no Ploomes
-            $alterDocumentPloomes = [];
-        
-            $fields = [
-                [
-                    'SendExternalKey'=>'bicorp_api_tabela_faturamento_contrato_out',
-                    'Value' => $html  ?? null,
-                ],
-                [
-                    'SendExternalKey'=>'bicorp_api_num_os_externo_out',
-                    'Value' => $nfeContrato['OrdemServico']['nNumeroOS'] ?? null,
-                ],
-                [
-                    'SendExternalKey'=>'bicorp_api_num_nf_out',
-                    'Value' => $nfeContrato['Cabecalho']['nNumeroNFSe'] ?? null,
-                ],
-                [
-                    'SendExternalKey'=>'bicorp_api_data_nf_out',
-                    'Value' => $nfeContrato['Emissao']['cDataEmissao'] ?? null,
-                ],
-                [
-                    'SendExternalKey'=>'bicorp_api_valor_nf_out',
-                    'Value' => $nfeContrato['Cabecalho']['nValorNFSe'] ?? null,
-                ],
-                
-                
-            ];
-
-            $op = CustomFieldsFunction::createPloomesCustomFields($fields,$ploomesServices);
-        
-            if($op){
-                $alterDocumentPloomes['OtherProperties'] = $op;
-                $documentJson = json_encode($alterDocumentPloomes); 
-                //atualizar o documento no Ploomes
-                $alter = $ploomesServices->alterPloomesDocument($documentJson, $idPloomes);
-
-                if($alter){
-                    $number = intval($OrderInvoiced->numNfse);
-                    //retorno sucesso
-                    $message['success'] = "NFS-e ({$number}) emitida no ERP na base: {$OrderInvoiced->baseFaturamento} em: {$current}";
+            // identificar a referencia no Ploomes
+            if(empty($OrderInvoiced->idPedidoInt)) {
+                throw new WebhookReadErrorException('Não existe referência do peido no Ploomes CRM', 500); 
+            }else{
+                if(mb_strpos($OrderInvoiced->idPedidoInt,'/') !== false){
+                    $partsIdPloomes = explode('/',$OrderInvoiced->idPedidoInt);
+                    $idPloomes = $partsIdPloomes[1];
                 }else{
-                    throw new WebhookReadErrorException('Erro ao montar os dados da NF para retornar ao Ploomes', 500);
+                    $idPloomes = $OrderInvoiced->idPedidoInt;
                 }
-            }
+            } 
             
-        }else{
-       
-            //identificar a referencia no Ploomes
-            $partsIdPloomes = explode('/',$OrderInvoiced->idPedidoInt);
-            $idPloomes = $partsIdPloomes[1];
-
             switch($action['action']){
 
                 case 'venFaturada':
-                    return 'NF-e ('. intval($OrderInvoiced->numNfe) .') emitida no ERP na base: '.$OrderInvoiced->baseFaturamento; 
+                    
+                    $nRecibo = ($OrderInvoiced->numReceipt !== null) ? intval($OrderInvoiced->numReceipt) : null;
+
+                    $fields = [
+                        [
+                            'SendExternalKey'=>'bicorp_api_data_faturamento_out',
+                            'Value' => $dFaturamentoPloomes ?? null,
+                        ],
+                        [
+                            'SendExternalKey'=>'bicorp_api_num_recibo_out',
+                            'Value' => $nRecibo,
+                        ],
+                        [
+                            'SendExternalKey'=>'bicorp_api_num_pedido_venda_externo_out',
+                            'Value' => intval($OrderInvoiced->numOS) ?? null,
+                        ],
+                        [
+                            'SendExternalKey'=>'bicorp_api_valor_faturamento_out',
+                            'Value' => $OrderInvoiced->amountOS ?? null,
+                        ],
+                        [
+                            'SendExternalKey'=>'bicorp_api_status_faturamento_out',
+                            'Value' => $OrderInvoiced->status ?? null,
+                        ],
+                    ];
                      
                 break;
 
                 case 'osFaturada':
+
+                    $nRecibo = ($OrderInvoiced->numReceipt !== null) ? intval($OrderInvoiced->numReceipt) : null;
                     
                     //criar o objeto com os dados do documento para atualizar no Ploomes
                     $fields = [
                         [
                             'SendExternalKey'=>'bicorp_api_data_faturamento_out',
-                            'Value' => $OrderInvoiced->dataFaturamento ?? null,
+                            'Value' => $dFaturamentoPloomes ?? null,
                         ],
                         [
                             'SendExternalKey'=>'bicorp_api_num_recibo_out',
-                            'Value' => intval($OrderInvoiced->numReceipt) ?? null,
+                            'Value' => $nRecibo,
                         ],
                         [
                             'SendExternalKey'=>'bicorp_api_num_os_externo_out',
@@ -407,7 +384,7 @@ class InvoicesFunctions{
                             'Value' => $OrderInvoiced->status ?? null,
                         ],
                     ];
-                    
+
                 break;
                 
                 // case 'nfseCancelada':
@@ -420,8 +397,82 @@ class InvoicesFunctions{
                 //     ];
                 // break;
 
+                case 'csFaturada':
+                    $html = '';
+                    $table = '<table border="1px" style= "width=100%; border-collapse: collapse;">';
+                    $table .= '<tr>';
+                    $table .= '<th style="width: 15%; border-collapse: collapse; padding:2px; text-align:center"> Data Emissão';
+                    $table .= '</th>';
+                    $table .= '<th style="width: 15%; border-collapse: collapse; padding:2px; text-align:center"> Núm. Contrato / Num. O.S.';
+                    $table .= '</th>';
+                    $table .= '<th style="width: 15%; border-collapse: collapse; padding:2px; text-align:center"> Num. NFSe / Valor';
+                    $table .= '</th>';
+                    $table .= '<th style="width: 55%; border-collapse: collapse; padding:2px; text-align:center"> Link XML';
+                    $table .= '</th>';
+                    $table .= '</tr>';
+                    foreach($OrderInvoiced->todas as $nfeContrato){
+                    
+                        $table .= '<tr>';
+                        if($nfeContrato['OrdemServico']['cNumeroContrato'] === $OrderInvoiced->nContrato){
+                            
+                            $table .= '<td style="width: 15%; border-collapse: collapse; padding:2px; text-align:center">'
+                                .$nfeContrato['Emissao']['cDataEmissao'].' '.$nfeContrato['Emissao']['cHoraEmissao'];
+                            $table .= '</td>';
 
-            
+                            $table .= '<td style="width: 15%; border-collapse: collapse; padding:2px; text-align:center">'
+                                .$nfeContrato['OrdemServico']['cNumeroContrato'].' / '.$nfeContrato['OrdemServico']['nNumeroOS'];
+                            $table .= '</td>';
+
+                            $table .= '<td style="width: 15%; border-collapse: collapse; padding:2px; text-align:center">'
+                                .$nfeContrato['Cabecalho']['nNumeroNFSe'].' / '.$nfeContrato['Cabecalho']['nValorNFSe'];
+                            $table .= '</td>';
+
+                            $table .= 
+                                "<td style='width: 55%; border-collapse: collapse; padding:2px; text-align:center'> <a href='{$OrderInvoiced->nfseXml}'>{$OrderInvoiced->nfseXml} </a>";
+                            $table .= '</td>';
+
+                        }
+                        $table .= '</tr>';
+                        
+                    }
+                    
+                    
+                    //se contrato montar tabela de notas emitidas durante a vigência do contrato
+                    $table .= '</table>';
+
+                    $html = $table;
+
+                    //identificar a referencia no Ploomes
+                    $idPloomes = $formatter->getIdPloomesBysContractNumber($OrderInvoiced->nContrato);
+
+                    //criar o objeto do ploomes com os dados do documento para atualizar no Ploomes
+                    $alterDocumentPloomes = [];
+                
+                    $fields = [
+                        [
+                            'SendExternalKey'=>'bicorp_api_tabela_faturamento_contrato_out',
+                            'Value' => $html  ?? null,
+                        ],
+                        [
+                            'SendExternalKey'=>'bicorp_api_num_os_externo_out',
+                            'Value' => $nfeContrato['OrdemServico']['nNumeroOS'] ?? null,
+                        ],
+                        [
+                            'SendExternalKey'=>'bicorp_api_num_nf_out',
+                            'Value' => $nfeContrato['Cabecalho']['nNumeroNFSe'] ?? null,
+                        ],
+                        [
+                            'SendExternalKey'=>'bicorp_api_data_nf_out',
+                            'Value' => $nfeContrato['Emissao']['cDataEmissao'] ?? null,
+                        ],
+                        [
+                            'SendExternalKey'=>'bicorp_api_valor_nf_out',
+                            'Value' => $nfeContrato['Cabecalho']['nValorNFSe'] ?? null,
+                        ],
+                        
+                        
+                    ];
+                break;
             }
             
             $op = CustomFieldsFunction::createPloomesCustomFields($fields,$ploomesServices);
@@ -462,7 +513,7 @@ class InvoicesFunctions{
                 }
             }
 
-        }
+
         //retorno sucesso
         return $message;
        
