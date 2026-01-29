@@ -62,8 +62,7 @@ class OrdersFunction{
  
         //Monta Os detalhes do Omie ***Obrigatório (Monta o Objeto do ERP de destino)
         $erp = self::createErpObjectSetDetailsOrder($bases, $bf);
-        //busca o código do vendedor pelo email do ploomes, se não encotrar retorna nulo
-        $order->codVendedorErp = self::getIdVendedorErpFromMail($erp, $orderArray['Owner']['Email'], $formatter); 
+        
         
         //observações 
         $order->description = (isset($orderArray['Description']) ? htmlspecialchars_decode(strip_tags($orderArray['Description'])): null);  
@@ -376,6 +375,10 @@ class OrdersFunction{
  
     private static function setAdditionalOrderProperties(object $order, array $orderArray, array $customFields, object $ploomesServices, object $formatter, $erp):void
      {
+        $sellerEmail = (isset($customFields['bicorp_api_order_seller_email_out']) && !empty($customFields['bicorp_api_order_seller_email_out']))? $customFields['bicorp_api_order_seller_email_out'] : $orderArray['Owner']['Email'];
+
+        //busca o código do vendedor pelo email do ploomes, se não encotrar retorna nulo
+        $order->codVendedorErp = (!empty($sellerEmail)) ? self::getIdVendedorErpFromMail($erp, $sellerEmail, $formatter) : null; 
          
         $order->orderNumber = $orderArray['OrderNumber']; // numero da venda
         $order->dealId = $orderArray['DealId']; // Id do card
@@ -752,7 +755,8 @@ class OrdersFunction{
         return $del;
      }
      
-      public static function alterOrderStage(object $ploomesServices, array $alterOrder){
+      public static function alterOrderStage(object $ploomesServices, array $alterOrder)
+      {
         //muda a etapa da venda específica para NF-Emitida stage Id 40042597 quando a etapa da venda é alterada no ERP
         $allStages = $ploomesServices->getOrderStages();
 

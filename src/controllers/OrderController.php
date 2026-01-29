@@ -20,7 +20,7 @@ class OrderController extends Controller {
     private $loggedUser;
     private $ploomesServices;
     private $databaseServices;
-    private $rabbitMQServices;
+    // private $rabbitMQServices;
     private $formatter;
 
 
@@ -33,7 +33,7 @@ class OrderController extends Controller {
         $vhost = $args['Tenancy']['vhost'][0];
         $this->ploomesServices = new PloomesServices($ploomesBase);
         $this->databaseServices = new DatabaseServices();
-        $this->rabbitMQServices = new RabbitMQServices($vhost);
+        // $this->rabbitMQServices = new RabbitMQServices($vhost);
     }
 
     private function getOrderHandler($args): OrderHandler
@@ -59,7 +59,7 @@ class OrderController extends Controller {
                         
             // $rk = origem.entidade.ação
             $rk = array('Ploomes','Orders');
-            $this->rabbitMQServices->publicarMensagem('orders_exc', $rk, 'ploomes_orders',  $json);
+            //$this->rabbitMQServices->publicarMensagem('orders_exc', $rk, 'ploomes_orders',  $json);
 
             if ($response > 0) {
 
@@ -157,7 +157,7 @@ class OrderController extends Controller {
                         
             // $rk = origem.entidade.ação
             $rk = array('Erp','Orders');
-            $this->rabbitMQServices->publicarMensagem('orders_exc', $rk, 'erp_orders',  $json);
+            //$this->rabbitMQServices->publicarMensagem('orders_exc', $rk, 'erp_orders',  $json);
 
             if ($response > 0) {
 
