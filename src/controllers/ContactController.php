@@ -18,7 +18,7 @@ class ContactController extends Controller
     private $loggedUser;
     private $ploomesServices;
     private $databaseServices;
-    private $rabbitMQServices;
+    // private $rabbitMQServices;
 
 
     public function __construct($args)
@@ -31,7 +31,7 @@ class ContactController extends Controller
         $this->ploomesServices = new PloomesServices($ploomesBase);
           
         $this->databaseServices = new DatabaseServices();
-        $this->rabbitMQServices = new RabbitMQServices($vhost);
+        // $this->rabbitMQServices = new RabbitMQServices($vhost);
     }
 
     private function getClientHandler($args): ClientHandler
@@ -63,7 +63,7 @@ class ContactController extends Controller
 
                 $ignorar = ['LastUpdateDate', 'UpdaterId'];
                 $diferencas = DiverseFunctions::compareArrays($args['body']['Old'], $args['body']['New'], $ignorar);
-    
+         
                 if(empty($diferencas)){
                     throw new WebhookReadErrorException('Não houve alteração no array', 500);
                 }

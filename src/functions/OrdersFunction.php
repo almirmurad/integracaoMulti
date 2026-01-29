@@ -546,7 +546,20 @@ class OrdersFunction{
         // Bairro
         $order->bairroEnderecoEntrega = $customFields['bicorp_api_entrega_bairro_venda_out'] ?? null;
         // Estado UF
-        $order->ufEnderecoEntrega = $customFields['bicorp_api_entrega_uf_venda_out'] ?? null;
+        $uf = $customFields['bicorp_api_entrega_uf_venda_out'];
+        if (ctype_digit($uf)) {
+            //busca na lista de uf pelo id o uf correto
+            $order->ufEnderecoEntrega = $ploomesServices->getOptionsFieldById($uf);
+        } elseif (preg_match('/^[A-Z]{2}$/', strtoupper($uf))) {
+            // Sigla válida
+            $order->ufEnderecoEntrega = $uf;
+        } else {
+            // Valor inválido
+            $order->ufEnderecoEntrega = null;
+        }
+
+
+
         // Cidade
         $order->cidadeEnderecoEntrega = $customFields['bicorp_api_entrega_cidade_venda_out'] ?? null;
         // Telefone
@@ -626,7 +639,7 @@ class OrdersFunction{
  
      private static function createRequestNewOrder(object $erp, object $order, string $jsonPedido, object $formatter, object $ploomesServices, array $arrayIsServices):array
      {  
-        print_r($order);
+        // print_r($order);
         $incluiPedidoErp = $formatter->createOrderErp($jsonPedido, $arrayIsServices);
         
         if($arrayIsServices['isService'] && $arrayIsServices['isRecurrence'] ){

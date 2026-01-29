@@ -891,35 +891,79 @@ Class OmieFormatter implements ErpFormattersInterface{
         
      
         $ploomesTags = $ploomesServices->getTagsByEntityId(1);//id da entidade
-        // print_r($ploomesTags);
-        $tags = [];
-        $tag = [];
-        // print_r($contact->tags);
-        // exit;
-        if(isset($contact->tags) && !empty($contact->tags)){
-            
-            foreach($contact->tags as $t)
-            {
-                foreach($ploomesTags as $pTag){
-                    if(strtolower($pTag['Name']) === strtolower($t['tag'])){
-                        $tag['TagId'] = $pTag['Id'];
-                        $tag['Tag']['Name'] = $pTag['Name'];
-                    }else{
-                        $tagName = $t['tag'];
-                        $hexa = '#' . str_pad(rand(0, 999999), 6, '0', STR_PAD_LEFT);
-                        $tag['TagId'] = $ploomesServices->insertTag($tagName, 1, $hexa);
-                        $tag['Tag']['Name'] = $tagName;
-                    }
-                }                
+    
+        if (
+            isset($contact->tags) && is_array($contact->tags) && !empty($contact->tags) &&
+            isset($ploomesTags) && is_array($ploomesTags)
+        ) {
         
-                $tags[]=$tag;
+            $tags = [];
+        
+            /**
+             * 🔹 Cria um índice local normalizado das tags do Ploomes
+             * Ex: ['cliente vip' => ['Id' => 123, 'Name' => 'Cliente VIP']]
+             */
+            $ploomesTagIndex = [];
+        
+            foreach ($ploomesTags as $pTag) {
+                if (!empty($pTag['Name'])) {
+                    $normalizedName = trim(mb_strtolower($pTag['Name']));
+                    $ploomesTagIndex[$normalizedName] = $pTag;
+                }
             }
+        
+            foreach ($contact->tags as $t) {
+        
+                if (empty($t['tag'])) {
+                    continue;
+                }
+        
+                // 🔹 Normaliza o nome vindo do Omie
+                $tagNameOriginal   = trim($t['tag']);
+                $tagNameNormalized = trim(mb_strtolower($tagNameOriginal));
+        
+                $tag = [];
+        
+                /**
+                 * 🔹 Verifica no cache local
+                 */
+                if (isset($ploomesTagIndex[$tagNameNormalized])) {
+        
+                    $existingTag = $ploomesTagIndex[$tagNameNormalized];
+        
+                    $tag['TagId'] = $existingTag['Id'];
+                    $tag['Tag']['Name'] = $existingTag['Name'];
+        
+                } else {
+        
+                    /**
+                     * 🔹 Cria a tag no Ploomes
+                     */
+                    $hexa = '#' . str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        
+                    $tagId = $ploomesServices->insertTag($tagNameOriginal, 1, $hexa);
+        
+                    $tag['TagId'] = $tagId;
+                    $tag['Tag']['Name'] = $tagNameOriginal;
+        
+                    /**
+                     * 🔹 Atualiza o cache local para evitar recriação
+                     */
+                    $ploomesTagIndex[$tagNameNormalized] = [
+                        'Id'   => $tagId,
+                        'Name' => $tagNameOriginal
+                    ];
+                }
+        
+                $tags[] = $tag;
+            }
+        
             $data['Tags'] = $tags;
-        }else{
+        
+        } else {
             $data['Tags'] = null;
-        }     
-        // print'tipo de atividade'.PHP_EOL;
-        // print_r($contact->tipo_atividade );
+        }
+
          
         $op = CustomFieldsFunction::createOtherPropertiesByEntity($custom['Cliente'], $contact, $ploomesServices);
 
