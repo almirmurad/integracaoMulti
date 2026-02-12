@@ -203,7 +203,7 @@ class PloomesServices implements PloomesManagerInterface{
         $curl = curl_init();
         
         curl_setopt_array($curl, array(
-            CURLOPT_URL => $this->baseApi . 'Orders?$filter=Id+eq+'. $id .'&$expand=Sections($expand=Products($select=Product,Discount,Quantity,UnitPrice,Id,Ordination;$expand=Product($select=Code,Id;$expand=Group,Parts,OtherProperties))),Owner,Contact($expand=OtherProperties),OtherProperties,Products($select=Product,Discount,Quantity,UnitPrice,Id,Ordination;$expand=Product($select=Code,Id;$expand=Group,Parts,OtherProperties))&$orderby=Id',
+            CURLOPT_URL => $this->baseApi . 'Orders?$filter=Id+eq+'. $id .'&$expand=Sections($expand=Products($select=Product,Discount,Quantity,UnitPrice,Id,Ordination;$expand=Product($select=Code,Id;$expand=Group,Family,Parts,OtherProperties))),Owner,Contact($expand=OtherProperties),OtherProperties,Products($select=Product,Discount,Quantity,UnitPrice,Id,Ordination;$expand=Product($select=Code,Id;$expand=Group,Family,Parts,OtherProperties))&$orderby=Id',
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_ENCODING => '',
             CURLOPT_MAXREDIRS => 10,

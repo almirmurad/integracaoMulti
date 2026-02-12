@@ -53,7 +53,7 @@ Class OmieFormatter implements ErpFormattersInterface{
             
             
             if(!array_key_exists($idItemOmie, $opItem )){
-                throw new WebhookReadErrorException('Erro ao montar pedido para enviar ao Omie: Não foi encontrado o id do produto  Omie para o aplicativo de faturamento escolhido no pedido.', 500);
+                throw new WebhookReadErrorException('Erro ao montar pedido para enviar ao Omie: Não foi encontrado o id do produto Omie para o aplicativo de faturamento escolhido no pedido.', 500);
             }
 
             //verifica se é venda de serviço 
@@ -63,16 +63,24 @@ Class OmieFormatter implements ErpFormattersInterface{
                //retorna o modelo de serviço para o erp de destino 
                $contentServices[] = $this->getOrdersServicesItens($prdItem, $opItem[$idItemOmie], $order, $arrayIsServices['isRecurrence']);
             
+            }elseif($arrayIsServices['isHybrid']){
+                //se for venda de produtos e serviços na mesma tabela
+                // print_r($prdItem);
+                if(isset($prdItem['Product']['Group']) && $prdItem['Product']['Group']['Name'] === 'Produtos'){
+                    // pega os produtos;
+                    $productsOrder[] = $this->getOrdersProductsItens($prdItem, $opItem[$idItemOmie], $order);
+
+                }else{
+                    
+                    $contentServices[] = $this->getServicesItensForHybridOrder($prdItem, $opItem[$idItemOmie], $order);
+                }
+          
             }else{
              
                 $productsOrder[] = $this->getOrdersProductsItens($prdItem, $opItem[$idItemOmie], $order);
                
             }
         }
-
-        // print_r($contentServices);
-        // print_r($productsOrder);
-        // exit;
 
         return ['products'=>$productsOrder, 'services'=>$contentServices];
     }
@@ -428,11 +436,22 @@ Class OmieFormatter implements ErpFormattersInterface{
             $url ='https://app.omie.com.br/api/v1/servicos/os/';
         }elseif($arrayIsServices['isRecurrence']){
             $url = 'https://app.omie.com.br/api/v1/servicos/contrato/';
+        }elseif($arrayIsServices['isHybrid']){
+
+          $decodedJsonPedido = json_decode($jsonPedido, true);
+
+          if($decodedJsonPedido['call'] === 'IncluirOS'){
+            $url ='https://app.omie.com.br/api/v1/servicos/os/';
+          }else{
+            $url = 'https://app.omie.com.br/api/v1/produtos/pedido/';
+          }
+       
         }else{
             $url = 'https://app.omie.com.br/api/v1/produtos/pedido/';
         }
      
         $createOrder = $this->omieServices->criaPedidoErp($jsonPedido, $url);
+       
 
         if(isset($createOrder['codigo_status']) && $createOrder['codigo_status'] == "0")
         {
@@ -521,10 +540,39 @@ Class OmieFormatter implements ErpFormattersInterface{
 
     }
 
+    public function getServicesItensForHybridOrder(array $prdItem, int $idItemOmie, object $order){
+
+        $serviceOrder = [];
+        $service = [];
+       
+        //  print_r($prdItem);
+        // exit;
+
+        //verifica se tem serviço com produto junto
+        // if($prdItem['Product']['Group']['Family']['Name'] !== 'Serviços'){
+        if($prdItem['Product']['Family']['Name'] === 'Serviços'){
+                     
+
+            $service['nCodServico'] = $idItemOmie;
+            $service['nQtde'] = $prdItem['Quantity'];
+            $service['nValUnit'] = $prdItem['UnitPrice'];
+            $service['cDescServ'] = $order->descricaoServico;
+            
+            // $serviceOrder = $service;
+        }
+
+        // print_r($serviceOrder);
+        // exit;
+
+        return $service;
+
+
+    }
+
     public function getOrdersServicesItens(array $prdItem, int $idItemOmie, object $order, bool $isRecurrence):array
     {
         // print_r($prdItem);
-        // exit;
+        
         $serviceOrder = [];
         $pu = [];
         $service = [];
@@ -534,7 +582,8 @@ Class OmieFormatter implements ErpFormattersInterface{
         // exit;
 
         //verifica se tem serviço com produto junto
-        if($prdItem['Product']['Group']['Family']['Name'] !== 'Serviços'){
+        // if($prdItem['Product']['Group']['Family']['Name'] !== 'Serviços'){
+        if($prdItem['Product']['Family']['Name'] !== 'Serviços'){
                      
             //monts o produtos utilizados (pu)
             $pu['nCodProdutoPU'] = $idItemOmie;
@@ -575,9 +624,12 @@ Class OmieFormatter implements ErpFormattersInterface{
 
     }
 
-    public function getOrdersProductsItens(array $prdItem, int $idItemOmie, object $order):array
+    public function getOrdersProductsItens(array $prdItem, int $idItemOmie, object $order): array | null
     {
+        // print($prdItem);
+       
         $det = [];  
+
         $det['ide'] = [];
         $det['produto'] = [];
 
@@ -590,7 +642,9 @@ Class OmieFormatter implements ErpFormattersInterface{
         $det['inf_adic']['numero_pedido_compra'] = $order->numPedidoCompra;
         $det['inf_adic']['item_pedido_compra'] =$prdItem['Ordination']+1;
 
-        return $productsOrder[] = $det;
+
+        return $det;
+        
 
     }
 
