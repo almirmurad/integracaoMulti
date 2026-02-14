@@ -53,9 +53,9 @@ class ClientHandler
     public function startProcess($args)
     {   
         $action = DiverseFunctions::findAction($args);
-        
+
         if(isset($action['origem']) && $action['origem'] === 'CRMToERP'){
-            
+
             return ClientsFunctions::processContactCrmToErp($args, $this->ploomesServices, $this->formatter, $action);                                                   
         }
         

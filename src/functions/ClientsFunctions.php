@@ -17,12 +17,8 @@ class ClientsFunctions{
         $nBasesIntegrar = 0;
         $totalBases = count($args['Tenancy']['erp_bases']);
         
-         
-        $contact = $formatter->createObjectErpClientFromCrmData($args, $ploomesServices);
+        $contact = $formatter->createObjectErpClientFromCrmData($args, $ploomesServices);  
         
-     
-        
-     
         foreach ($contact->basesFaturamento as $base){
             
             if(!$base['integrar']){

@@ -55,13 +55,9 @@ class ContactController extends Controller
 
             $action = DiverseFunctions::findAction($args);
            
-            if($action['type'] === 'pessoa' && $args['body']['New']['CompanyId'] === null){
-                throw new WebhookReadErrorException('Cadastro de pessoa sem empresa referenciada', 500);
-            }
-
             if($action['action'] === "update"){
 
-                $ignorar = ['LastUpdateDate', 'UpdaterId'];
+                $ignorar = ['LastUpdateDate', 'UpdaterId', 'Key'];
                 $diferencas = DiverseFunctions::compareArrays($args['body']['Old'], $args['body']['New'], $ignorar);
          
                 if(empty($diferencas)){
@@ -73,8 +69,8 @@ class ContactController extends Controller
             $response = $clienteHandler->saveClientHook($json, $idUser);
         
             // $rk = origem.entidade.ação
-            $rk = array('Ploomes', 'Contacts');
-            $this->rabbitMQServices->publicarMensagem('contacts_exc', $rk, 'ploomes_contacts',  $json);
+            // $rk = array('Ploomes', 'Contacts');
+            // $this->rabbitMQServices->publicarMensagem('contacts_exc', $rk, 'ploomes_contacts',  $json);
 
             if ($response > 0) {
                 $message = [
