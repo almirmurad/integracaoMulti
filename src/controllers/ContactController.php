@@ -23,7 +23,7 @@ class ContactController extends Controller
 
     public function __construct($args)
     {
-      
+
         $ploomesBase = $args['Tenancy']['ploomes_bases'][0];
 
         $args['Tenancy']['vhost'][0]['key'] = $args['Tenancy']['tenancies']['cpf_cnpj'];
@@ -105,12 +105,16 @@ class ContactController extends Controller
     //processa contatos e clientes do ploomes ou do Erp
     public function processNewContact($args)
     {
+        // print_r($args);
+        // exit;
         $message = [];
         // processa o webhook 
         try {
+            // print'aqui';
+            // exit;
             $clienteHandler = $this->getClientHandler($args);
             $response = $clienteHandler->startProcess($args);
-          
+
             $message = [
                 'status_code' => 200,
                 'status_message' => $response['success'],
