@@ -10,7 +10,6 @@ class ErpFormatterFactory
 {
     public static function create(array $args): ErpFormattersInterface
     {
-        
         $erp = $args['user']['erp_name'];
         $erpBases = [];
         foreach($args['Tenancy']['erp_bases'] as $base){

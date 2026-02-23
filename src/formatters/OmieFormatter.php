@@ -3,6 +3,7 @@
 namespace src\formatters;
 
 use DateTime;
+use Exception;
 use GrahamCampbell\ResultType\Success;
 use src\contracts\ErpFormattersInterface;
 use src\exceptions\PedidoInexistenteException;
@@ -349,7 +350,7 @@ Class OmieFormatter implements ErpFormattersInterface{
         $InformacoesAdicionais['cCidPrestServ']= $os->cidadeServico ?? null;
         $prodUti = [];
         $services = [];
-//  print $os->codigoDepartamento;
+        //  print $os->codigoDepartamento;
         //departamentos
         //precisamos entender se o depto vai vir um só ou mais de um, se vier mais de um precisa fazer o calculo para gerar os valores para inserir 
         $departamentos = [];//array com infos do frete, por exemplo, modailidade;
@@ -709,6 +710,7 @@ Class OmieFormatter implements ErpFormattersInterface{
         $omieApp = $this->omieServices->getOmieApp();
 
         $c = $this->omieServices->getClientById($cliente);
+
         $caracteristicas = $this->omieServices->getCaracteristicasClienteById($cliente);
         
        
@@ -735,6 +737,22 @@ Class OmieFormatter implements ErpFormattersInterface{
         
         $array = DiverseFunctions::achatarArray($c);
 
+        
+        /** verrifica se é cliente PF ou PJ no ERP para transformar em tipo 1 ou tipo 2 no CRM */
+
+        $cleanDocument = DiverseFunctions::limpa_cpf_cnpj($array['cnpj_cpf']);
+
+        $length = mb_strlen($cleanDocument);
+
+        if($length > 11 ){
+            $typeId = 1;
+            // print 'o documento ' . $cleanDocument .'é um CNPJ';
+
+        }else{
+            $typeId = 2;
+            // print 'o documento ' . $cleanDocument .'é um CPF';
+        }
+
         $chave = 'id_cliente_erp_' . $omieApp['app_name'];
         $cliente->$chave = $array['codigo_cliente_omie'];
         $keyIntegrar ='integrar_base_'.$omieApp['app_name'];
@@ -750,6 +768,7 @@ Class OmieFormatter implements ErpFormattersInterface{
         $cliente->cidadeIbge = $array['cidade_ibge'] ?? null  ?? null;
         $cliente->cnae = $array['cnae']  ?? null;
         $cliente->cnpjCpf = $array['cnpj_cpf']  ?? null;
+        $cliente->typeId = $typeId ?? null;
         $cliente->codigoClienteIntegracao = $array['codigo_cliente_integracao']  ?? null;
         $cliente->codigoPais = $array['codigo_pais']  ?? null;
         $cliente->complemento = $array['complemento']  ?? null;
@@ -831,7 +850,8 @@ Class OmieFormatter implements ErpFormattersInterface{
         $cliente->appKey = $decoded['appKey'];
         // $cliente->appHash = $array['appHash'];
         // $cliente->origin = $array['origin'];
-        
+        // print_r($cliente);
+        // exit;
         
         return $cliente;
     }
@@ -860,9 +880,17 @@ Class OmieFormatter implements ErpFormattersInterface{
         // print_r($contact);
         // exit;
         $data = [];
-        $data['TypeId'] = 1;
-        $data['Name'] = $contact->nomeFantasia;
-        $data['LegalName'] = $contact->razaoSocial;
+        $data['TypeId'] = $contact->typeId;
+        if($contact->typeId === 2){
+            $data['Name'] = $contact->razaoSocial;
+            $data['LegalName'] = null ;
+
+        }else{
+            $data['Name'] = $contact->nomeFantasia;
+            $data['LegalName'] = $contact->razaoSocial;
+        }
+      
+    
         $data['Register'] = DiverseFunctions::limpa_cpf_cnpj($contact->cnpjCpf);
         $data['Neighborhood'] = $contact->bairro ?? null;
         $data['StatusId'] = 40059036;
@@ -1040,12 +1068,88 @@ Class OmieFormatter implements ErpFormattersInterface{
     {
  
         $decoded = $args['body'];
+        $contact = new stdClass(); 
         
-           
        
         //aqui ele busca o cliente no Ploomes pelo id, se for tipo 2 (contato) ele vai atualizar o cliente no omie buscando as informações da empresa no ploomes através do companyId do contato do cliente 
+
         /*quando um cliente é pessoa física o sistema busca o id da empresa em company Id e transforma a empresa no contato a ser integrado e a pessoa como contato, se a pessoa não tiver company id cadastra como pessoa*/
-        ($decoded['New']['TypeId'] === 2 && isset($decoded['New']['CompanyId']) && $decoded['New']['CompanyId'] !== null)? $cliente = $ploomesServices->getClientById($decoded['New']['CompanyId']):$cliente = $ploomesServices->getClientById($decoded['New']['Id']);
+        
+        //se for tipo 2 e tiver company ID significa que ele é um contato de uma empresa
+        //se for tipo 2 e não tiver company ID significa que é uma pessoa (cliente)
+        // se não for tipo 2 é uma empresa
+
+        if($decoded['New']['TypeId'] === 2 && isset($decoded['New']['CompanyId']) && $decoded['New']['CompanyId'] !== null){
+            $cliente = $ploomesServices->getClientById($decoded['New']['CompanyId']);
+            $contatoName = $decoded['New']['Name'];
+            
+            $phones = [];
+            foreach($decoded['New']['Phones'] as $phone){
+                
+                $partes = explode(' ',$phone['PhoneNumber']);
+                $ddd = $partes[0];
+                $nPhone = $partes[1];
+                $phones[] = [
+                    'ddd'=>$ddd,
+                    'nPhone' => $nPhone
+                ];        
+            }
+            
+            $contact->ddd2 = $phones[0]['ddd'] ?? null; //"telefone1_ddd": "011",
+            $contact->phone2 = $phones[0]['nPhone'] ?? null; //"telefone1_numero": "2737-2737",
+        
+        // print_r($phones);
+        // exit;
+
+            // $phonesContato = [];
+            // foreach($decoded['New']['Phones'] as $phone){
+                
+            //     $partes = explode(' ',$phone['PhoneNumber']);
+            //     $ddd = $partes[0];
+            //     $nPhone = $partes[1];
+            //     $phonesContato[] = [
+            //         'ddd'=>$ddd,
+            //         'nPhone' => $nPhone
+            //     ];        
+            // }
+
+            // print_r($phonesContato);
+            // exit;
+
+        }else{
+             $cliente = $ploomesServices->getClientById($decoded['New']['Id']);
+             $contatoName = $cliente['Contacts'][0]['Name'];
+             
+             $phones = [];
+             foreach($cliente['Phones'] as $phone){
+                
+                 $partes = explode(' ',$phone['PhoneNumber']);
+                 $ddd = $partes[0];
+                 $nPhone = $partes[1];
+                 $phones[] = [
+                     'ddd'=>$ddd,
+                     'nPhone' => $nPhone
+                 ];        
+             }
+             
+            $contact->ddd1 = $phones[0]['ddd'] ?? null; //"telefone1_ddd": "011",
+            $contact->phone1 = $phones[0]['nPhone'] ?? null; //"telefone1_numero": "2737-2737",
+            $contact->ddd2 = $phones[1]['ddd'] ?? null; //"telefone1_ddd": "011",
+            $contact->phone2 = $phones[1]['nPhone'] ?? null; //"telefone1_numero": "2737-2737",
+            
+        
+        // print_r($phones);
+        // exit;
+        }
+        
+
+        // ($decoded['New']['TypeId'] === 2 && isset($decoded['New']['CompanyId']) && $decoded['New']['CompanyId'] !== null)?
+
+        // $cliente = $ploomesServices->getClientById($decoded['New']['CompanyId'])
+
+        // :
+
+        // $cliente = $ploomesServices->getClientById($decoded['New']['Id']);
       
         //$cliente = $ploomesServices->getClientById($decoded['New']['Id']);
         $omie = new stdClass();
@@ -1058,11 +1162,9 @@ Class OmieFormatter implements ErpFormattersInterface{
         $omie->ncc = $omieApp['ncc'];
         $omie->tenancyId = $omieApp['tenancy_id'];
         
-        $contact = new stdClass(); 
+        
         
         $custom = CustomFieldsFunction::compareCustomFieldsFromOtherProperties($cliente['OtherProperties'],'Cliente',$args['Tenancy']['tenancies']['id']); 
-        
-        
 
         $allCustoms = $_SESSION['contact_custom_fields'][$args['Tenancy']['tenancies']['id']];
         
@@ -1133,7 +1235,7 @@ Class OmieFormatter implements ErpFormattersInterface{
         (isset($contact->simples_nacional) && $contact->simples_nacional !== false) ? $contact->simples_nacional = 'S' : $contact->simples_nacional = 'N';
         //contact_3C521209-46BD-4EA5-9F41-34756621CCB4 = contato1
         // $contact->contato1 = $prop['contact_3C521209-46BD-4EA5-9F41-34756621CCB4'] ?? null; //estava com esta linha aqui ativa
-        $contact->contato1 = $cliente['Contacts'][0]['Name'] ?? null;
+        $contact->contato1 = $contatoName ?? null;
         //contact_F9B60153-6BDF-4040-9C3A-E23B1469894A = Produtor Rural
         // $contact->produtorRural = $prop['contact_F9B60153-6BDF-4040-9C3A-E23B1469894A'] ?? null;
         $contact->produtor_rural = $custom['bicorp_api_produtor_rural_out'] ?? null;
@@ -1220,33 +1322,22 @@ Class OmieFormatter implements ErpFormattersInterface{
         //contact_55D34FF5-2389-4FEE-947C-ACCC576DB85C = Integrar com base omie 1? (s/n)
         // (isset($prop['contact_55D34FF5-2389-4FEE-947C-ACCC576DB85C']) && $prop['contact_55D34FF5-2389-4FEE-947C-ACCC576DB85C'] !== false) ? $prop['contact_55D34FF5-2389-4FEE-947C-ACCC576DB85C'] = 1 : $prop['contact_55D34FF5-2389-4FEE-947C-ACCC576DB85C'] = 0;
         
-        $phones = [];
-        foreach($cliente['Phones'] as $phone){
-            
-            $partes = explode(' ',$phone['PhoneNumber']);
-            $ddd = $partes[0];
-            $nPhone = $partes[1];
-            $phones[] = [
-                'ddd'=>$ddd,
-                'nPhone' => $nPhone
-            ];        
-        }
+        
          
         
         $contact->id = $cliente['Id']; //Id do Contact
         $contact->name = $cliente['Name']; // Nome ou nome fantasia do contact !obrigatório!
-        $contact->legalName = $cliente['LegalName']; // Razão social do contact !obrigatório!
+        $contact->legalName = $cliente['LegalName'] ?? $cliente['Name']; // Razão social do contact !obrigatório!
         $contact->cnpj = $cliente['CNPJ'] ?? null; // Contatos CNPJ !obrigatório!
         $contact->cpf = $cliente['CPF'] ?? null; // Contatos CPF !obrigatório!
         $contact->documentoExterior = (isset($cliente['IdentityDocument']) && $cliente['IdentityDocument'] === 'N' ) ? null :  $cliente['IdentityDocument']; // Documento extrangeiro CPF
         $contact->segmento = ($cliente['LineOfBusiness']['Id']) ?? null; // Segmento CPF
         $contact->email = $cliente['Email']; // Contatos Email obrigatório
         $contact->website = $cliente['Website'] ?? null; // Contatos website obrigatório
-        $contact->ddd1 = $phones[0]['ddd'] ?? null; //"telefone1_ddd": "011",
-        $contact->phone1 = $phones[0]['nPhone'] ?? null; //"telefone1_numero": "2737-2737",
-        $contact->ddd2 = $phones[1]['ddd'] ?? null; //"telefone1_ddd": "011",
-        $contact->phone2 = $phones[1]['nPhone'] ?? null; //"telefone1_numero": "2737-2737",
+        
         //$contact->contato1 = $prop['contact_E6008BF6-A43D-4D1C-813E-C6BD8C077F77'] ?? null;
+        // print_r($contact->phone2);
+        // exit;
         $contact->streetAddress = $cliente['StreetAddress']; // Endereço !obrigatório!
         $contact->streetAddressNumber = $cliente['StreetAddressNumber']; // Número Endereço !obrigatório!
         $contact->streetAddressLine2 = $cliente['StreetAddressLine2'] ?? null; // complemento do Endereço 
@@ -1256,7 +1347,7 @@ Class OmieFormatter implements ErpFormattersInterface{
         $contact->cityName = $cliente['City']['Name'] ?? null; // estamos pegando o IBGE code
         $contact->cityLagitude = $cliente['City']['Latitude'] ?? null; // Latitude da cidade 
         $contact->cityLongitude = $cliente['City']['Longitude'] ?? null; // Longitude da cidade 
-        $contact->stateShort = $cliente['State']['Short']; // Sigla do estado é !obrigatório!
+        $contact->stateShort = $cliente['State']['Short'] ?? null; // Sigla do estado é !obrigatório!
         $contact->stateName = $cliente['State']['Name'] ?? null; //estamos pegando a sigla do estado
         $contact->countryId = $cliente['CountryId'] ?? null; // Omie preenche o país automaticamente
         $contact->cnaeCode = $cliente['CnaeCode'] ?? null; // Id do cnae 
@@ -1300,7 +1391,7 @@ Class OmieFormatter implements ErpFormattersInterface{
         
         $tags = [];
 
-        if (isset($decoded['New']['Tags']) && !empty($decoded['New']['Tags'])) {
+        if (isset($cliente['Tags']) && !empty($cliente['Tags'])) {
             $entityId = 1;
             $tagsPloomes = $ploomesServices->getTagsByEntityId($entityId);
 
@@ -1335,7 +1426,7 @@ Class OmieFormatter implements ErpFormattersInterface{
 
         $contact->enderecoEntrega = $enderecoEntrega;
         
-
+    
         return $contact;
     }
 
@@ -1595,7 +1686,7 @@ Class OmieFormatter implements ErpFormattersInterface{
         $codigoERP = $criaClienteERP['codigo_cliente_omie'];
 
         $array = [
-            'TypeId'=>1,
+            // 'TypeId'=>1,
             'OtherProperties'=>[
                 [
                     'FieldKey'=>$fieldKey,

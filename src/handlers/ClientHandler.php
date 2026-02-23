@@ -52,10 +52,13 @@ class ClientHandler
     //PROCESSA E CRIA O cliente. CHAMA O REPROCESS CASO DE ERRO
     public function startProcess($args)
     {   
+        // print_r($args);
+        // exit;
         $action = DiverseFunctions::findAction($args);
-        
+
+
         if(isset($action['origem']) && $action['origem'] === 'CRMToERP'){
-            
+
             return ClientsFunctions::processContactCrmToErp($args, $this->ploomesServices, $this->formatter, $action);                                                   
         }
         

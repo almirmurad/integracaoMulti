@@ -255,7 +255,7 @@ class PloomesServices implements PloomesManagerInterface{
     //encontra cliente no ploomes pelo CNPJ
     public function consultaClientePloomesCnpj(string $cnpj)
     {
-        $filter = "CNPJ+eq+'{$cnpj}'";
+        $filter = "Register+eq+'{$cnpj}'";
         $curl = curl_init();
         curl_setopt_array($curl, array(
             CURLOPT_URL => $this->baseApi ."Contacts?\$filter={$filter}",
@@ -274,7 +274,7 @@ class PloomesServices implements PloomesManagerInterface{
         $response =json_decode($response, true);
         
         curl_close($curl);
-
+  
         return $response['value'][0]['Id'] ?? null;
 
     }
@@ -1094,7 +1094,7 @@ class PloomesServices implements PloomesManagerInterface{
     //ATUALIZA CONTACT NO PLOOMES
     public function updatePloomesContact(string $json, int $idContact):array|null
     {
-            
+          
         //CHAMADA CURL PRA CRIAR WEBHOOK NO PLOOMES
         $curl = curl_init();
 
@@ -1114,6 +1114,7 @@ class PloomesServices implements PloomesManagerInterface{
         $response = json_decode(curl_exec($curl),true);
 
         curl_close($curl);
+        
         
         return $response['value'][0] ?? null;
     
