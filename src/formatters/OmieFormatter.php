@@ -467,10 +467,15 @@ Class OmieFormatter implements ErpFormattersInterface{
         if(isset($createOrder['codigo_status']) && $createOrder['codigo_status'] == "0")
         {
             $createOrder['create'] = true;
-            $createOrder['num_pedido'] = $createOrder['numero_pedido'];            
+            $createOrder['num_pedido'] = intval($createOrder['numero_pedido']); 
+            $createOrde['num_os'] = null;         
+            $createOrder['msg'] = "{$createOrder['descricao_status']} ({$createOrder['num_pedido']})"; 
         }elseif(isset($createOrder['cCodStatus']) && $createOrder['cCodStatus'] == "0"){
+                
             $createOrder['create'] = true;
-            $createOrder['num_pedido'] = $createOrder['cNumOS'] ?? $createOrder['nCodCtr'];
+            $createOrder['num_pedido'] = null;
+            $createOrder['num_os'] = intval($createOrder['cNumOS']) ?? intval($createOrder['nCodCtr']);
+            $createOrder['msg'] = "{$createOrder['cDescStatus']} ({$createOrder['num_os']})"; 
         }
         else{
             $createOrder['create'] = false;
