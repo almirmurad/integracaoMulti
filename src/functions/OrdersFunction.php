@@ -516,17 +516,20 @@ class OrdersFunction
         //projeto
         $order->projeto = $customFields['bicorp_api_projeto_out'] ?? null;
 
-        if ($customFields['bicorp_api_venda_workshop_out']) {
+        // if ($customFields['bicorp_api_venda_workshop_out']) {
 
-            $dataWorkshop = $customFields['bicorp_api_data_workshop_out'];
-            $speaker = $customFields['bicorp_api_speaker_workshop_out'];
+        //     $dataWorkshop = $customFields['bicorp_api_data_workshop_out'];
+        //     $speaker = $customFields['bicorp_api_speaker_workshop_out'];
 
-            $vendedorAdicional = $ploomesServices->getUserById($customFields['bicorp_api_vendedor_adicional_out']);
+        //     $vendedorAdicional = $ploomesServices->getUserById($customFields['bicorp_api_vendedor_adicional_out']);
 
-            $order->description = "Informações do Workshop: \r\n Data do Workshop: {$dataWorkshop}\r\n Speaker do Workshop: {$speaker}\r\n Vendedor Adicional: {$vendedorAdicional['Name']}\r\nObservações da venda:\r\n{$order->description}";
-            $order->codCenarioFiscal = null; //5329821555;null é o padrão, pensar em colocar esta informação no banco de dados
+        //     $order->description = "Informações do Workshop: \r\n Data do Workshop: {$dataWorkshop}\r\n Speaker do Workshop: {$speaker}\r\n Vendedor Adicional: {$vendedorAdicional['Name']}\r\nObservações da venda:\r\n{$order->description}";
+        //     $order->codCenarioFiscal = null; //5329821555;null é o padrão, pensar em colocar esta informação no banco de dados
 
-        }
+        // }
+        
+        $order->codCenarioFiscal = (isset($customFields['bicorp_api_codigo_cenario_impostos_out']) && !empty($customFields['bicorp_api_codigo_cenario_impostos_out'])) ? $customFields['bicorp_api_codigo_cenario_impostos_out'] : null;
+
         //observações da nota
         $order->notes = (isset($customFields['bicorp_api_dados_adicionais_nota_fiscal_out']) ? htmlspecialchars_decode(strip_tags($customFields['bicorp_api_dados_adicionais_nota_fiscal_out'])) : null);
 
@@ -580,15 +583,19 @@ class OrdersFunction
         // Bairro
         $order->bairroEnderecoEntrega = $customFields['bicorp_api_entrega_bairro_venda_out'] ?? null;
         // Estado UF
-        $uf = $customFields['bicorp_api_entrega_uf_venda_out'];
-        if (ctype_digit($uf)) {
-            //busca na lista de uf pelo id o uf correto
-            $order->ufEnderecoEntrega = $ploomesServices->getOptionsFieldById($uf);
-        } elseif (preg_match('/^[A-Z]{2}$/', strtoupper($uf))) {
-            // Sigla válida
-            $order->ufEnderecoEntrega = $uf;
+        $uf = $customFields['bicorp_api_entrega_uf_venda_out'] ?? null;
+
+        if ($uf !== null && ctype_digit((string) $uf)) {
+
+            $estado = $ploomesServices->getOptionsFieldById((int) $uf);
+            $order->ufEnderecoEntrega = $estado['Name'] ?? null;
+
+        } elseif (is_string($uf) && preg_match('/^[A-Z]{2}$/', strtoupper($uf))) {
+
+            $order->ufEnderecoEntrega = strtoupper($uf);
+
         } else {
-            // Valor inválido
+
             $order->ufEnderecoEntrega = null;
         }
 

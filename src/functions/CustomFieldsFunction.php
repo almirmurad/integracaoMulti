@@ -269,6 +269,18 @@ Class CustomFieldsFunction{
             
             foreach($custom as $field){
                 if($field['SendExternalKey'] == 'bicorp_api_'.mb_strtolower($k).'_out'){
+                    
+                    if($field['TypeId'] === 7){
+                        foreach ($field as $options){
+                            foreach($options as $option){
+                              if(mb_strtolower($option['Name']) === mb_strtolower($data->$k))
+                              {
+                                    $value = $option['Id'];
+                              }
+                            }
+                        }
+                    }
+                    
                     switch($field['Type']){
                         case 'Integer':
                             $type = 'IntegerValue';

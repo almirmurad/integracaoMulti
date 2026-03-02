@@ -76,7 +76,10 @@ class DocumentHandler
         $order->id = $args['body']['New']['Id'];
         $funnel = $this->ploomesServices->requestDocument($order);
 
-        if(mb_strtolower($funnel['Deal']['Pipeline']['Name']) !== mb_strtolower('Gestão de Contratos')){
+        if(
+            mb_strtolower($funnel['Deal']['Pipeline']['Name']) !== mb_strtolower('Gestão de Contratos') ||
+            mb_strtolower($funnel['Deal']['Pipeline']['Name']) !== mb_strtolower('Gestão de Pedidos')
+        ){
             throw new WebhookReadErrorException('Documento não foi gerado no documento de contrato');
         }
         return true;

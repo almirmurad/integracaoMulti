@@ -67,7 +67,7 @@ Class OmieFormatter implements ErpFormattersInterface{
             }elseif($arrayIsServices['isHybrid']){
                 //se for venda de produtos e serviços na mesma tabela
                 // print_r($prdItem);
-                if(isset($prdItem['Product']['Group']) && $prdItem['Product']['Group']['Name'] === 'Produtos'){
+                if(isset($prdItem['Product']['Family']) && $prdItem['Product']['Family']['Name'] === 'Produtos'){
                     // pega os produtos;
                     $productsOrder[] = $this->getOrdersProductsItens($prdItem, $opItem[$idItemOmie], $order);
 
@@ -95,7 +95,7 @@ Class OmieFormatter implements ErpFormattersInterface{
         $cabecalho['codigo_cliente'] = $order->idClienteOmie;//int
         $cabecalho['codigo_pedido_integracao'] = 'VEN_PRD/'.$order->id;//string
         $cabecalho['data_previsao'] = DiverseFunctions::convertDate($order->previsaoFaturamento);//string
-        $cabecalho['etapa'] = '10';//string
+        $cabecalho['etapa'] = $order->etapa ?? '10';//string
         $cabecalho['numero_pedido'] = $order->id;//string
         $cabecalho['codigo_parcela'] = $order->idParcelamento ?? '000';//string'qtde_parcela'=>2
         $cabecalho['origem_pedido'] = 'API';//string
@@ -106,6 +106,14 @@ Class OmieFormatter implements ErpFormattersInterface{
         $frete = [];//array com infos do frete, por exemplo, modailidade;
         $frete['modalidade'] = $order->modalidadeFrete ?? null;//string
         $frete['previsao_entrega'] = DiverseFunctions::convertDate($order->previsaoEntrega);
+        if($order->idTransportadora !== null){
+            $frete['codigo_transportadora'] = $order->idTransportadora;
+        }
+        $frete['quantidade_volumes'] = $order->qtdVolumes;
+        $frete['especie_volumes'] = $order->especieVolumes;
+        $frete['valor_frete'] = $order->valorFrete;
+        $frete['codigo_rastreio'] = $order->codRastreio;
+        
     
         //informações adicionais
         $informacoes_adicionais = []; //informações adicionais por exemplo codigo_categoria = 1.01.03, codigo_conta_corrente = 123456789
@@ -122,6 +130,7 @@ Class OmieFormatter implements ErpFormattersInterface{
         $outros_detalhes['cCidadeOd'] = $order->cidadeEnderecoEntrega;
         $outros_detalhes['cCEPOd'] = $order->cepEnderecoEntrega;
         $outros_detalhes['cTelefoneOd'] = $order->telefoneEnderecoEntrega;
+        
 
         $informacoes_adicionais['codigo_categoria'] = $order->codigoCategoriaVenda;//string
         $informacoes_adicionais['codigo_conta_corrente'] = $omie->ncc;//int
@@ -130,6 +139,7 @@ Class OmieFormatter implements ErpFormattersInterface{
         $informacoes_adicionais['codproj']= $order->codProjeto ?? null;
         $informacoes_adicionais['dados_adicionais_nf'] = $order->notes;
         $informacoes_adicionais['outros_detalhes'] = $outros_detalhes;
+        $informacoes_adicionais['enviar_email'] = $order->enviaEmailCliente ?? null;
     
         //observbacoes
         $observacoes =[];
@@ -336,7 +346,7 @@ Class OmieFormatter implements ErpFormattersInterface{
         $emailNF=[];
         $emailNF['cEnvBoleto'] = $os->enviaBoleto;
         $emailNF['cEnvLink'] = 'S';
-        $emailNF['cEnviarPara'] = $os->emailNF;
+        $emailNF['cEnviarPara'] = $os->emailNF ?? null;
 
 
         $InformacoesAdicionais = []; //informações adicionais por exemplo codigo_categoria = 1.01.02 p/ serviços
@@ -545,13 +555,12 @@ Class OmieFormatter implements ErpFormattersInterface{
 
         $serviceOrder = [];
         $service = [];
-       
-        //  print_r($prdItem);
-        // exit;
-
+      
         //verifica se tem serviço com produto junto
         // if($prdItem['Product']['Group']['Family']['Name'] !== 'Serviços'){
-        if($prdItem['Product']['Family']['Name'] === 'Serviços'){
+        if(
+            $prdItem['Product']['Family']['Name'] === 'Serviços' 
+        ){
                      
 
             $service['nCodServico'] = $idItemOmie;
@@ -1206,10 +1215,33 @@ Class OmieFormatter implements ErpFormattersInterface{
                 }
             }
         }
-               
-        
 
-             
+         //caracteristica ENdeavor
+        if(isset($custom['bicorp_api_especialidade_out']) && !empty($custom['bicorp_api_especialidade_out'])){
+            $idOption = $custom['bicorp_api_especialidade_out'];
+            $option = $ploomesServices->getOptionsFieldById($idOption);
+            
+            $especialidade = $option['Name'];
+            $nomeCompletoDoutor = $custom['bicorp_api_nome_completo_do_doutor_out'];
+            
+            $caracteriscasArray = [
+                
+                    [
+                        'campo' => 'Especialidade',
+                        'conteudo' => $especialidade
+                    ],
+                    
+                    [
+                        'campo' => 'Nome Completo do Doutor',
+                        'conteudo' => $nomeCompletoDoutor
+                    ]
+                ];
+                
+            $contact->caracteristicas = $caracteriscasArray;
+                
+            
+        }
+                            
         $contact->bloquearFaturamento = $custom['bicorp_api_bloquear_faturamento_out'] ?? null;
         $contact->cpf_empresa = $custom['bicorp_api_cpf_empresa_out'] ?? null;
         //contact_FA99392B-CED8-4668-B003-DFC1111DACB0 = Porte
@@ -1593,7 +1625,10 @@ Class OmieFormatter implements ErpFormattersInterface{
         ];
     
         $clienteJson = [];
-
+         if(isset($contact->caracteristicas) && is_array($contact->caracteristicas)){
+            
+        $clienteJson['caracteristicas'] = $contact->caracteristicas;
+        }
         $clienteJson['razao_social'] = htmlspecialchars_decode($contact->legalName) ?? null; 
         $clienteJson['nome_fantasia'] = htmlspecialchars_decode($contact->name) ?? null;
         $clienteJson['cnpj_cpf'] = $contact->cnpj ?? $contact->cpf ?? $contact->cpf_empresa ?? null;
@@ -2543,7 +2578,7 @@ Class OmieFormatter implements ErpFormattersInterface{
 
         if(isset($decoded['event']['id_pedido']) && $decoded['event']['id_pedido'] !== null){
             //consulta pedido de venda para pegar o id de integração 
-            $nfe = $this->omieServices->consultaPedidoErp($omie, $decoded['event']['id_pedido']);
+            $nfe = $this->omieServices->consultaNotaErp($omie, $decoded['event']['id_pedido']);
         }else{
             
             $nfse = $this->omieServices->consultaNotaServico($omie, $decoded['event']['id_os']);            
@@ -2579,9 +2614,10 @@ Class OmieFormatter implements ErpFormattersInterface{
         $invoicing->numRps = $decoded['event']['numero_rps'] ?? null; // numero RPS
         $invoicing->serie = $decoded['event']['serie'] ?? $decoded['event']['serie_nfs']; // Valor Faturado
         $invoicing->todas = $nfse['nfseEncontradas'] ?? 'pegar os dados da nfe';
-        $invoicing->valor = $nfse['nfseEncontradas'][0]['Cabecalho']['nValorNFSe'] ?? 'pegar os dados da nfe';
+        $invoicing->valor = $nfse['nfseEncontradas'][0]['Cabecalho']['nValorNFSe'] ?? $nfe['vNF'];
         $invoicing->cnpjDestinatario = $nfse['nfseEncontradas'][0]['Cabecalho']['cCNPJDestinatario'] ?? $nfse['nfeEncontradas'][0]['Cabecalho']['cCNPJDestinatario'] ?? null;
         $invoicing->cpfDestinatario = $nfse['nfseEncontradas'][0]['Cabecalho']['cCPFDestinatario'] ?? $nfse['nfeEncontradas'][0]['Cabecalho']['cCPFDestinatario'] ?? null;
+        $invoicing->nCpfCnpj = $invoicing->cnpjDestinatario ?? $invoicing->cpfDestinatario ?? $nfe['cnpjCpf'] ?? null;
            
         $omieApp = $this->omieServices->getOmieApp();
    
@@ -2625,16 +2661,18 @@ Class OmieFormatter implements ErpFormattersInterface{
         $receipt->appKey = $decoded['appKey'];//id do app que faturou (base de faturamento)
         $receipt->faturada = $decoded['event']['faturada']; // etapa do processo 60 = faturado
         $receipt->status = ($receipt->faturada === 'S') ? '🟢' : '🔴';
-        $receipt->dataFaturamento = $this->current ?? null; // descrição da etapa 
+        $receipt->dataFaturamento = $decoded['event']['dataFaturado'] ?? null; // descrição da etapa 
+        $receipt->horaFaturamento = $decoded['event']['horaFaturado'] ?? null;
         $receipt->dataPrevisaoFaturamento = $decoded['event']['dataPrevisao'] ?? null; // data do faturamento
         $receipt->etapa = $decoded['event']['etapa'] ?? null; // hora do faturamento
         $receipt->clientId = $decoded['event']['idCliente'] ?? null; // Id do Cliente Omie
         $receipt->idOS = $decoded['event']['idOrdemServico'] ?? null; // Inscrição Municipal da empresa NFSe
         $receipt->idPedido = $decoded['event']['idPedido'] ?? null;
         $receipt->numOS = $decoded['event']['numeroOrdemServico'] ?? null; // Valor Faturado
-
+        $receipt->numPedido = $decoded['event']['numeroPedido'] ?? null;    
         $receipt->numReceipt = $decoded['event']['numeroRecibo'] ?? null; // Valor Faturado
         $receipt->amountOS = $decoded['event']['valorOrdemServico']; // Valor Faturado
+        $receipt->amountPedido = $decoded['event']['valorPedido'];
         $receipt->numPedidoCliente = $decoded['event']['numeroPedidoCliente'] ?? null; // Valor Faturado
                    
         $omieApp = $this->omieServices->getOmieApp();
