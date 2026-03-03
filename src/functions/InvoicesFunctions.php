@@ -92,7 +92,7 @@ class InvoicesFunctions{
         // exit;
         
         //identificar se é OS ou Contrato
-        if(!isset($invoicing->idPedidoInt) || empty($invoicing->idPedidoInt)){ 
+        if((!isset($invoicing->idPedidoInt) || empty($invoicing->idPedidoInt)) && $action['action'] !== 'nfeAutorizada'){ 
             
             $html = '';
             $table = '<table border="1px" style= "width=100%; border-collapse: collapse;">';
@@ -193,25 +193,38 @@ class InvoicesFunctions{
           
             $date = DateTime::createFromFormat('d/m/Y', DiverseFunctions::convertDate($invoicing->dataEmissao));
             $dEmissaoPloomes = $date->format('Y-m-d');
+            $dateInteraction = $date->format('d/m/Y');
+            $horaInteraction = $invoicing->horaEmissao;
             
             
             //identificar a referencia no Ploomes
+            if (mb_strpos($invoicing->idPedidoInt, '/') === false){
+                
+              throw new WebhookReadErrorException('Pedido origem da nota fiscal não veio do Ploomes', 500);
+                
+            }
             $partsIdPloomes = explode('/',$invoicing->idPedidoInt);
             $idPloomes = $partsIdPloomes[1];
 
             switch($action['action']){
 
                 case 'nfeAutorizada':
-                    return 'NF-e ('. intval($invoicing->numNfe) .') emitida no ERP na base: '.$invoicing->baseFaturamento; 
-
+                    
+                    // return 'NF-e ('. intval($invoicing->numNfe) .') emitida no ERP na base: '.$invoicing->baseFaturamento; 
+                    
+                    $numPedido = intval($invoicing->pedido['pedido_venda_produto']['cabecalho']['numero_pedido']);
+                    
+                    // print_r($numPedido);
+                    // exit;
+                    $number = intval($invoicing->numNfe);
                     $fields = [
                         [
-                            'SendExternalKey'=>'bicorp_api_num_os_externo_out',
-                            'Value' => intval($invoicing->numOs) ?? null,
+                            'SendExternalKey'=>'bicorp_api_num_pedido_venda_externo_out',
+                            'Value' => $numPedido ?? null,
                         ],
                         [
                             'SendExternalKey'=>'bicorp_api_num_nfe_out',
-                            'Value' => intval($invoicing->numNfse) ?? null,
+                            'Value' => $number ?? null,
                         ],
                         [
                             'SendExternalKey'=>'bicorp_api_data_nfe_out',
@@ -222,15 +235,17 @@ class InvoicesFunctions{
                             'Value' => $invoicing->valor ?? null,
                         ],
                         [
-                            'SendExternalKey'=>'bicorp_api_status_nfse_out',
+                            'SendExternalKey'=>'bicorp_api_status_nfe_out',
                             'Value' => $invoicing->status ?? null,
                         ],
                     ];
-                     
+                    
                 break;
 
                 case 'nfseAutorizada':
                     
+                    
+                    $number = intval($invoicing->numNfse);
                     //criar o objeto com os dados do documento para atualizar no Ploomes
                     $fields = [
                         [
@@ -239,7 +254,7 @@ class InvoicesFunctions{
                         ],
                         [
                             'SendExternalKey'=>'bicorp_api_num_nf_out',
-                            'Value' => intval($invoicing->numNfse) ?? null,
+                            'Value' => $number ?? null,
                         ],
                         [
                             'SendExternalKey'=>'bicorp_api_data_nf_out',
@@ -254,6 +269,8 @@ class InvoicesFunctions{
                             'Value' => $invoicing->status ?? null,
                         ],
                     ];
+                    
+                    
                     
                 break;
                 
@@ -278,16 +295,17 @@ class InvoicesFunctions{
                 $documentJson = json_encode($alterDocumentPloomes);
                 //atualizar o documento no Ploomes
 
-                if($ploomesServices->alterPloomesDocument($documentJson, $idPloomes)){
-                    $alter = true;
+                if($action['action'] === 'nfseAutorizada'){
+                    $typedInvoiced = 'NFS-e';
+                    $alter = $ploomesServices->alterPloomesDocument($documentJson, $idPloomes);
                 }else{
+                    $typedInvoiced = 'NF-e';
                     $alter = $ploomesServices->alterPloomesOrder($documentJson, $idPloomes);
                 }
 
                 if($alter){
-                    $number = intval($invoicing->numNfse);
                     //retorno sucesso
-                    $content = "NFS-e ({$number}) {$invoicing->acao} no ERP na base: {$invoicing->baseFaturamento} em: {$current}";
+                    $content = "{$typedInvoiced} ({$number}) {$invoicing->acao} no ERP na base: {$invoicing->baseFaturamento} em: {$dateInteraction} às {$horaInteraction}";
 
                     $message = self::sendInteractionPloomes($invoicing, $ploomesServices, $content, $current);
                 }else{
@@ -310,13 +328,17 @@ class InvoicesFunctions{
         $alterDocumentPloomes = [];
         
 
-
-            $date = DateTime::createFromFormat('d/m/Y H:i:s', $OrderInvoiced->dataFaturamento);
+            $dataConcat = $OrderInvoiced->dataFaturamento. ' ' .date('H:i:s');
+            $date = DateTime::createFromFormat('d/m/Y H:i:s', $dataConcat);
             $dFaturamentoPloomes = $date->format('Y-m-d');
+            $dataFaturadoInteraction = $date->format('d/m/Y');
+            $horaFaturadoInteraction = $OrderInvoiced->horaFaturamento;
+            // print_r($dFaturamentoPloomes);
+            // exit;
             
             // identificar a referencia no Ploomes
             if(empty($OrderInvoiced->idPedidoInt)) {
-                throw new WebhookReadErrorException('Não existe referência do peido no Ploomes CRM', 500); 
+                throw new WebhookReadErrorException('Não existe referência do pedido no Ploomes CRM', 500); 
             }else{
                 if(mb_strpos($OrderInvoiced->idPedidoInt,'/') !== false){
                     $partsIdPloomes = explode('/',$OrderInvoiced->idPedidoInt);
@@ -331,7 +353,7 @@ class InvoicesFunctions{
                 case 'venFaturada':
                     
                     $nRecibo = ($OrderInvoiced->numReceipt !== null) ? intval($OrderInvoiced->numReceipt) : null;
-
+                    $numVenda = intval($OrderInvoiced->numPedido);
                     $fields = [
                         [
                             'SendExternalKey'=>'bicorp_api_data_faturamento_out',
@@ -343,11 +365,11 @@ class InvoicesFunctions{
                         ],
                         [
                             'SendExternalKey'=>'bicorp_api_num_pedido_venda_externo_out',
-                            'Value' => intval($OrderInvoiced->numOS) ?? null,
+                            'Value' => $numVenda ?? null,
                         ],
                         [
                             'SendExternalKey'=>'bicorp_api_valor_faturamento_out',
-                            'Value' => $OrderInvoiced->amountOS ?? null,
+                            'Value' => $OrderInvoiced->amountPedido ?? null,
                         ],
                         [
                             'SendExternalKey'=>'bicorp_api_status_faturamento_out',
@@ -358,9 +380,10 @@ class InvoicesFunctions{
                 break;
 
                 case 'osFaturada':
+                    
 
                     $nRecibo = ($OrderInvoiced->numReceipt !== null) ? intval($OrderInvoiced->numReceipt) : null;
-                    
+                    $numVenda = intval($OrderInvoiced->numOS);
                     //criar o objeto com os dados do documento para atualizar no Ploomes
                     $fields = [
                         [
@@ -373,7 +396,7 @@ class InvoicesFunctions{
                         ],
                         [
                             'SendExternalKey'=>'bicorp_api_num_os_externo_out',
-                            'Value' => intval($OrderInvoiced->numOS) ?? null,
+                            'Value' => $numVenda ?? null,
                         ],
                         [
                             'SendExternalKey'=>'bicorp_api_valor_faturamento_out',
@@ -482,30 +505,27 @@ class InvoicesFunctions{
                 $documentJson = json_encode($alterDocumentPloomes);
                 //atualizar o documento no Ploomes
                 
-                if($ploomesServices->alterPloomesDocument($documentJson, $idPloomes)){
        
-                    $alter = true;
-                }elseif($ploomesServices->alterPloomesOrder($documentJson, $idPloomes)){
+                if(!str_contains($op[0]['FieldKey'],'order')){
 
-                    $alter = true;
-                    self::alterStageInvoiceIssue($OrderInvoiced,$ploomesServices);
+                    $alter = $ploomesServices->alterPloomesDocument($documentJson, $idPloomes);
                 }else{
   
-                    $alter = false;
+                    $alter = $ploomesServices->alterPloomesOrder($documentJson, $idPloomes);
+                    self::alterStageInvoiceIssue($OrderInvoiced,$ploomesServices);
+                    
                 }
-
 
                 if($alter){
                     if(isset($OrderInvoiced->idPedido) && !empty($OrderInvoiced->idPedido)){
-                        $number = intval($OrderInvoiced->idPedido);
+                        
                         $type ='Venda';
                     }else{
 
-                        $number = intval($OrderInvoiced->numOS);
                         $type ='OS';
                     }
                     //retorno sucesso
-                    $content = "{$type} ({$number}) faturado no ERP na base: {$OrderInvoiced->baseFaturamento} em: {$current}";
+                    $content = "{$type} ({$numVenda}) faturado no ERP na base: {$OrderInvoiced->baseFaturamento} em: {$dataFaturadoInteraction} às {$horaFaturadoInteraction}";
 
                     $message = self::sendInteractionPloomes($OrderInvoiced, $ploomesServices, $content, $current);
                 }else{
@@ -521,7 +541,11 @@ class InvoicesFunctions{
 
     public static function sendInteractionPloomes($invoicing, $ploomesServices, $content, $current=null)
     {
-        $numCnpjCpf = $invoicing->cnpjDestinatario ?? $invoicing->cpfDestinatario ?? $invoicing->docDestinatario;
+        
+        $numCnpjCpf = $invoicing->nCpfCnpj ?? $invoicing->docDestinatario;
+        
+        // print_r($numCnpjCpf);
+        // exit;
    
         if (!empty($numCnpjCpf))
         {
