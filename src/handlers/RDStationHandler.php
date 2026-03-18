@@ -68,20 +68,36 @@ class RDStationHandler
         switch($action['origem'])
         {
             case 'RDToCRM':
-                return RDStationFunctions::processRDStationPloomes($args, $this->ploomesServices, $this->rdstationServices, $action);
+
+                $token = $this->rdstationServices->authenticate($args);
+                if($token){
+
+                    return RDStationFunctions::processRDStationPloomes($args, $this->ploomesServices, $this->rdstationServices, $action);
+                    break;
+                }
+            case 'CRMToRD':
+
+                $pipelineId = $args['body']['New']['PipelineId'];
+                $pipeline = $this->ploomesServices->getPipelineById($pipelineId);
+                
+                $permitidos = [
+                    'prospecção',
+                    'vendas',
+                    'pré-vendas',
+                    'força de vendas'
+                ];             
+
+                if(!in_array(mb_strtolower($pipeline['Name']), $permitidos)){
+
+                    throw new WebhookReadErrorException('Funil não reconhecido!',500);
+
+                }
+
+                return RDStationFunctions::processPloomesRDStation($args, $this->ploomesServices, $this->rdstationServices, $action);
                 break;
-            // case 'CRMToOMNI':
-            //     return RDStationFunctions::processPloomesOmnismart($args, $this->ploomesServices, $this->rdstationServices, $action);
-            //     break;
                 
         }
         
-        // if(isset($action['origem']) && $action['origem'] === 'OMNIToCRM'){
-           
-        //     return OmnismartFunctions::processOminsmartPloomes($args, $this->ploomesServices, $this->omnismartServices, $action);                                                   
-        // }
-        
-       // return OmnismartFunctions::processContactErpToCrm($args, $this->ploomesServices, $this->formatter, $action);
     }
     
     public static function getClientBySubdomain($subdomain){

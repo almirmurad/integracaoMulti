@@ -412,6 +412,8 @@ class OrdersFunction
         //busca o código do vendedor pelo email do ploomes, se não encotrar retorna nulo
         $order->codVendedorErp = (!empty($sellerEmail)) ? self::getIdVendedorErpFromMail($erp, $sellerEmail, $formatter) : null;
 
+        $order->sendEmailClient = (isset($customFields['bicorp_api_utilizar_emails_out']) && !empty($customFields['bicorp_api_utilizar_emails_out'])) ? $customFields['bicorp_api_utilizar_emails_out'] : null;
+
         $order->orderNumber = $orderArray['OrderNumber']; // numero da venda
         $order->dealId = $orderArray['DealId']; // Id do card
         $order->contactId = $orderArray['ContactId'];

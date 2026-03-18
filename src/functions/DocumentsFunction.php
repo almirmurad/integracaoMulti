@@ -219,7 +219,7 @@ class DocumentsFunction{
                 )
             )
             {
-                $message = "Venda de Produto foi gravada com sucesso no ERP porém a Ordem de serviço não!";
+                $message = "Venda de Produto foi gravada com sucesso no ERP porém a Ordem de serviço não! Erro:{$returnOS['winDeal']['error']}";
             }
             elseif(
                 (
@@ -230,7 +230,7 @@ class DocumentsFunction{
                 )
             )
             {
-                $message = "Ordem de Serviço foi gravada com sucesso no ERP porém o Pedido de Venda Não!";
+                $message = "Ordem de Serviço foi gravada com sucesso no ERP porém o Pedido de Venda Não! Erro: {$returnOrder['winDeal']['error']}";
             }
             
             return $message;
@@ -901,8 +901,11 @@ print_r($json);
             $venda = 'Contrato de Serviço';
             $tipo = "contrato";
         } elseif ($arrayIsServices['isService'] && !$arrayIsServices['isRecurrence']) {
+            
+            $incluiPedidoErp = $formatter->createOrderErp($jsonPedido, $arrayIsServices);
             $venda = 'Ordem de Serviço';
             $tipo = "ordem-servico";
+            
         } elseif ($arrayIsServices['isServiceAndRecurrence']) {
             $venda = 'Ordem de Serviço com Contrato Recorrente';
             $tipo = 'ordem-servico-contrato';
@@ -922,7 +925,7 @@ print_r($json);
         }
 
         //verifica se criou o pedido no ERP
-        if ($tipo !== 'produtos-servicos' && $incluiPedidoErp['create']) {
+        if ($tipo === 'venda-produtos' && $incluiPedidoErp['create']) {
             //consultar o pedido para trazer todas as informações do Omie para atualizar no Ploomes
             
             $vendaIncluida = $formatter->buscaVendaOmie($erp, $incluiPedidoErp['codigo_pedido'], $tipo);
@@ -1049,7 +1052,66 @@ print_r($json);
             $message['winDeal']['success'] = $incluiPedidoErp['msg'];
 
 
-        }else {
+        }elseif($tipo === 'ordem-servico'){
+            
+            
+            $numOS = $incluiPedidoErp['num_os'] ?? null;
+            
+            $alterOrder = [];
+            $alterOrder['ContactId'] = $order->contactId;
+
+            $fields = [
+                              
+                [
+                    'SendExternalKey' => 'bicorp_api_id_pedido_venda_produto_out',
+                    'Value' => $vendaIncluida['pedido_venda_produto']['cabecalho']['codigo_pedido']  ?? null,
+
+                ],
+                [
+                    'SendExternalKey' => 'bicorp_api_estagio_pedido_venda_produto_out',
+                    'Value' => $vendaIncluida['pedido_venda_produto']['cabecalho']['etapa']  ?? null,
+                ],
+
+            ];
+
+
+            if(isset($numOS) && $numOS !== null){
+                $tipo = 'ordem-servico';
+                $vendaIncluida = $formatter->buscaVendaOmie($erp, $incluiPedidoErp['nCodOS'], $tipo);
+                $fieldNumOS = [
+                    'SendExternalKey' => 'bicorp_api_num_os_externo_out',
+                    'Value' => intval($numOS) ?? null,
+                ];
+
+                $fields[] = $fieldNumOS;
+                
+            }
+            
+            $op = self::createPloomesCustomFields($fields, $ploomesServices);
+
+            if (!empty($op)) {
+                $alterOrder['OtherProperties'] = $op;
+                $orderJson = json_encode($alterOrder);
+                $ploomesServices->alterPloomesDocument($orderJson, $order->id);
+            }
+
+            //monta a mensagem para atualizar o card do ploomes
+            $msg = [
+                'DealId' => $order->dealId,
+                'Content' => "{$incluiPedidoErp['msg']} via API BICORP na base {$erp->baseFaturamentoTitle}.",
+                'Title' => 'Pedido Criado',
+                'ContactId' => $order->contactId
+            ];
+
+            //cria uma interação no card
+            ($ploomesServices->createPloomesIteraction(json_encode($msg))) ? $message['winDeal']['interactionMessage'] = 'Integração concluída com sucesso!<br> Pedido Ploomes: ' . $order->id . ' card nº: ' . $order->dealId . ' e client id: ' . $order->contactId . ' gravados no Omie ERP com o numero: ' . intval($numOS) . ' e mensagem enviada com sucesso em: ' . self::$current
+                : throw new WebhookReadErrorException('Integração concluída com sucesso!<br> Pedido Ploomes: ' . $order->id . ' card nº: ' . $order->dealId . ' e client id: ' . $order->contactId . ' gravados no Omie ERP com o numero: ' . intval($numOS) . 'Porém houve um erro ao enviar a mensagem ao Ploomes. ' . self::$current);
+
+
+            $message['winDeal']['success'] = $incluiPedidoErp['msg'];
+
+        }
+        else {
 
             $deleteProject = self::deleteProjectErp($formatter, $erp, $order);
 

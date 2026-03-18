@@ -516,7 +516,7 @@ class PloomesServices implements PloomesManagerInterface{
 
         curl_setopt_array($curl, array(
             //$filter=Id+eq+603454513&$expand=Contacts,Role,OtherProperties,City($expand=State,Country),Owner($select=Id,Name,Email,Phone),Tags($expand=Tag),Phones($expand=Type)
-            CURLOPT_URL => $this->baseApi .'Contacts?$filter=Id+eq+'.$id.'&$expand=Status,OtherProperties,City,State,Country,Owner($select=Id,Name,Email,Phone),Tags($expand=Tag),Phones($expand=Type),LineOfBusiness,Contacts($expand=Phones($expand=Type))',
+            CURLOPT_URL => $this->baseApi .'Contacts?$filter=Id+eq+'.$id.'&$expand=Status,OtherProperties,City,State,Country,Owner($select=Id,Name,Email,Phone),Tags($expand=Tag),Phones($expand=Type),LineOfBusiness,Contacts($expand=OtherProperties,Phones($expand=Type))',
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_ENCODING => '',
             CURLOPT_MAXREDIRS => 10,
@@ -893,6 +893,9 @@ class PloomesServices implements PloomesManagerInterface{
         $filter =rawurlencode("Id eq $pipelineId");
         $expand = "Stages";
 
+        // print_r($filter);
+        // exit;
+
         curl_setopt_array($curl, array(
             CURLOPT_URL => $this->baseApi . 'Deals@Pipelines?$filter='.$filter.'&$expand='.$expand,//ENDPOINT PLOOMES
             CURLOPT_RETURNTRANSFER => true,
@@ -907,6 +910,9 @@ class PloomesServices implements PloomesManagerInterface{
 
         $response = json_decode(curl_exec($curl),true);
         curl_close($curl);
+
+        // print_r($response);
+        // exit;
       
         return (!empty($response['value'][0])) ? $response['value'][0] : null;
        
@@ -968,6 +974,61 @@ class PloomesServices implements PloomesManagerInterface{
         return (!empty($response['value'])) ? $response['value'] : null;
        
     }
+
+    public function getDealById(string $dealId){
+        $filter = "Id+eq+{$dealId}";
+
+        $curl = curl_init();
+        
+        $expand = "&\$expand=OtherProperties,Pipeline,Stage,Contact(\$expand=OtherProperties,Tags(\$expand=Tag)),Person(\$expand=OtherProperties,Tags(\$expand=Tag))";
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => "{$this->baseApi}Deals?\$filter={$filter}{$expand}",//ENDPOINT PLOOMES
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => strtoupper($this->method[0]),
+            CURLOPT_HTTPHEADER => $this->headers
+        ));
+
+        $response = json_decode(curl_exec($curl),true);
+        // print_r($response);
+        // exit;
+        curl_close($curl);
+
+        return (!empty($response['value'][0])) ? $response['value'][0] : null;
+
+    }
+
+    public function getDealLossReasos(string $reasonId){
+        $filter = "Id+eq+{$reasonId}";
+
+        $curl = curl_init();
+        
+        $expand = null;
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => "{$this->baseApi}Deals@LossReasons?\$filter={$filter}{$expand}",//ENDPOINT PLOOMES
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => strtoupper($this->method[0]),
+            CURLOPT_HTTPHEADER => $this->headers
+        ));
+
+        $response = json_decode(curl_exec($curl),true);
+        // print_r($response);
+        // exit;
+        curl_close($curl);
+
+        return (!empty($response['value'][0])) ? $response['value'][0] : null;
+
+    }
+
 
 
 

@@ -140,6 +140,9 @@ Class OmieFormatter implements ErpFormattersInterface{
         $informacoes_adicionais['dados_adicionais_nf'] = $order->notes;
         $informacoes_adicionais['outros_detalhes'] = $outros_detalhes;
         $informacoes_adicionais['enviar_email'] = $order->enviaEmailCliente ?? null;
+        if(isset($order->sendEmailClient) && $order->sendEmailClient !== null){
+            $informacoes_adicionais['utilizar_emails'] = $order->sendEmailClient;
+        }
     
         //observbacoes
         $observacoes =[];
@@ -227,7 +230,7 @@ Class OmieFormatter implements ErpFormattersInterface{
         $infAdic['cContato'] = '';
         $infAdic['cDadosAdicNF']= $order->observacoesOS;
         $infAdic['nCodCC']= $omie->ncc;
-        $infAdic['nCodProj'] = $order->codProjeto;
+        $infAdic['nCodProj'] = $order->codProjeto ?? null;
         $infAdic['nCodVend']= $order->codVendedorErp;
 
         //itens do contrato
@@ -1227,7 +1230,7 @@ Class OmieFormatter implements ErpFormattersInterface{
             $option = $ploomesServices->getOptionsFieldById($idOption);
             
             $especialidade = $option['Name'];
-            $nomeCompletoDoutor = $custom['bicorp_api_nome_completo_do_doutor_out'];
+            $nomeCompletoDoutor = (isset($custom['bicorp_api_nome_completo_do_doutor_out'])&&!empty($custom['bicorp_api_nome_completo_do_doutor_out']))?$custom['bicorp_api_nome_completo_do_doutor_out']: $decoded['New']['Name'];
             
             $caracteriscasArray = [
                 

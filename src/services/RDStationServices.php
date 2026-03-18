@@ -7,7 +7,7 @@ use src\exceptions\WebhookReadErrorException;
 
 class RDStationServices implements MktManagerInterface
 {
-    public string $accessToken;
+    private $accessToken;
     public DatabaseServices $databaseServices;
 
     public function __construct(){
@@ -89,6 +89,10 @@ class RDStationServices implements MktManagerInterface
         $code = $args['query']['code'] ?? null;
         $decoded = $args['body'] ?? null;
 
+        $origem = (isset($decoded['Entity'])) ? 'Ploomes' : 'RDStation';
+        $destino = (!empty($origem) && $origem === 'Ploomes') ? 'RDStation' : 'Ploomes';
+        $action = "{$origem}TO{$destino}";
+
         if($code !== null ){
                     
             $state = $args['query']['state'] ?? null;
@@ -103,6 +107,7 @@ class RDStationServices implements MktManagerInterface
 
                 $mkt_platforms = $args['Tenancy']['mkt_platform'];
                 foreach($mkt_platforms as $mkt){
+                   
                     if($mkt['app_name'] === $mktPlatformNameQueryString){
 
                         $credentials['client_secret'] = $mkt['client_secret'];
@@ -116,9 +121,10 @@ class RDStationServices implements MktManagerInterface
 
             }
 
+
         }elseif($decoded !== null){
             
-            $nomeFunilRd = $decoded['contact']['cf_funil'] ?? null;
+            $nomeFunilRd = $decoded['contact']['cf_funil'] ?? $args['funnel'] ?? null;
             
             if($nomeFunilRd === null){
                 throw new WebhookReadErrorException('O funil do RD não foi informado no Webhook', 500);
@@ -233,6 +239,246 @@ class RDStationServices implements MktManagerInterface
 
         return $decryptedPass;
     }
+
+    public function getContactByEmail($email){
+    
+        $url = "https://api.rd.services/platform/contacts/email:{$email}";
+
+        $curl = curl_init();
+
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => $url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => 'GET',
+            CURLOPT_HTTPHEADER => array(
+                'Content-Type: application/json',
+                'Authorization: Bearer '.$this->accessToken,
+            ),
+        ));
+
+        $response = curl_exec($curl);
+        $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($curl);
+        $curlErrno = curl_errno($curl);
+
+        curl_close($curl);
+
+        
+        if ($curlErrno) {
+            return [
+                'success' => false,
+                'error' => "Erro cURL: {$curlError}",
+                'http_code' => $httpCode,
+                'response' => null
+            ];
+        }
+
+        if ($httpCode < 200 || $httpCode >= 300) {
+            return [
+                'success' => false,
+                'error' => "Erro HTTP: código {$httpCode}",
+                'http_code' => $httpCode,
+                'response' => $response
+            ];
+        }
+
+
+        return [
+            'success' => true,
+            'error' => null,
+            'http_code' => $httpCode,
+            'response' => json_decode($response,true)
+        ];
+
+
+        
+    } 
+
+    public function getFields(){
+    
+        $url = "https://api.rd.services/platform/contacts/fields";
+
+        $curl = curl_init();
+
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => $url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => 'GET',
+            CURLOPT_HTTPHEADER => array(
+                'Content-Type: application/json',
+                'Authorization: Bearer '.$this->accessToken,
+            ),
+        ));
+
+        $response = curl_exec($curl);
+        $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($curl);
+        $curlErrno = curl_errno($curl);
+
+        curl_close($curl);
+
+        
+        if ($curlErrno) {
+            return [
+                'success' => false,
+                'error' => "Erro cURL: {$curlError}",
+                'http_code' => $httpCode,
+                'response' => null
+            ];
+        }
+
+        if ($httpCode < 200 || $httpCode >= 300) {
+            return [
+                'success' => false,
+                'error' => "Erro HTTP: código {$httpCode}",
+                'http_code' => $httpCode,
+                'response' => $response
+            ];
+        }
+
+
+        return [
+            'success' => true,
+            'error' => null,
+            'http_code' => $httpCode,
+            'response' => json_decode($response,true)
+        ];
+
+
+        
+    } 
+
+    public function createContactRD($json)
+    {
+        $url = "https://api.rd.services/platform/contacts";
+
+        $curl = curl_init();
+
+        curl_setopt_array($curl, array(
+            CURLOPT_URL =>$url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => 'POST',
+            CURLOPT_POSTFIELDS => $json,
+            CURLOPT_HTTPHEADER => array(
+                'Content-Type: application/json',
+                'Authorization: Bearer '.$this->accessToken,
+            ),
+        ));
+
+        $response = curl_exec($curl);
+        // print_r($response);
+        $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($curl);
+        $curlErrno = curl_errno($curl);
+
+        curl_close($curl);
+
+        
+        if ($curlErrno) {
+            return [
+                'success' => false,
+                'error' => "Erro cURL: {$curlError}",
+                'http_code' => $httpCode,
+                'response' => null
+            ];
+        }
+
+        if ($httpCode < 200 || $httpCode >= 300) {
+            return [
+                'success' => false,
+                'error' => "Erro HTTP: código {$httpCode}",
+                'http_code' => $httpCode,
+                'response' => $response
+            ];
+        }
+
+
+        return [
+            'success' => true,
+            'error' => null,
+            'http_code' => $httpCode,
+            'response' => json_decode($response,true)
+        ];
+
+
+        
+    } 
+
+    public function updateContactByUuid($uuid, $json)
+    {
+        $url = "https://api.rd.services/platform/contacts/uuid:{$uuid}";
+
+        $curl = curl_init();
+
+        curl_setopt_array($curl, array(
+            CURLOPT_URL =>$url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => 'PATCH',
+            CURLOPT_POSTFIELDS => $json,
+            CURLOPT_HTTPHEADER => array(
+                'Content-Type: application/json',
+                'Authorization: Bearer '.$this->accessToken,
+            ),
+        ));
+
+        $response = curl_exec($curl);
+        $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($curl);
+        $curlErrno = curl_errno($curl);
+
+        curl_close($curl);
+
+        
+        if ($curlErrno) {
+            return [
+                'success' => false,
+                'error' => "Erro cURL: {$curlError}",
+                'http_code' => $httpCode,
+                'response' => null
+            ];
+        }
+
+        if ($httpCode < 200 || $httpCode >= 300) {
+            return [
+                'success' => false,
+                'error' => "Erro HTTP: código {$httpCode}",
+                'http_code' => $httpCode,
+                'response' => $response
+            ];
+        }
+
+
+        return [
+            'success' => true,
+            'error' => null,
+            'http_code' => $httpCode,
+            'response' => json_decode($response,true)
+        ];
+
+
+        
+    } 
+
 
 
 

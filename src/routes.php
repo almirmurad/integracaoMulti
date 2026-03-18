@@ -173,7 +173,12 @@ return [
         '/processNewOpportunity'=>[
             'callback' => 'RDStationController@processNewOpportunity', //nova interação
             'middlewares' => [RequestMiddleware::class, LoadCustomFieldsMiddleware::class]
-        ],   
+        ],  
+        '/rdReturnData'=>[
+            'callback' => 'RDStationController@rdReturnData', //nova interação
+            'middlewares' => [RequestMiddleware::class]
+        ],
+
         '/ploomesResponseOpportunity'=>[
             'callback' => 'OmnismartController@rdNewOpportunity', //nova interação
             'middlewares' => [RequestMiddleware::class, LoadCustomFieldsMiddleware::class]

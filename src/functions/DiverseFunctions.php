@@ -46,7 +46,11 @@ class DiverseFunctions{
                 {
                         $siglaOrigem = 'OMNI';
                         $origem = "CRMTo{$siglaOrigem}";
-                }else{
+                }elseif($_REQUEST['request'] === 'processNewOpportunity' ){
+                        $siglaOrigem = 'RD';
+                        $origem = "CRMTo{$siglaOrigem}";
+                }
+                else{
                     $siglaOrigem = 'ERP';
                         $origem = "CRMTo{$siglaOrigem}";
                 }

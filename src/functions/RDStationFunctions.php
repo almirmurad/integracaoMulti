@@ -187,6 +187,245 @@ class RDStationFunctions
                
     }
 
+    
+
+    public static function processPloomesRDStation(array $args, PloomesServices $ploomesServices, RDStationServices $rdstationServices, array $action): array
+    {
+        
+        $message = [];
+        $current = date('d/m/Y H:i:s');
+        $decoded = $args['body']['New'];
+
+        $dealId = $decoded['Id'];
+
+        $deal = $ploomesServices->getDealById($dealId) ?? null;
+
+        if($deal === null){
+            throw new WebhookReadErrorException('Card não foi encontrado pela API', 500);
+        }
+
+        //se for uma empresa
+        if(isset($deal['Contact']) && $deal['Contact']['TypeId'] === 1){
+
+            //busca o contato da empresa
+            $empresa = $ploomesServices->getClientById($deal['Contact']['Id']);
+            //pega o primeiro contato da empresa
+            $contact = $empresa['Contacts'][0];
+        }elseif(isset($deal['Contact']) && $deal['Contact']['TypeId'] === 2){//se for uma pessoa
+            $contact = $deal['Contact'];
+        }else{//se for uma empresa e ela foi excluida contact estará vazio e só estará o array person
+
+            $contact = $deal['Person'];
+
+        }
+
+        $cOtherProperties = $contact['OtherProperties'];
+   
+        $funnel = $deal['Pipeline'];
+        $stage = $deal['Stage'];
+        $tags = $deal['Contact']['Tags'];
+        $lossReason = null;
+        $product = null;
+
+        // print_r($tags);
+        //tags do cliente
+        $rdTags = [];
+        foreach($tags as $tag){
+
+            $rdTags[] = mb_strtolower($tag['Tag']['Name']) ?? null;
+
+        }
+
+        $dealCustom = CustomFieldsFunction::compareCustomFieldsFromOtherProperties($deal['OtherProperties'], 'Negócio', $args['Tenancy']['tenancies']['id']);
+            
+        if(mb_strtolower($funnel['Name']) !== 'vendas' && isset($dealCustom['bicorp_api_solucao_desejada_out']) && !empty($dealCustom['bicorp_api_solucao_desejada_out'])){
+            $solucao = $ploomesServices->getOptionsFieldById($dealCustom['bicorp_api_solucao_desejada_out']);
+            
+            
+        }else{
+            if(isset($dealCustom['bicorp_api_solucao_definida_out']) && !empty($dealCustom['bicorp_api_solucao_definida_out'])){
+                
+                $solucao = $ploomesServices->getProductById($dealCustom['bicorp_api_solucao_definida_out']);
+            
+            }else{
+                
+                $solucao = $ploomesServices->getOptionsFieldById($dealCustom['bicorp_api_solucao_desejada_out']);
+                
+            }
+        
+        }
+        
+        $product = $solucao['Name'];
+            
+        if($action['action'] === 'lose'){
+            
+            //motivo de perda
+            $lossReasonId = $deal['LossReasonId'];
+            $lossReasons = $ploomesServices->getDealLossReasos($lossReasonId);
+            $lossReason = $lossReasons['Name'];
+        }
+        //data da movimentação
+        $moveDate = $current;
+
+        // $PloomesCustomFields = CustomFieldsFunction::getCustomFieldsByEntity('Cliente');
+        $contactCustom = CustomFieldsFunction::compareCustomFieldsFromOtherProperties($cOtherProperties, 'Cliente', $args['Tenancy']['tenancies']['id']);
+
+        $funil = $ploomesServices->getOptionsFieldById($contactCustom['bicorp_api_funil_rd_out']);
+        //pega o nome do funil para comparar com o nome do APP do RD e buscar os dados no app correto
+        $args['funnel'] = $funil['Name'];
+        
+        $token = $rdstationServices->authenticate($args);
+        if(!empty($token)){
+
+            //busca o cliente NO RDStation
+            $contactRdResponse = $rdstationServices->getContactByEmail($contact['Email']);
+            if($contactRdResponse['http_code'] != 200){
+                $contactRD = null;
+            }else{
+                $contactRD = $contactRdResponse['response'];
+            }
+        }
+           
+        //monta a request pra enviar ao RD com os dados vindos do Ploomes
+        $dataCrmToMkt = [];
+        $dataCrmToMkt['name'] = $contact['Name'];
+        $dataCrmToMkt['email'] = $contact['Email'];
+        $dataCrmToMkt['tags'] = $rdTags;
+                
+        $RDAllFields = $rdstationServices->getFields();
+
+        $rdCustoms =  self::getRDCustomFieldsFromRDAllFields($RDAllFields['response']['fields']);
+
+        foreach($rdCustoms as $rdCustom){
+
+            switch($rdCustom['api_identifier']){
+
+                case 'cf_motivo_de_perda': 
+                    $dataCrmToMkt['cf_motivo_de_perda'] = $lossReason;
+                    break;
+                case 'cf_funil':
+                    $dataCrmToMkt['cf_funil'] = $funil['Name'];
+                    break;
+                case 'cf_fase_do_funil_ploomes':
+                    $dataCrmToMkt['cf_fase_do_funil_ploomes'] = "{$funnel['Name']} / {$stage['Name']}";
+                    break;
+                case 'cf_solucao_desejada':
+                    $dataCrmToMkt['cf_solucao_desejada'] = $product;
+                    break;
+                case 'cf_data_da_acao_ploomes':
+                    $dataCrmToMkt['cf_data_da_acao_ploomes'] = $moveDate;
+                    break;
+
+            }
+           
+        }
+
+        // $fieldMap = CustomFieldsFunction::mapPloomesFieldsToRD($rdCustoms, $PloomesCustomFields);
+
+        // $pValues = CustomFieldsFunction::extractPloomesValues(
+        //     $cOtherProperties, 
+        //     $PloomesCustomFields, 
+        //     function ($id) use ($ploomesServices) {
+        //         return $ploomesServices->getOptionsFieldById($id);
+        //     }
+        // );
+        // print 'aqui';
+        // print_r($pValues);
+        // // print_r($fieldMap);
+        // exit;
+        
+
+        // $rdCustomFields = [];
+
+        // foreach ($fieldMap as $map) {
+        //     $key = $map['ploomes_key'];
+
+        //     if (!isset($pValues[$key])) {
+        //         continue;
+        //     }
+
+        //     $dataCrmToMkt = [
+        //         $map['rd_identifier'] => $pValues[$key]               
+        //     ];
+        // }
+
+
+        $jsonContact = json_encode($dataCrmToMkt);
+
+        // print_r($jsonContact);
+        if($contactRD !== null){
+
+            //Envia a request de update contact Ploomes com o UUID do $contactRD.
+            $response = $rdstationServices->updateContactByUuid($contactRD['uuid'], $jsonContact);
+            if($response['http_code'] != 200){
+                throw new WebhookReadErrorException('Erro ao atualizar contato no RDStation!', 500);
+
+            }
+
+            $msgReturn = 'Cliente ' . $contact['Name'] . ' atualizado no RDSTation com sucesso! ';
+
+            $interaction = self::sendInteractionPloomes($contact, $ploomesServices, $msgReturn, $current);
+
+
+            if($interaction){
+                $msgReturn .= $interaction;
+            }
+
+            $message['success'] = $msgReturn . $current;
+
+            
+        }else{
+
+            //envia a requisição para criar o contato no RDStation
+            $response = $rdstationServices->createContactRD($jsonContact);
+            // print_r($response);
+            if($response['http_code'] != 200){
+                throw new WebhookReadErrorException('Erro ao cadastrar contato no RDStation!', 500);
+
+            }
+         
+            $msgReturn = 'Cliente ' . $contact['Name'] . ' criado no RDSTation com sucesso! ';
+            
+            $interaction = self::sendInteractionPloomes($contact, $ploomesServices, $msgReturn, $current);
+
+
+            if($interaction){
+                $msgReturn .= $interaction;
+            }
+
+            $message['success'] = $msgReturn . $current;
+
+
+
+
+        }
+
+        return $message;
+       
+               
+    }
+
+    //auxiliadores
+
+    public static function getRDCustomFieldsFromRDAllFields($RDAllFields)
+    {
+        $RDcustomFields = [];
+        // print_r($RDAllFields);
+        foreach($RDAllFields as $RDfields){
+
+            if($RDfields['custom_field']){
+
+                $RDcustomFields[] = $RDfields;
+
+            }
+
+        }
+
+        return $RDcustomFields;
+
+
+    }
+
     public static function contactPloomesJson($contact)
     {
         //precisamos que as keys do ploomes sejam iguais aos campos do rd
@@ -253,7 +492,8 @@ class RDStationFunctions
 
     }
     
-        public static function companyPloomesJson($contact){
+    public static function companyPloomesJson($contact)
+    {
 
         $array = [
             'Name' => $contact['company']['name'],
@@ -342,4 +582,41 @@ class RDStationFunctions
         
         return $keys;
     }
+
+    public static function sendInteractionPloomes($contact, $ploomesServices, $content, $current=null)
+    {
+            if(!isset($contact['Id'])){
+                throw new WebhookReadErrorException('Não foi possível encontrar o cliente no Ploomes - '.$current,500);                
+            }
+
+            $frase = 'Interação contato RDStation adicionada no cliente '. $contact['Id'] .' em: '.$current;
+            //monta a mensagem para retornar ao ploomes
+            $msg = [
+                'ContactId'=>  $contact['Id'],
+                'TypeId'=> 1,
+                'Title'=> 'Contato RDStation',
+                'Content'=> $content,
+            ];
+
+            $interaction = $ploomesServices->createPloomesIteraction(json_encode($msg));
+
+            if(!$interaction){
+
+                $frase = false;
+
+            }
+
+            return $frase;
+        
+
+    }
+
+    // public static function createJsonContactReturnRd(array $contact)
+    // {
+    //     $json = null;
+        
+
+
+    //     return $json;
+    // }
 }

@@ -177,8 +177,6 @@ Class CustomFieldsFunction{
 
     }
 
-
-
     public static function getCustomFields() {
         return self::$customFields;
     }
@@ -189,7 +187,6 @@ Class CustomFieldsFunction{
     }
 
     public static function compareCustomFields(array $otherProperties, $id, $entity):array{
-        
         
         if($_SESSION['contact_custom_fields'][$id] === null){
             
@@ -452,11 +449,133 @@ Class CustomFieldsFunction{
         //     }
         // }
        
-    //   print_r($otherProperties);
-    //   exit;
+        //   print_r($otherProperties);
+        //   exit;
 
         return $otherProperties;
 
+    }
+
+    public static function mapPloomesFieldsToRD($rdFields, $ploomesFields)
+    {
+        // print_r($rdFields);
+        // print_r($ploomesFields);
+        // exit;
+        $result = [];
+
+        // índice dos campos do RD
+        $rdIndex = [];
+
+        foreach ($rdFields as $rdField) {
+            $rdIndex[$rdField['api_identifier']] = $rdField;
+        }
+
+        foreach ($ploomesFields as $ploomesField) {
+
+            if (empty($ploomesField['SendExternalKey'])) {
+                continue;
+            }
+
+            // converte padrão ploomes → rd
+            $identifier = str_replace(
+                ['bicorp_api_', '_rd_out'],
+                '',
+                $ploomesField['SendExternalKey']
+            );
+
+            $identifier = 'cf_' . $identifier;
+
+            if (!isset($rdIndex[$identifier])) {
+                continue;
+            }
+
+            $result[] = [
+                'ploomes_id' => $ploomesField['Id'],
+                'ploomes_key' => $ploomesField['Key'],
+                'ploomes_name' => $ploomesField['Name'],
+                'rd_uuid' => $rdIndex[$identifier]['uuid'],
+                'rd_identifier' => $identifier
+            ];
+        }
+            // print_r($result);
+            // exit;
+        return $result;
+    }
+
+    public static function extractPloomesValues($otherProperties, $ploomesFields, callable $getOptionById =null)
+    {
+        $values = [];
+
+        // print_r($ploomesFields);
+        // print_r($otherProperties);
+        // exit;
+
+        // índice rápido dos campos pelo Key
+        $fieldsIndex = [];
+        foreach ($ploomesFields as $field) {
+            $fieldsIndex[$field['Key']] = $field;
+        }
+
+        foreach ($otherProperties as $property) {
+
+            $fieldKey = $property['FieldKey'];
+
+            if (!isset($fieldsIndex[$fieldKey])) {
+                continue;
+            }
+
+            $field = $fieldsIndex[$fieldKey];
+
+            $value = null;
+
+if (!empty($property['StringValue'])) {
+    $value = $property['StringValue'];
+
+} elseif (!empty($property['BigStringValue'])) {
+    $value = $property['BigStringValue'];
+
+} elseif (!empty($property['IntegerValue'])) {
+    $value = $property['IntegerValue'];
+
+} elseif (!empty($property['DecimalValue'])) {
+    $value = $property['DecimalValue'];
+
+} elseif (!empty($property['DateValue'])) {
+    $value = $property['DateValue'];
+
+} elseif (!empty($property['BoolValue'])) {
+    $value = $property['BoolValue'];
+}
+
+if ($value === null) {
+    continue;
+}
+          
+            
+            // se for campo lista (TypeId 7)
+            if ($field['TypeId'] == 7 && $getOptionById !== null) {
+            //  print 'entrou';
+                // buscar texto da opção
+//                 echo "FIELD: ".$fieldKey.PHP_EOL;
+// echo "TYPE: ".$field['TypeId'].PHP_EOL;
+// echo "VALUE RECEBIDO: ".$value.PHP_EOL;
+
+$option = $getOptionById((int)$value);
+
+
+              
+
+                if ($option && isset($option['Name'])) {
+                    $value = $option['Name'];
+                }
+            }
+
+            $values[$fieldKey] = $value;
+        }
+            // print_r($field);
+            // print_r($values);
+            // exit;
+        return $values;
     }
     
     
@@ -516,8 +635,7 @@ Class CustomFieldsFunction{
     
             $rdKey = $field['SendExternalKey']; // já vem no formato cf_nome_do_campo
     
-            print_r($rdKey);
-    
+
             if (!array_key_exists($rdKey, $rdData)) {
                 continue; // campo não existe no payload do RD
             }
@@ -583,9 +701,10 @@ Class CustomFieldsFunction{
     
         return null;
     }
+
     public static function mapRdToPloomes(array $rdData, array $ploomesFields): array {
         $mapped = [];
-    
+
         foreach ($ploomesFields as $field) {
             if (empty($field['SendExternalKey'])) {
                 continue; // ignora campos sem SendExternalKey
@@ -605,6 +724,7 @@ Class CustomFieldsFunction{
             }
             
             $rdValue = $rdData[$rdKey];
+            
                 // print_r($field);
             if ($field['TypeId'] == 7 && !empty($field['Options'])) {
                 // campo lista: procurar Id na Options

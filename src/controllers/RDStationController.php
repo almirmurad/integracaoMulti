@@ -31,7 +31,7 @@ class RDStationController extends Controller
         $this->ploomesServices = new PloomesServices($ploomesBase);
         $this->databaseServices = new DatabaseServices();
         $this->rdstationServices = new RDStationServices();
-        $this->rabbitMQServices = new RabbitMQServices($vhost);
+        // $this->rabbitMQServices = new RabbitMQServices($vhost);
     }
 
     private function getRDStationHandler(): RDStationHandler
@@ -76,68 +76,6 @@ class RDStationController extends Controller
         
     }
 
-    //Ploomes
-    //recebe webhook de cliente criado, alterado e excluído do PLOOMES CRM
-    public function ploomesContacts($args)
-    {
-        $message = [];
-        $idUser = $args['Tenancy']['tenancies']['user_id'];
-        $json = json_encode($args['body']);
-        
-        try {
-
-            $action = DiverseFunctions::findAction($args);
-       
-            if($action['type'] === 'pessoa' && $args['body']['New']['CompanyId'] === null){
-                throw new WebhookReadErrorException('Cadastro de pessoa sem empresa referenciada', 500);
-            }
-
-            if($action['action'] === "update"){
-
-                $ignorar = ['LastUpdateDate', 'UpdaterId'];
-                $diferencas = DiverseFunctions::compareArrays($args['body']['Old'], $args['body']['New'], $ignorar);
-    
-                if(empty($diferencas)){
-                    throw new WebhookReadErrorException('Não houve alteração no array', 500);
-                }
-            }
-            
-            $RDStationHandler = $this->getClientHandler($args);
-            $response = $RDStationHandler->saveClientHook($json, $idUser);
-
-            // $rk = origem.entidade.ação
-            $rk = array('Ploomes', 'Contacts');
-            //$this->rabbitMQServices->publicarMensagem('contacts_exc', $rk, 'ploomes_contacts',  $json);
-
-            if ($response > 0) {
-                $message = [
-                    'status_code' => 200,
-                    'status_message' => 'SUCCESS: ' . $response['msg'],
-                ];
-            }
-        } catch (WebhookReadErrorException $e) {
-        } finally {
-            ob_start();
-            var_dump($message);
-
-            if (isset($e)) {
-                $message = [
-                    'status_code' => 500,
-                    'status_message' => $e->getMessage(),
-                ];
-
-                $input = ob_get_contents();
-                ob_end_clean();
-                file_put_contents('./assets/logClient', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
-                return print 'ERROR:' . $message['status_code'] . '. MESSAGE: ' . $message['status_message'];
-            }
-
-            $input = ob_get_contents();
-            ob_end_clean();
-            file_put_contents('./assets/logClient', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
-            return print $message['status_message'];
-        }
-    }
 
     //processa contatos e clientes do ploomes ou do Erp
     public function processNewOpportunity($args)
@@ -145,17 +83,10 @@ class RDStationController extends Controller
         header('Content-Type: application/json');
         $message = [];
         // processa o webhook 
-        try {
+        try {         
 
-            $token = $this->rdstationServices->authenticate($args);
-            // print_r($token);
-            // exit;
-            if($token){
-
-                $RDStationHandler = $this->getRDStationHandler($args);
-                $response = $RDStationHandler->startProcess($args);
-
-            }
+            $RDStationHandler = $this->getRDStationHandler($args);
+            $response = $RDStationHandler->startProcess($args);
 
             $message = [
                 'status_code' => 200,
@@ -193,58 +124,6 @@ class RDStationController extends Controller
         }
     }
 
-    //Erp
-    //recebe webhook de cliente criado, alterado e excluído do ERP
-    public function erpClients($args)
-    {
-        $idUser = $args['Tenancy']['tenancies']['user_id'];
-        $json = json_encode($args['body']);
-
-        $message = [];
-
-        try {
-
-            $RDStationHandler = $this->getClientHandler($args);
-            $RDStationHandler->detectLoop($args);
-            $response = $RDStationHandler->saveClientHook($json, $idUser);
-
-            // $rk = origem.entidade.ação
-            $rk = array('Erp', 'Clientes');
-            $this->rabbitMQServices->publicarMensagem('contacts_exc', $rk, 'erp_clientes',  $json);
-
-            if ($response > 0) {
-
-                $message = [
-                    'status_code' => 200,
-                    'status_message' => 'Success: ' . $response['msg'],
-                ];
-            }
-        } catch (WebhookReadErrorException $e) {
-        } finally {
-            ob_start();
-            
-            if (isset($e)) {
-                
-                $message = [
-                    'status_code' => 500,
-                    'status_message' => $e->getMessage(),
-                ];
-                var_dump($message);
-                $input = ob_get_contents();
-                ob_end_clean();
-                file_put_contents('./assets/logClient', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
-                $m = json_encode($message);
-                return print_r($m);
-            }
-            var_dump($message);
-            $input = ob_get_contents();
-            ob_end_clean();
-            file_put_contents('./assets/logClient', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
-            $m = json_encode($message);
-            return print_r($m);
-        }
-    }
-
     public function rdNewOpportunity($args)
     {
         header('Content-Type: application/json');
@@ -262,7 +141,7 @@ class RDStationController extends Controller
 
                 //$rk = origem.entidade.ação
                 $rk = array('RDStation', 'Opportunity');
-                $this->rabbitMQServices->publicarMensagem('opportunity_exc', $rk, 'rdstation_opportunity',  $json);
+                // $this->rabbitMQServices->publicarMensagem('opportunity_exc', $rk, 'rdstation_opportunity',  $json);
 
                 if ($response > 0) {
                     $message = [
@@ -298,35 +177,58 @@ class RDStationController extends Controller
         }        
     }
 
-    public function nasajonClients()
+    public function rdReturnData($args)
     {
+        header('Content-Type: application/json');
 
-        // Definir cabeçalhos CORS
-        header("Access-Control-Allow-Origin: *");
-        header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
-        header("Access-Control-Allow-Headers: Content-Type, Authorization");
-        header("Content-Type: application/json");
+        $message = [];
+        $idUser = $args['Tenancy']['tenancies']['user_id'];
+        $json = json_encode($args['body']);
 
-        // Se for uma requisição OPTIONS (preflight), apenas retornar status 200 e encerrar
-        if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+        try{
+            //autentica o rdstation
+            // $token = $this->rdstationServices->authenticate($args);
+            // if($token){
+                $RDStationHandler = $this->getRDStationHandler($args);
+                $response = $RDStationHandler->saveWebhook($json, $idUser);
+
+                //$rk = origem.entidade.ação
+                $rk = array('Ploomes', 'ReturnRDStation');
+                // $this->rabbitMQServices->publicarMensagem('returnrd_exc', $rk, 'ploomes_returnrd',  $json);
+
+                if ($response > 0) {
+                    $message = [
+                        'status_code' => 200,
+                        'status_message' => 'SUCCESS: ' . $response['msg'],
+                    ];
+                }
+            // }
+        }catch(WebhookReadErrorException $e){
+        }finally{
+            
+            ob_start(); 
+            if(isset($e)){
+                // Define o código de status como 200 OK
+                http_response_code(500);
+                $message = [
+                    'status_code' => 500,
+                    'status_message' => 'error: ' . $e->getMessage(),
+                ];
+                print json_encode($message);
+                exit; 
+            }
+            
+            // Define o código de status como 200 OK
             http_response_code(200);
-            exit();
-        }
+            var_dump($message);
+            $input = ob_get_contents();
+            ob_end_clean();
+            file_put_contents('./assets/logOpportunity.log', $input . PHP_EOL . date('d/m/Y H:i:s'), FILE_APPEND);
 
-        // Receber JSON normalmente
-        $json = file_get_contents('php://input');
-
-        ob_start();
-        print_r($json);
-        $input = ob_get_contents();
-        ob_end_clean();
-        file_put_contents('./assets/nasajon.log', $input . PHP_EOL, FILE_APPEND);
-
-        $r = [
-            'pong' => true
-        ];
-        $jsonR = json_encode($r);
-
-        return print $jsonR;
+            print json_encode($message);
+            exit;
+        }        
     }
+
+
 }
