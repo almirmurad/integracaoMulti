@@ -746,42 +746,49 @@ print_r($json);
         $order->idTranspPloomes = $customFields['bicorp_api_documento_transportadora_out'] ?? null;
         
         // Endereço de entrega
-        // CNPJ/CPF do recebedor
-        $order->docRecebedorEnderecoEntrega = $customFields['bicorp_api_entrega_doc_recebedor_venda_out'] ?? null;
-        // Nome / Razão Social
-        $order->nomeEnderecoEntrega = $customFields['bicorp_api_entrega_razao_social_venda_out'] ?? null;
-        // Inscrição Estadual
-        $order->ieEnderecoEntrega = $customFields['bicorp_api_entrega_inscricao_estadual_venda_out'] ?? null;
-        // CEP Endereco Entrega
-        $order->cepEnderecoEntrega = $customFields['bicorp_api_entrega_cep_venda_out'] ?? null;
-        // Endereco Entrega
-        $order->enderecoEnderecoEntrega = $customFields['bicorp_api_entrega_endereco_venda_out'] ?? null;
-        // Número
-        $order->numeroEnderecoEntrega = $customFields['bicorp_api_entrega_numero_venda_out'] ?? null;
-        // Complemento
-        $order->complementoEnderecoEntrega = $customFields['bicorp_api_entrega_complemento_venda_out'] ?? null;
-        // Bairro
-        $order->bairroEnderecoEntrega = $customFields['bicorp_api_entrega_bairro_venda_out'] ?? null;
-        // Estado UF
-        $uf = $customFields['bicorp_api_entrega_uf_venda_out'] ?? null;
+        $order->enderecoEntregaDiferente = $customFields['bicorp_api_endereco_diferente_document_out'] ?? null;
+        if(
+            $order->enderecoEntregaDiferente !== null && $order->enderecoEntregaDiferente === true
+        )
+        {
+            
+            // CNPJ/CPF do recebedor
+            $order->docRecebedorEnderecoEntrega = $customFields['bicorp_api_entrega_doc_recebedor_venda_out'] ?? null;
+            // Nome / Razão Social
+            $order->nomeEnderecoEntrega = $customFields['bicorp_api_entrega_razao_social_venda_out'] ?? null;
+            // Inscrição Estadual
+            $order->ieEnderecoEntrega = $customFields['bicorp_api_entrega_inscricao_estadual_venda_out'] ?? null;
+            // CEP Endereco Entrega
+            $order->cepEnderecoEntrega = $customFields['bicorp_api_entrega_cep_venda_out'] ?? null;
+            // Endereco Entrega
+            $order->enderecoEnderecoEntrega = $customFields['bicorp_api_entrega_endereco_venda_out'] ?? null;
+            // Número
+            $order->numeroEnderecoEntrega = $customFields['bicorp_api_entrega_numero_venda_out'] ?? null;
+            // Complemento
+            $order->complementoEnderecoEntrega = $customFields['bicorp_api_entrega_complemento_venda_out'] ?? null;
+            // Bairro
+            $order->bairroEnderecoEntrega = $customFields['bicorp_api_entrega_bairro_venda_out'] ?? null;
+            // Estado UF
+            $uf = $customFields['bicorp_api_entrega_uf_venda_out'] ?? null;
 
-        if ($uf !== null && ctype_digit((string) $uf)) {
+            if ($uf !== null && ctype_digit((string) $uf)) {
 
-            $estado = $ploomesServices->getOptionsFieldById((int) $uf);
-            $order->ufEnderecoEntrega = $estado['Name'] ?? null;
+                $estado = $ploomesServices->getOptionsFieldById((int) $uf);
+                $order->ufEnderecoEntrega = $estado['Name'] ?? null;
 
-        } elseif (is_string($uf) && preg_match('/^[A-Z]{2}$/', strtoupper($uf))) {
+            } elseif (is_string($uf) && preg_match('/^[A-Z]{2}$/', strtoupper($uf))) {
 
-            $order->ufEnderecoEntrega = strtoupper($uf);
+                $order->ufEnderecoEntrega = strtoupper($uf);
 
-        } else {
+            } else {
 
-            $order->ufEnderecoEntrega = null;
+                $order->ufEnderecoEntrega = null;
+            }
+            // Cidade
+            $order->cidadeEnderecoEntrega = $customFields['bicorp_api_entrega_cidade_venda_out'] ?? null;
+            // Telefone
+            $order->telefoneEnderecoEntrega = $customFields['bicorp_api_entrega_telefone_venda_out'] ?? null;
         }
-        // Cidade
-        $order->cidadeEnderecoEntrega = $customFields['bicorp_api_entrega_cidade_venda_out'] ?? null;
-        // Telefone
-        $order->telefoneEnderecoEntrega = $customFields['bicorp_api_entrega_telefone_venda_out'] ?? null;
 
         $order->amount = $orderArray['Amount'] ?? $customFields['bicorp_api_total_documento_venda_out'] ?? null; // Valor
         $order->observacoesOS = (isset($customFields['bicorp_api_observacoes_os_out']) ? htmlspecialchars_decode(strip_tags($customFields['bicorp_api_observacoes_os_out'])): htmlspecialchars_decode(strip_tags($customFields['bicorp_api_observacoes_out'])));

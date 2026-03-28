@@ -118,19 +118,21 @@ Class OmieFormatter implements ErpFormattersInterface{
         //informações adicionais
         $informacoes_adicionais = []; //informações adicionais por exemplo codigo_categoria = 1.01.03, codigo_conta_corrente = 123456789
         //enderço de entrega do pedido de venda
-        $outros_detalhes = [];
-        $outros_detalhes['cCnpjCpfOd'] = $order->docRecebedorEnderecoEntrega;
-        $outros_detalhes['cNomeOd'] = $order->nomeEnderecoEntrega;
-        $outros_detalhes['cInscrEstadualOd'] = $order->ieEnderecoEntrega;
-        $outros_detalhes['cEnderecoOd'] = $order->enderecoEnderecoEntrega;
-        $outros_detalhes['cNumeroOd'] = $order->numeroEnderecoEntrega;
-        $outros_detalhes['cComplementoOd'] = $order->complementoEnderecoEntrega;
-        $outros_detalhes['cBairroOd'] = $order->bairroEnderecoEntrega;
-        $outros_detalhes['cEstadoOd'] = $order->ufEnderecoEntrega;
-        $outros_detalhes['cCidadeOd'] = $order->cidadeEnderecoEntrega;
-        $outros_detalhes['cCEPOd'] = $order->cepEnderecoEntrega;
-        $outros_detalhes['cTelefoneOd'] = $order->telefoneEnderecoEntrega;
-        
+        if($order->enderecoEntregaDiferente === true){
+            $outros_detalhes = [];
+            $outros_detalhes['cCnpjCpfOd'] = $order->docRecebedorEnderecoEntrega;
+            $outros_detalhes['cNomeOd'] = $order->nomeEnderecoEntrega;
+            $outros_detalhes['cInscrEstadualOd'] = $order->ieEnderecoEntrega;
+            $outros_detalhes['cEnderecoOd'] = $order->enderecoEnderecoEntrega;
+            $outros_detalhes['cNumeroOd'] = $order->numeroEnderecoEntrega;
+            $outros_detalhes['cComplementoOd'] = $order->complementoEnderecoEntrega;
+            $outros_detalhes['cBairroOd'] = $order->bairroEnderecoEntrega;
+            $outros_detalhes['cEstadoOd'] = $order->ufEnderecoEntrega;
+            $outros_detalhes['cCidadeOd'] = $order->cidadeEnderecoEntrega;
+            $outros_detalhes['cCEPOd'] = $order->cepEnderecoEntrega;
+            $outros_detalhes['cTelefoneOd'] = $order->telefoneEnderecoEntrega;
+            $informacoes_adicionais['outros_detalhes'] = $outros_detalhes;
+        }
 
         $informacoes_adicionais['codigo_categoria'] = $order->codigoCategoriaVenda;//string
         $informacoes_adicionais['codigo_conta_corrente'] = $omie->ncc;//int
@@ -138,7 +140,6 @@ Class OmieFormatter implements ErpFormattersInterface{
         $informacoes_adicionais['codVend']= $order->codVendedorErp ?? null;
         $informacoes_adicionais['codproj']= $order->codProjeto ?? null;
         $informacoes_adicionais['dados_adicionais_nf'] = $order->notes;
-        $informacoes_adicionais['outros_detalhes'] = $outros_detalhes;
         $informacoes_adicionais['enviar_email'] = $order->enviaEmailCliente ?? null;
         if(isset($order->sendEmailClient) && $order->sendEmailClient !== null){
             $informacoes_adicionais['utilizar_emails'] = $order->sendEmailClient;
@@ -155,6 +156,9 @@ Class OmieFormatter implements ErpFormattersInterface{
         $newPedido['informacoes_adicionais'] = $informacoes_adicionais;
         //$newPedido['lista_parcelas'] = $lista_parcelas;
         $newPedido['observacoes'] = $observacoes;
+
+        print_r($newPedido);
+        exit;
     
         if(
             !empty($newPedido['cabecalho']) || !empty($newPedido['det']) ||
