@@ -732,10 +732,8 @@ Class OmieFormatter implements ErpFormattersInterface{
 
         $c = $this->omieServices->getClientById($cliente);
 
-        $caracteristicas = $this->omieServices->getCaracteristicasClienteById($cliente);
-        
-       
-        
+        $caracteristicas = $this->omieServices->getCaracteristicasClienteById($cliente);     
+            
         //as características são um array nome do campo e conteudo
         //a chave campo vai ser parte da sendExternalKey do campo do ploomes
         
@@ -1251,6 +1249,19 @@ Class OmieFormatter implements ErpFormattersInterface{
                 
             $contact->caracteristicas = $caracteriscasArray;
                 
+            
+        }elseif(isset($custom['bicorp_api_categoria_out']) && !empty($custom['bicorp_api_categoria_out'])){
+            // características 4snacks
+            $categoria = $ploomesServices->getOptionsFieldById($custom['bicorp_api_categoria_out']);
+
+            $caracteriscasArray = [
+                    [
+                        'campo' => $categoria['Table']['Name'],
+                        'conteudo' => $categoria['Name']
+                    ],
+                ];
+                
+            $contact->caracteristicas = $caracteriscasArray;
             
         }
                             
@@ -2388,6 +2399,7 @@ Class OmieFormatter implements ErpFormattersInterface{
         $origem['APER'] = 'Integração de Lançamento de Receita';
         $origem['APIP'] = 'Integração de Conta a Pagar';
         $origem['APIR'] = 'Integração de Conta a Receber';
+        $origem['ADVR'] = 'ATRASADO';
         $origem['BARP'] = 'Conta a Pagar Importada por Código de Barras';
         $origem['BARR'] = 'Conta a Receber Importada por Código de Barras';
         $origem['BAXP'] = 'Pagamento de Conta a Pagar';

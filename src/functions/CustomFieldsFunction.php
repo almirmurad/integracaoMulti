@@ -268,8 +268,9 @@ Class CustomFieldsFunction{
                 if($field['SendExternalKey'] == 'bicorp_api_'.mb_strtolower($k).'_out'){
                     
                     if($field['TypeId'] === 7){
-                        foreach ($field as $options){
-                            foreach($options as $option){
+                        if(is_array($field['Options']) && !empty($field['Options'])){
+                            
+                            foreach($field['Options'] as $option){
                               if(mb_strtolower($option['Name']) === mb_strtolower($data->$k))
                               {
                                     $value = $option['Id'];
